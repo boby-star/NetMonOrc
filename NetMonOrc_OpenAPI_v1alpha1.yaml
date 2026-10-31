@@ -1,0 +1,3476 @@
+openapi: 3.1.1
+info:
+  title: NetMonOrc HTTP API
+  version: v1alpha1
+  description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
+    Майбутній API, ще не реалізовано.
+servers:
+- url: https://master.example.com
+  description: Змінити на реальну HTTPS адресу Master
+tags:
+- name: Auth
+- name: Users
+- name: Resources
+- name: Configuration
+- name: Agents
+- name: Monitoring
+- name: Diagnostics
+- name: Alerts
+- name: System
+- name: Enrollment
+security:
+- cookieAuth: []
+- bearerAuth: []
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Вхід до Web UI
+      description: Створення серверної сесії із Secure/HttpOnly/SameSite cookie та CSRF-токеном.
+      operationId: login
+      x-netmonorc-rbac: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Вхід до Web UI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Auth
+      summary: Вихід
+      description: Відкликання поточної browser session; для CLI токена окремий delete.
+      operationId: logout
+      x-netmonorc-rbac: viewer
+      responses:
+        '204':
+          description: Успішно, тіло відсутнє.
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/auth/me:
+    get:
+      tags:
+      - Auth
+      summary: Моя ідентичність
+      description: 'Поточний principal: userID, username, role, expiry; ніколи без секретів.'
+      operationId: getCurrentUser
+      x-netmonorc-rbac: viewer
+      responses:
+        '200':
+          description: Моя ідентичність
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/auth/change-password:
+    post:
+      tags:
+      - Auth
+      summary: Змінити власний пароль
+      description: Вимагає currentPassword; новий зберігається Argon2id hash.
+      operationId: changeMyPassword
+      x-netmonorc-rbac: viewer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+      responses:
+        '200':
+          description: Змінити власний пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/auth/tokens:
+    get:
+      tags:
+      - Auth
+      summary: Мої CLI-токени
+      description: Metadata без secret; підтримує пагінацію.
+      operationId: listApiTokens
+      x-netmonorc-rbac: viewer
+      parameters:
+      - &id001
+        name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - &id002
+        name: cursor
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Мої CLI-токени
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageApiTokens'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    post:
+      tags:
+      - Auth
+      summary: Створити CLI-токен
+      description: Повертає bearer secret лише один раз, scopes не можуть перевищувати права principal.
+      operationId: issueApiToken
+      x-netmonorc-rbac: viewer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiTokenCreate'
+      responses:
+        '201':
+          description: Створити CLI-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTokenIssued'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/auth/tokens/{id}:
+    delete:
+      tags:
+      - Auth
+      summary: Відкликати CLI-токен
+      description: ID з token metadata, без повторного розкриття secret.
+      operationId: revokeApiToken
+      x-netmonorc-rbac: viewer
+      parameters:
+      - &id003
+        name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Успішно, тіло відсутнє.
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/users:
+    get:
+      tags:
+      - Users
+      summary: Перелік користувачів
+      description: Лише admin; без password hashes.
+      operationId: listUsers
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id001
+      - *id002
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Перелік користувачів
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageUsers'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    post:
+      tags:
+      - Users
+      summary: Створити користувача
+      description: Admin створює viewer/admin, пароль bootstrap через захищений механізм.
+      operationId: createUser
+      x-netmonorc-rbac: admin
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Створити користувача
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/users/{id}:
+    get:
+      tags:
+      - Users
+      summary: Дані користувача
+      description: Без credentials.
+      operationId: getUser
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Дані користувача
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    patch:
+      tags:
+      - Users
+      summary: Змінити роль/disabled
+      description: Admin не може заблокувати останнього активного admin.
+      operationId: patchUser
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      - &id006
+        name: If-Match
+        in: header
+        required: true
+        description: ETag/resourceVersion поточного ресурсу
+        schema:
+          type: string
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatch'
+      responses:
+        '200':
+          description: Змінити роль/disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/resources/{kind}:
+    get:
+      tags:
+      - Resources
+      summary: Список DSL-ресурсів
+      description: Generic list для всіх 11 kind; labelSelector і курсорна пагінація.
+      operationId: listResources
+      x-netmonorc-rbac: viewer
+      parameters:
+      - &id004
+        name: kind
+        in: path
+        required: true
+        description: Точний kind із DSL-SPEC-001 (case-sensitive).
+        schema:
+          type: string
+          enum: &id013
+          - Target
+          - Monitor
+          - CheckProfile
+          - PlacementPolicy
+          - AssessmentPolicy
+          - DiagnosticProfile
+          - AlertRule
+          - ResourceGroup
+          - Dependency
+          - Component
+          - WebhookEndpoint
+      - *id001
+      - *id002
+      - &id008
+        name: labelSelector
+        in: query
+        description: Пари key=value через кому, логічне AND
+        schema:
+          type: string
+      - &id007
+        name: state
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Список DSL-ресурсів
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResources'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    post:
+      tags:
+      - Resources
+      summary: Створити DSL-ресурс
+      description: Create-only; body.kind має збігатися з URL; status заборонено. Повний semantic validate.
+      operationId: createResource
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id004
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceManifest'
+      responses:
+        '201':
+          description: Створити DSL-ресурс
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/resources/{kind}/{name}:
+    get:
+      tags:
+      - Resources
+      summary: Отримати DSL-ресурс
+      description: Повертає manifest + status + revision; ETag для write.
+      operationId: getResource
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id004
+      - &id005
+        name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$
+      responses:
+        '200':
+          description: Отримати DSL-ресурс
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    put:
+      tags:
+      - Resources
+      summary: Повністю замінити ресурс
+      description: Full spec/metadata replace; required If-Match, kind/name збігаються; без PATCH.
+      operationId: replaceResource
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id004
+      - *id005
+      - *id006
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceManifest'
+      responses:
+        '200':
+          description: Повністю замінити ресурс
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    delete:
+      tags:
+      - Resources
+      summary: Видалити DSL-ресурс
+      description: Required If-Match; за активних references повернути 409.
+      operationId: deleteResource
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id004
+      - *id005
+      - *id006
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Успішно, тіло відсутнє.
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/resources/{kind}/{name}/revisions:
+    get:
+      tags:
+      - Resources
+      summary: Ревізії ресурсу
+      description: Список desired versions та actor/time/diff, без секретів.
+      operationId: listResourceRevisions
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id004
+      - *id005
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Ревізії ресурсу
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageRevisions'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/resources/{kind}/{name}/status:
+    get:
+      tags:
+      - Resources
+      summary: Статус застосування ресурсу
+      description: Read-only runtime status, desired/assigned/applied і conditions.
+      operationId: getResourceStatus
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id004
+      - *id005
+      responses:
+        '200':
+          description: Статус застосування ресурсу
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceStatus'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/config/validate:
+    post:
+      tags:
+      - Configuration
+      summary: Валідація набору маніфестів
+      description: No mutation; локальні схеми, CEL, refs за поточним desired state. Наявність live Agent не обов’язкова.
+      operationId: validateConfiguration
+      x-netmonorc-rbac: admin
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigBatch'
+      responses:
+        '200':
+          description: Валідація набору маніфестів
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/config/plan:
+    post:
+      tags:
+      - Configuration
+      summary: План застосування
+      description: No mutation; diff, assignments, warnings, pending/partial feasibility.
+      operationId: planConfiguration
+      x-netmonorc-rbac: admin
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigBatch'
+      responses:
+        '200':
+          description: План застосування
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigPlan'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/config/apply:
+    post:
+      tags:
+      - Configuration
+      summary: Застосувати конфігурацію
+      description: Transactional desired upsert із expectedVersions і requestId; асинхронне reconciliation; не prune.
+      operationId: applyConfiguration
+      x-netmonorc-rbac: admin
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigBatch'
+      responses:
+        '202':
+          description: Застосувати конфігурацію
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/operations:
+    get:
+      tags:
+      - Configuration
+      summary: Список асинхронних операцій
+      description: Apply та адміністративні операції зі станами accepted/running/completed/failed.
+      operationId: listOperations
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id001
+      - *id002
+      - *id007
+      responses:
+        '200':
+          description: Список асинхронних операцій
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOperations'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/operations/{id}:
+    get:
+      tags:
+      - Configuration
+      summary: Статус операції
+      description: Стан, помилки, підсумок, startedAt/finishedAt.
+      operationId: getOperation
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      responses:
+        '200':
+          description: Статус операції
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents:
+    get:
+      tags:
+      - Agents
+      summary: Перелік агентів
+      description: Довірені labels, zone, cert expiry, runner health, applied revision.
+      operationId: listAgents
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id001
+      - *id002
+      - *id007
+      - &id009
+        name: zone
+        in: query
+        schema:
+          type: string
+      - *id008
+      responses:
+        '200':
+          description: Перелік агентів
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAgents'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents/{id}:
+    get:
+      tags:
+      - Agents
+      summary: Дані агента
+      description: Ніколи не повертає приватний ключ чи token.
+      operationId: getAgent
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      responses:
+        '200':
+          description: Дані агента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    patch:
+      tags:
+      - Agents
+      summary: Довірені метадані агента
+      description: Admin змінює controller-managed labels/zone/failureDomain; If-Match.
+      operationId: patchAgentMetadata
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      - *id006
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentPatch'
+      responses:
+        '200':
+          description: Довірені метадані агента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents/{id}/assignments:
+    get:
+      tags:
+      - Agents
+      summary: Призначені перевірки агента
+      description: Plan vs applied, per-check state, revisions.
+      operationId: listAgentAssignments
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Призначені перевірки агента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents/{id}/revoke:
+    post:
+      tags:
+      - Agents
+      summary: Відкликати ідентичність агента
+      description: Master блокує нові mTLS сеанси/assignment, аудит; не використовує IP як identity.
+      operationId: revokeAgent
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Відкликати ідентичність агента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents/enrollments:
+    get:
+      tags:
+      - Agents
+      summary: Список запрошень
+      description: Metadata pending/consumed/revoked/expired; token НІКОЛИ в GET.
+      operationId: listEnrollments
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id001
+      - *id002
+      - *id007
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Список запрошень
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageEnrollments'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+    post:
+      tags:
+      - Agents
+      summary: Створити запрошення
+      description: Token показується один раз; TTL 20 хвилин; expectedIP опціонально.
+      operationId: createEnrollment
+      x-netmonorc-rbac: admin
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentCreate'
+      responses:
+        '201':
+          description: Створити запрошення
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentIssued'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents/enrollments/{id}:
+    get:
+      tags:
+      - Agents
+      summary: Статус запрошення
+      description: Без секретного token.
+      operationId: getEnrollment
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Статус запрошення
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentView'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/agents/enrollments/{id}/revoke:
+    post:
+      tags:
+      - Agents
+      summary: Скасувати запрошення
+      description: Недійсність token до спливу TTL.
+      operationId: revokeEnrollment
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Успішно, тіло відсутнє.
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/monitors/{name}/observations:
+    get:
+      tags:
+      - Monitoring
+      summary: Історія спостережень Monitor
+      description: Фільтри zone/since/until, observation id, provenance, replay.
+      operationId: listMonitorObservations
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id005
+      - *id001
+      - *id002
+      - *id009
+      - &id010
+        name: since
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - &id011
+        name: until
+        in: query
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Історія спостережень Monitor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageObservations'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/monitors/{name}/assessment:
+    get:
+      tags:
+      - Monitoring
+      summary: Комплексний стан Monitor
+      description: ZoneAssessment, MonitorAssessment, coverage і evidence IDs, без приховування unknown.
+      operationId: getMonitorAssessment
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id005
+      responses:
+        '200':
+          description: Комплексний стан Monitor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/monitors/{name}/assignments:
+    get:
+      tags:
+      - Monitoring
+      summary: План розміщення Monitor
+      description: Assigned/Applied per check/agent, partial/pending.
+      operationId: listMonitorAssignments
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id005
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: План розміщення Monitor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/observations/{id}:
+    get:
+      tags:
+      - Monitoring
+      summary: Деталі одного Observation
+      description: Повний дозволений нормалізований результат без сирого HTTP body/secret.
+      operationId: getObservation
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      responses:
+        '200':
+          description: Деталі одного Observation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Observation'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/resource-groups/{name}/assessment:
+    get:
+      tags:
+      - Monitoring
+      summary: Похідний стан групи
+      description: Для context групи state відсутній; для derived є state/coverage за політикою.
+      operationId: getResourceGroupAssessment
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id005
+      responses:
+        '200':
+          description: Похідний стан групи
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGroupAssessment'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/diagnostics:
+    get:
+      tags:
+      - Diagnostics
+      summary: Список діагностичних сесій
+      description: By monitor/state/time/limit/cursor.
+      operationId: listDiagnosticSessions
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id001
+      - *id002
+      - &id012
+        name: monitor
+        in: query
+        schema:
+          type: string
+      - *id007
+      - *id010
+      - *id011
+      responses:
+        '200':
+          description: Список діагностичних сесій
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageDiagnostics'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/monitors/{name}/diagnostics:
+    post:
+      tags:
+      - Diagnostics
+      summary: Запустити діагностику
+      description: Manual fixed/adaptive profile, budget+one-episode-per-Monitor, idempotency.
+      operationId: startDiagnostics
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id005
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticStart'
+      responses:
+        '202':
+          description: Запустити діагностику
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/diagnostics/{id}:
+    get:
+      tags:
+      - Diagnostics
+      summary: Дані діагностичної сесії
+      description: Remaining hypotheses, consumed budget, evidence, stopReason.
+      operationId: getDiagnosticSession
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      responses:
+        '200':
+          description: Дані діагностичної сесії
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/diagnostics/{id}/tasks:
+    get:
+      tags:
+      - Diagnostics
+      summary: Дії діагностичної сесії
+      description: Detailed step/action/agent/attempt/observations.
+      operationId: getDiagnosticTasks
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Дії діагностичної сесії
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageTasks'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/diagnostics/{id}/cancel:
+    post:
+      tags:
+      - Diagnostics
+      summary: Скасувати діагностику
+      description: Best-effort TaskCancel, terminal cancelled, не скидає spent budget.
+      operationId: cancelDiagnostics
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Скасувати діагностику
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/alerts:
+    get:
+      tags:
+      - Alerts
+      summary: Алерти
+      description: Scope/zone, pending/firing/resolved, severity, pagination.
+      operationId: listAlerts
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id001
+      - *id002
+      - *id007
+      - *id009
+      - name: severity
+        in: query
+        schema:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+      - *id012
+      responses:
+        '200':
+          description: Алерти
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAlerts'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/alerts/{id}:
+    get:
+      tags:
+      - Alerts
+      summary: Деталі алерта
+      description: ReasonCodes, evidence, state lifecycle, ack metadata.
+      operationId: getAlert
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      responses:
+        '200':
+          description: Деталі алерта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/alerts/{id}/history:
+    get:
+      tags:
+      - Alerts
+      summary: Історія алерта
+      description: Immutable transitions та events.
+      operationId: getAlertHistory
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id003
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Історія алерта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/alerts/{id}/acknowledge:
+    post:
+      tags:
+      - Alerts
+      summary: Підтвердити алерт
+      description: Операторське acknowledgement; не змінює справжній MonitorAssessment.
+      operationId: acknowledgeAlert
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id003
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcknowledgeRequest'
+      responses:
+        '200':
+          description: Підтвердити алерт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/webhook/deliveries:
+    get:
+      tags:
+      - Alerts
+      summary: Історія спроб доставки
+      description: Без secret і чутливих HTTP body; тільки одна конфігурована destination.
+      operationId: listWebhookDeliveries
+      x-netmonorc-rbac: viewer
+      parameters:
+      - *id001
+      - *id002
+      - *id007
+      responses:
+        '200':
+          description: Історія спроб доставки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageWebhookDeliveries'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/webhook/test:
+    post:
+      tags:
+      - Alerts
+      summary: Тест webhook
+      description: Надіслати test event через outbox, повернути Operation; не bypass SSRF.
+      operationId: testWebhook
+      x-netmonorc-rbac: admin
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookTestRequest'
+      responses:
+        '202':
+          description: Тест webhook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/dashboard/summary:
+    get:
+      tags:
+      - System
+      summary: Dashboard summary
+      description: Aggregated counts, coverage, recent diagnostics; не підміна детального API.
+      operationId: getDashboardSummary
+      x-netmonorc-rbac: viewer
+      responses:
+        '200':
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/system/status:
+    get:
+      tags:
+      - System
+      summary: Стан системи
+      description: Server version, DB, агентів, черги, компоненти (без secrets).
+      operationId: getSystemStatus
+      x-netmonorc-rbac: viewer
+      responses:
+        '200':
+          description: Стан системи
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /api/v1/audit-events:
+    get:
+      tags:
+      - System
+      summary: Аудит адміністративних дій
+      description: Admin-only, immutable entries, filters/time/pagination.
+      operationId: listAuditEvents
+      x-netmonorc-rbac: admin
+      parameters:
+      - *id001
+      - *id002
+      - *id010
+      - *id011
+      security:
+      - cookieAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Аудит адміністративних дій
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAuditEvents'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /enrollment/v1/register:
+    post:
+      tags:
+      - Enrollment
+      summary: Первинний enrollment агента
+      description: TLS server trust + одноразовий token із TTL 20m та CSR; не використовує user bearer.
+      operationId: registerAgentBootstrap
+      x-netmonorc-rbac: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterRequest'
+      responses:
+        '201':
+          description: Первинний enrollment агента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegisterResult'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /healthz:
+    get:
+      tags:
+      - System
+      summary: Liveness
+      description: Публічна мінімальна перевірка процесу, жодних внутрішніх даних.
+      operationId: getLiveness
+      x-netmonorc-rbac: public
+      security: []
+      responses:
+        '200':
+          description: Liveness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+  /readyz:
+    get:
+      tags:
+      - System
+      summary: Readiness
+      description: Мінімальна готовність API/DB; HTTP 503 коли not ready; не повертає secrets.
+      operationId: getReadiness
+      x-netmonorc-rbac: public
+      security: []
+      responses:
+        '200':
+          description: Readiness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/StandardError'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '409':
+          $ref: '#/components/responses/StandardError'
+        '412':
+          $ref: '#/components/responses/StandardError'
+        '422':
+          $ref: '#/components/responses/StandardError'
+        '428':
+          $ref: '#/components/responses/StandardError'
+        '429':
+          $ref: '#/components/responses/StandardError'
+        '503':
+          $ref: '#/components/responses/StandardError'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: netmonorc_session
+      description: Browser session; mutation вимагає CSRF заголовок.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque PAT
+      description: CLI personal API token.
+  schemas:
+    ErrorDetail:
+      type: object
+      properties:
+        path:
+          type: string
+        rule:
+          type: string
+        message:
+          type: string
+      required:
+      - message
+    ErrorEnvelope:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - requestId
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/ErrorDetail'
+    ResourceManifest:
+      type: object
+      additionalProperties: false
+      description: JSON-подання YAML DSL. Внутрішній spec проходить точну валідацію DSL-SPEC-001 за kind/apiVersion;
+        `status` у request заборонено.
+      required:
+      - apiVersion
+      - kind
+      - metadata
+      - spec
+      properties:
+        apiVersion:
+          type: string
+          const: netmonorc.io/v1alpha1
+        kind:
+          type: string
+          enum: *id013
+        metadata:
+          type: object
+          required:
+          - name
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+              pattern: ^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$
+            labels:
+              type: object
+              additionalProperties:
+                type: string
+            annotations:
+              type: object
+              additionalProperties:
+                type: string
+        spec:
+          type: object
+          description: Закрита kind-specific DSL схема визначена в NetMonOrc_DSL_Schema_v1alpha1.md; перевіряється
+            server semantic validator.
+    ResourceView:
+      type: object
+      required:
+      - manifest
+      - uid
+      - generation
+      - resourceVersion
+      - createdAt
+      - updatedAt
+      properties:
+        manifest:
+          $ref: '#/components/schemas/ResourceManifest'
+        status:
+          type:
+          - object
+          - 'null'
+        uid:
+          type: string
+          format: uuid
+        generation:
+          type: integer
+        resourceVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Page:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    ResourceRevision:
+      type: object
+      properties:
+        uid:
+          type: string
+        generation:
+          type: integer
+        resourceVersion:
+          type: string
+        manifest:
+          $ref: '#/components/schemas/ResourceManifest'
+        changedAt:
+          type: string
+          format: date-time
+        actor:
+          type: string
+    ResourceStatus:
+      type: object
+      properties:
+        state:
+          type: string
+        desiredRevision:
+          type: string
+        assignedRevisions:
+          type: object
+        appliedRevisions:
+          type: object
+        conditions:
+          type: array
+          items:
+            type: object
+        assessment:
+          type:
+          - object
+          - 'null'
+    LoginRequest:
+      type: object
+      required:
+      - username
+      - password
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+    SessionView:
+      type: object
+      required:
+      - userId
+      - username
+      - role
+      - expiresAt
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - admin
+          - viewer
+        expiresAt:
+          type: string
+          format: date-time
+        csrfToken:
+          type: string
+    ApiTokenCreate:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    ApiTokenView:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    ApiTokenIssued:
+      allOf:
+      - $ref: '#/components/schemas/ApiTokenView'
+      - type: object
+        required:
+        - token
+        properties:
+          token:
+            type: string
+            description: Показати секрет лише один раз.
+    ChangePassword:
+      type: object
+      required:
+      - currentPassword
+      - newPassword
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          type: string
+          format: password
+    UserCreate:
+      type: object
+      required:
+      - username
+      - role
+      - initialPassword
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - admin
+          - viewer
+        initialPassword:
+          type: string
+          format: password
+          description: Не повертати у GET; рекомендована одноразова передача.
+    UserPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum:
+          - admin
+          - viewer
+        disabled:
+          type: boolean
+    UserView:
+      type: object
+      required:
+      - id
+      - username
+      - role
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - admin
+          - viewer
+        disabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    ConfigBatch:
+      type: object
+      required:
+      - manifests
+      properties:
+        manifests:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ResourceManifest'
+        expectedVersions:
+          type: object
+          description: Для apply обов’язкові preconditions по kind/name. null = create-only.
+          additionalProperties:
+            type:
+            - string
+            - 'null'
+        requestId:
+          type: string
+    ValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        normalizedSummary:
+          type: object
+    ConfigPlan:
+      type: object
+      properties:
+        planId:
+          type: string
+        diffs:
+          type: array
+          items:
+            type: object
+        placements:
+          type: array
+          items:
+            type: object
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        expiresAt:
+          type: string
+          format: date-time
+    Operation:
+      type: object
+      required:
+      - id
+      - kind
+      - state
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        state:
+          type: string
+          enum:
+          - accepted
+          - running
+          - completed
+          - failed
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        error:
+          type:
+          - object
+          - 'null'
+        result:
+          type:
+          - object
+          - 'null'
+    EnrollmentCreate:
+      type: object
+      required:
+      - name
+      - networkZone
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        expectedIP:
+          type:
+          - string
+          - 'null'
+        networkZone:
+          type: string
+        failureDomain:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+    EnrollmentView:
+      type: object
+      required:
+      - id
+      - name
+      - expiresAt
+      - state
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        expectedIP:
+          type:
+          - string
+          - 'null'
+        networkZone:
+          type: string
+        state:
+          type: string
+          enum:
+          - pending
+          - consumed
+          - revoked
+          - expired
+        expiresAt:
+          type: string
+          format: date-time
+        consumedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    EnrollmentIssued:
+      allOf:
+      - $ref: '#/components/schemas/EnrollmentView'
+      - type: object
+        required:
+        - token
+        properties:
+          token:
+            type: string
+            description: Одноразовий секрет, ніколи не повертається в GET.
+    AgentRegisterRequest:
+      type: object
+      required:
+      - token
+      - csrPem
+      - agentVersion
+      properties:
+        token:
+          type: string
+          format: password
+        csrPem:
+          type: string
+        agentVersion:
+          type: string
+    AgentRegisterResult:
+      type: object
+      required:
+      - agentId
+      - clientCertificatePem
+      - caCertificatePem
+      - agentEndpoint
+      - certExpiresAt
+      properties:
+        agentId:
+          type: string
+          format: uuid
+        clientCertificatePem:
+          type: string
+        caCertificatePem:
+          type: string
+        agentEndpoint:
+          type: string
+        certExpiresAt:
+          type: string
+          format: date-time
+    AgentView:
+      type: object
+      required:
+      - agentId
+      - name
+      - onlineState
+      properties:
+        agentId:
+          type: string
+        name:
+          type: string
+        onlineState:
+          type: string
+          enum:
+          - online
+          - offline
+          - degraded
+          - revoked
+        networkZone:
+          type: string
+        failureDomain:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        runnerHealth:
+          type: object
+        appliedRevision:
+          type:
+          - string
+          - 'null'
+        lastHeartbeat:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        certExpiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        spoolPending:
+          type: integer
+    AgentPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        networkZone:
+          type: string
+        failureDomain:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+    Observation:
+      type: object
+      required:
+      - observationId
+      - monitorId
+      - checkId
+      - agentId
+      - configRevision
+      - executionStatus
+      - probeOutcome
+      - startedAt
+      - finishedAt
+      - receivedAt
+      properties:
+        observationId:
+          type: string
+        monitorId:
+          type: string
+        checkId:
+          type: string
+        agentId:
+          type: string
+        networkZone:
+          type: string
+        failureDomain:
+          type: string
+        configRevision:
+          type: string
+        executionStatus:
+          type: string
+        probeOutcome:
+          type: string
+        reasonCode:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        receivedAt:
+          type: string
+          format: date-time
+        durationMs:
+          type: number
+        values:
+          type: object
+        diagnosticSessionId:
+          type:
+          - string
+          - 'null'
+        diagnosticTaskId:
+          type:
+          - string
+          - 'null'
+        isReplay:
+          type: boolean
+    Assessment:
+      type: object
+      required:
+      - monitorId
+      - state
+      - coverageState
+      - zoneStates
+      - evaluatedAt
+      properties:
+        monitorId:
+          type: string
+        state:
+          type: string
+          enum:
+          - healthy
+          - degraded
+          - down
+          - unknown
+        coverageState:
+          type: string
+          enum:
+          - sufficient
+          - degraded
+          - unknown
+        zoneStates:
+          type: array
+          items:
+            type: object
+        reasonCodes:
+          type: array
+          items:
+            type: string
+        evidenceIds:
+          type: array
+          items:
+            type: string
+        evaluatedAt:
+          type: string
+          format: date-time
+        revision:
+          type: string
+    DiagnosticStart:
+      type: object
+      required:
+      - profileRef
+      properties:
+        profileRef:
+          type: string
+        reason:
+          type: string
+          enum:
+          - manual
+          - trigger
+          default: manual
+        requestId:
+          type: string
+    DiagnosticSession:
+      type: object
+      required:
+      - id
+      - monitorId
+      - mode
+      - state
+      properties:
+        id:
+          type: string
+        monitorId:
+          type: string
+        profileRef:
+          type: string
+        mode:
+          type: string
+          enum:
+          - fixed
+          - adaptive
+        state:
+          type: string
+          enum:
+          - created
+          - running
+          - completed
+          - inconclusive
+          - cancelled
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        remainingHypotheses:
+          type: array
+          items:
+            type: string
+        budgetUsed:
+          type: object
+        evidenceIds:
+          type: array
+          items:
+            type: string
+        stopReason:
+          type:
+          - string
+          - 'null'
+    DiagnosticTask:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        actionId:
+          type: string
+        agentId:
+          type: string
+        state:
+          type: string
+        attemptNo:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+        observationIds:
+          type: array
+          items:
+            type: string
+    Alert:
+      type: object
+      required:
+      - id
+      - monitorId
+      - state
+      - severity
+      properties:
+        id:
+          type: string
+        monitorId:
+          type: string
+        ruleRef:
+          type: string
+        zone:
+          type:
+          - string
+          - 'null'
+        state:
+          type: string
+          enum:
+          - normal
+          - pending
+          - firing
+          - resolved
+        severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+        reasonCodes:
+          type: array
+          items:
+            type: string
+        evidenceIds:
+          type: array
+          items:
+            type: string
+        startedAt:
+          type: string
+          format: date-time
+        firedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        resolvedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        acknowledgedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AcknowledgeRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 1024
+    WebhookTestRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          maxLength: 256
+    WebhookDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+        eventId:
+          type: string
+        state:
+          type: string
+        attempts:
+          type: integer
+        lastHttpStatus:
+          type:
+          - integer
+          - 'null'
+        lastAttemptAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    SystemStatus:
+      type: object
+      properties:
+        version:
+          type: string
+        database:
+          type: string
+        agentCounts:
+          type: object
+        pendingOperations:
+          type: integer
+        queue:
+          type: object
+        observationsPerSecond:
+          type: number
+    DashboardSummary:
+      type: object
+      properties:
+        monitorStates:
+          type: object
+        coverageStates:
+          type: object
+        agentCounts:
+          type: object
+        firingAlerts:
+          type: integer
+        recentDiagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticSession'
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        actor:
+          type: string
+        action:
+          type: string
+        resource:
+          type: string
+        at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+    WebhookEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - event_id
+      - event_type
+      - alert_rule
+      - monitor
+      - zone
+      - state
+      - severity
+      - reason_codes
+      - evidence_ids
+      - occurred_at
+      - schema_version
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          enum:
+          - alert.firing
+          - alert.resolved
+        alert_rule:
+          type: string
+        monitor:
+          type: string
+        zone:
+          type:
+          - string
+          - 'null'
+        state:
+          type: string
+        severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+        reason_codes:
+          type: array
+          items:
+            type: string
+        evidence_ids:
+          type: array
+          items:
+            type: string
+        occurred_at:
+          type: string
+          format: date-time
+        schema_version:
+          type: string
+          const: '1'
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - not_ready
+    ResourceGroupAssessment:
+      type: object
+      properties:
+        groupName:
+          type: string
+        mode:
+          type: string
+          enum:
+          - context
+          - derived
+        state:
+          type:
+          - string
+          - 'null'
+        coverageState:
+          type: string
+        members:
+          type: array
+          items:
+            type: object
+        evidenceIds:
+          type: array
+          items:
+            type: string
+    PageResources:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceView'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageRevisions:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceRevision'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageUsers:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserView'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageApiTokens:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiTokenView'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageOperations:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operation'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageAgents:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentView'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageEnrollments:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnrollmentView'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageObservations:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observation'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageDiagnostics:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticSession'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageTasks:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticTask'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageAlerts:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageWebhookDeliveries:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDelivery'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+    PageAuditEvents:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        totalApprox:
+          type: integer
+          minimum: 0
+  responses:
+    StandardError:
+      description: Єдина структура помилки NetMonOrc. Конкретні error codes — §8.3 ТЗ.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+webhooks:
+  alertEvent:
+    post:
+      summary: NetMonOrc alert event (вихідний HTTP POST)
+      description: Destination із WebhookEndpoint; не більше одного активного. При auth.type=bearer використовується
+        bearer secretRef; retries можливі, дедуплікація за event_id. Redirects вимкнені.
+      operationId: receiveNetMonOrcAlertEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+      responses:
+        '200':
+          description: Одержувач прийняв подію.
+        '202':
+          description: Подію прийнято асинхронно.
+        '204':
+          description: Подію прийнято без тіла.
