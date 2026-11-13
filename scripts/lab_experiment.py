@@ -11,7 +11,7 @@ import subprocess
 import time
 from lab import Lab
 
-TRUTH={'http':'http-failure','dns':'dns-failure','dns-drop':'dns-failure','tcp':'tcp-failure','office-path':'office-path-failure','multiple':None}
+TRUTH={'http':'http-failure','dns':'dns-failure','dns-drop':'dns-failure','tcp':'tcp-failure','office-path':'office-path-failure','multiple':None,'http-tcp':None,'dns-tcp':None,'all-protocols':None}
 MODES=['static','fixed','adaptive']
 
 def write_private(path,data):

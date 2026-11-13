@@ -41,7 +41,7 @@ def report(data):
             wrong = sum(r.get('status') == 'completed' and r.get('diagnosis_correct') is False for r in group)
             errors = sum(r.get('status') == 'harness_error' for r in group)
             lines.append(f'| {mode} | {scenario} | {len(group)} | {good_state} | {good_diagnosis} | {inconclusive} | {wrong} | {errors} | {spread("duration_ms")} | {spread("completed_probes")} |')
-    lines += ['', 'Для multiple очікуваним результатом є inconclusive; це не правильна класифікація конкретної причини.',
+    lines += ['', 'Для multiple, http-tcp, dns-tcp та all-protocols очікуваним результатом є inconclusive; це не правильна класифікація конкретної причини.',
               'Час Engine.Run не включає затримку до trigger. Probes і costUnits не є виміряними байтами.',
               'Зони логічно розділені, але мають спільний хост. Повторення не доводять незалежності спостережень.',
               'Ці дані не доводять універсальної переваги Adaptive або статистичної значущості різниці часу.', '']

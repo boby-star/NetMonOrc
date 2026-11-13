@@ -23,6 +23,9 @@ SCENARIOS = {
     'tcp': {**NORMAL,'tcp_open':False},
     'office-path': NORMAL,
     'multiple': {**NORMAL,'http_status':503,'dns_mode':'nxdomain'},
+    'http-tcp': {**NORMAL,'http_status':503,'tcp_open':False},
+    'dns-tcp': {**NORMAL,'dns_mode':'nxdomain','tcp_open':False},
+    'all-protocols': {**NORMAL,'http_status':503,'dns_mode':'nxdomain','tcp_open':False},
 }
 
 def manifests():
