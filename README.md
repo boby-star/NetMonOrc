@@ -124,6 +124,18 @@ Static також доступний через прапорець дослід�
 є [пілот на двох сегментах із сирими даними й відомими помилками](docs/experiments/compose-pilot/README.md).
 [Явне підтвердження](docs/experiments/confirmation-pilot/README.md) виправляє
 відомий HTTP+DNS false class; [DNS-drop](docs/experiments/dns-drop-pilot/README.md)
-перевіряє повний timeout. Серії повторень і простий webhook ще попереду.
+перевіряє повний timeout. [Повторна серія 30 запусків](docs/experiments/repeated-series/README.md),
+[9 складених сценаріїв](docs/experiments/compound-series/README.md) та
+[HTTPS webhook](docs/architecture/alert-delivery.md) уже перевірені.
 
 Орієнтовна готовність і залишок мінімуму: [критерії оцінки](docs/planning/prototype-readiness.md).
+
+## Демонстраційний пакет
+
+```bash
+python3 scripts/lab.py package --output .local/netmonorc-demo.tar.gz
+```
+
+На запущеному стенді команда збирає приватні HTML/JSON snapshots та
+SHA256SUMS без PKI, токенів або DSN. Файл не перезаписується. Це
+демонстраційний пакет, не backup бази. [Перегляд і відтворення звіту](docs/deployment/demo-package.md).

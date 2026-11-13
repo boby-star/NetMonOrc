@@ -108,6 +108,7 @@ services:
       - -webhook-secret-dir=/run/netmonorc/secrets
       - -webhook-ca=/run/netmonorc/ca.crt
       - -alert-file=/data/alert.json
+      - -delivery-file=/data/delivery.json
     depends_on: {postgres: {condition: service_healthy}}
     volumes: [controller-config:/run/netmonorc:ro, controller-data:/data]
     networks:

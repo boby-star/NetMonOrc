@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "archiveFiles": [
+    "README.txt",
+    "SHA256SUMS",
+    "alert.json",
+    "assessment.json",
+    "delivery.json",
+    "diagnostic.json",
+    "report.html"
+  ],
+  "archiveMode": "0600",
+  "archiveSHA256": "658fad71604f047be06e429fdb5f210191e0d5408c2ccc237f7a954f9e6d0dbc",
+  "checksumsVerified": true,
+  "runtimeSecretsExcluded": true,
+  "offlineDeliveryRendered": true,
+  "foreignMonitorRejected": true,
+  "inputSnapshotsReadSeparately": true,
+  "image": "sha256:dc24b000291137569c5cd4b04125c7d0dc5897dc99a25ea624362f6727069c3a"
+}

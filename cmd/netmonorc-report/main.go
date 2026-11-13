@@ -13,6 +13,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/report"
+	"github.com/boby-star/NetMonOrc/internal/webhook"
 )
 
 func main() {
@@ -49,6 +50,7 @@ func run() error {
 	diagnostic := flag.String("diagnostic", "", "optional persisted diagnostic report")
 	alert := flag.String("alert", "", "optional Controller alert state snapshot")
 	output := flag.String("output", ".local/report.html", "private read-only HTML report")
+	delivery := flag.String("delivery", "", "optional Controller delivery snapshot")
 	flag.Parse()
 	var a monitor.Assessment
 	if e := read(*assessment, &a); e != nil {
@@ -68,7 +70,14 @@ func run() error {
 			return e
 		}
 	}
-	b, e := report.RenderWithAlert(a, d, alertState)
+	var deliveryState *webhook.Summary
+	if *delivery != "" {
+		deliveryState = &webhook.Summary{}
+		if err := read(*delivery, deliveryState); err != nil {
+			return err
+		}
+	}
+	b, e := report.RenderWithDelivery(a, d, alertState, deliveryState)
 	if e != nil {
 		return e
 	}

@@ -55,6 +55,7 @@ func run() error {
 	webhookSecretDir := flag.String("webhook-secret-dir", "", "directory of preinstalled bearer secrets")
 	webhookCA := flag.String("webhook-ca", "", "optional additional trusted webhook CA bundle")
 	alertOutput := flag.String("alert-file", ".local/alert.json", "local alert state snapshot")
+	deliveryOutput := flag.String("delivery-file", "", "optional private webhook delivery snapshot")
 	flag.Parse()
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
@@ -223,7 +224,7 @@ func run() error {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
 		for {
-			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport, notifications, *alertOutput); e != nil {
+			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport, notifications, *alertOutput, *deliveryOutput); e != nil {
 				errors <- e
 				return
 			}
@@ -251,7 +252,7 @@ func run() error {
 	}
 	return result
 }
-func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath string) error {
+func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath, deliveryPath string) error {
 	var alertState *alerting.State
 	var delivery *webhook.Summary
 	c, done := context.WithTimeout(ctx, 5*time.Second)
@@ -299,6 +300,15 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 			return err
 		}
 		delivery = &summary
+		if deliveryPath != "" {
+			data, err := json.MarshalIndent(summary, "", "  ")
+			if err != nil {
+				return err
+			}
+			if err = durable.AtomicWrite(deliveryPath, data); err != nil {
+				return err
+			}
+		}
 		b, err := json.MarshalIndent(state, "", "  ")
 		if err != nil {
 			return err

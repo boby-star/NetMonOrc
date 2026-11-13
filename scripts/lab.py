@@ -1,5 +1,6 @@
 """Manage only the named, private NetMonOrc Compose research stand."""
 import argparse
+import hashlib
 import io
 import ipaddress
 import json
@@ -170,10 +171,35 @@ spec:
                          self.sql("SELECT count(*) FROM nmo_incidents WHERE episode_id<>''")=='0','healthy/full coverage closes episode')
     def export(self,destination):
         destination=Path(destination);destination.mkdir(parents=True,mode=0o700,exist_ok=True)
-        for name in ['assessment.json','diagnostic.json','report.html','alert.json']:
+        for name in ['assessment.json','diagnostic.json','report.html','alert.json','delivery.json']:
             b=self.snapshot(name)
             if b is not None:
                 p=destination/name;p.write_bytes(b);p.chmod(0o600)
+    def package(self,destination):
+        self.require()
+        # Explicit allowlist: never archive configuration volumes, PKI or DSN.
+        entries={}
+        for name in ['assessment.json','diagnostic.json','report.html','alert.json','delivery.json']:
+            data=self.snapshot(name)
+            if data is not None:entries[name]=data
+        if 'assessment.json' not in entries or 'report.html' not in entries:
+            raise RuntimeError('Controller assessment and HTML are required for a demo package')
+        entries['README.txt']=b'NetMonOrc private demonstration snapshots. Not a database backup.\nFiles are read separately; inspect their timestamps and revisions.\nNo PKI, token, DSN or spool is included.\nOpen report.html locally. Optional JSON files can rebuild the report CLI.\n'
+        entries['SHA256SUMS']=''.join(hashlib.sha256(data).hexdigest()+'  '+name+'\n' for name,data in sorted(entries.items())).encode()
+        destination=Path(destination)
+        destination.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
+        fd=os.open(destination,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+        try:
+            with os.fdopen(fd,'wb') as output:
+                with tarfile.open(fileobj=output,mode='w:gz') as archive:
+                    for name,data in sorted(entries.items()):
+                        info=tarfile.TarInfo(name);info.size=len(data);info.mode=0o600
+                        archive.addfile(info,io.BytesIO(data))
+                output.flush();os.fsync(output.fileno())
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
+
     def backup(self,destination):
         self.require()
         destination=Path(destination)
@@ -193,7 +219,7 @@ spec:
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation',choices=['prepare','up','status','inject','export','backup','down'])
+    parser.add_argument('operation',choices=['prepare','up','status','inject','export','package','backup','down'])
     parser.add_argument('--project',default='netmonorc-lab')
     parser.add_argument('--prefix',default='172.30')
     parser.add_argument('--mode',choices=['static','fixed','adaptive'],default='adaptive')
@@ -208,11 +234,12 @@ def main():
         if args.operation=='status':print(json.dumps({'mode':lab.mode(),'assessment':lab.assessment(),'diagnostic':lab.diagnostic()},indent=2))
         elif args.operation=='inject':lab.inject(args.scenario);print('Injected:',args.scenario)
         elif args.operation=='export':lab.export(args.output);print('Exported private snapshots to',args.output)
+        elif args.operation=='package':lab.package(args.output);print('Saved private demo package to',args.output)
         elif args.operation=='backup':lab.backup(args.output);print('Saved private PostgreSQL dump to',args.output)
         elif args.operation=='down':lab.compose('down');print('Stopped; named volumes and data preserved.')
 if __name__=='__main__':
     try:main()
-    except (RuntimeError,ValueError,FileNotFoundError) as e:
+    except (RuntimeError,ValueError,FileNotFoundError,FileExistsError) as e:
         raise SystemExit(str(e))
     except subprocess.CalledProcessError as e:
         # Do not dump subprocess arguments or stdin: setup transports secrets.

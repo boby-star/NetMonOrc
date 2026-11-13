@@ -45,5 +45,5 @@ pending і час останнього enqueue для firing/resolved. Enqueue �
 Controller також показує фактичний стан webhook outbox: чергу, leased,
 delivered, failed, cancelled, останній event ID, attempts і HTTP status.
 Це окремий read-only snapshot PostgreSQL лише поточного Monitor/rule/endpoint;
-постановка в чергу не стає delivered. netmonorc-report із локальних snapshots
-не має доступу до цієї проєкції; експортуйте готовий HTML Controller.
+постановка в чергу не стає delivered. netmonorc-report може відобразити експортований snapshot через
+`-delivery delivery.json`; без цього прапорця блок відсутній.

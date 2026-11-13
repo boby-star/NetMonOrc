@@ -309,3 +309,16 @@ failed/cancelled і останню подію з attempts/HTTP status. Нема�
 lab_notifications.py додатково дочекався delivered конкретного event ID
 у HTML. Unit/race перевірили rendering/escaping та чужий Monitor.
 Локальний offline report CLI без БД не показує цей додатковий блок.
+
+## Демонстраційний пакет та офлайн delivery — реалізовано
+
+Controller за -delivery-file записує приватний JSON snapshot доставки;
+Compose й lab export включають його. netmonorc-report приймає -delivery
+та відображає збережений стан без БД/HTTP. Чужий Monitor відхиляється.
+lab.py package збирає лише дозволені snapshots, README та SHA256SUMS
+у приватний tar.gz без перезапису попереднього файла. PKI/DSN/spool не входять.
+
+Перевірено реальний package після HTTPS retry/restart, hashes, mode 0600,
+offline rebuild та negative Monitor case; Go/vet і Python тести пройшли.
+Документація: docs/deployment/demo-package.md; результат:
+docs/experiments/demo-package. README актуалізовано: серії й webhook уже готові.

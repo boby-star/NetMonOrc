@@ -120,6 +120,7 @@ Leased є резервуванням: crash до HTTP POST може залиши
 Дані є знімком на вказаний час і можуть застаріти разом з HTML-файлом.
 
 Read-only проєкція не змінює Alert/Assessment або delivery state й не додає
-HTTP API routes чи DSL-полів. Локальний netmonorc-report без доступу до БД
-продовжує формувати звіт без цього блока; актуальний блок експортується
-разом з HTML Controller через lab.py export.
+HTTP API routes чи DSL-полів. Controller може записувати цей snapshot за `-delivery-file`; Compose
+записує `/data/delivery.json`. `lab.py export` включає його разом із HTML.
+Локальний netmonorc-report відтворює блок через `-delivery delivery.json`
+без доступу до БД. Без snapshot блок відсутній.

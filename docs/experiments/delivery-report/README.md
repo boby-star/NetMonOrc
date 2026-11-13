@@ -18,3 +18,7 @@ postgres-smoke.log містить реально виконаний TestPostgres
 Один integration прогін, не гарантія exactly-once чи статистичної доступності.
 Offline CLI без БД не реконструює delivery summary з assessment JSON.
 Відтворення: scripts/lab_notifications.py на актуальному Compose-стенді.
+
+Пізніше додано delivery.json та CLI -delivery: офлайн-відтворення вже
+підтримане, див. ../demo-package/README.md. Старий прогін вище перевіряв
+стан програми до цього доповнення.
