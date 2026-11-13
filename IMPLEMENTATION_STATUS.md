@@ -1,7 +1,7 @@
 # Фактичний стан мінімального прототипу
 
 Це послідовність завершених етапів. Актуальні межі зведено наприкінці;
-орієнтовна готовність мінімуму — [близько 94%](docs/planning/prototype-readiness.md).
+орієнтовна готовність мінімуму — [близько 96%](docs/planning/prototype-readiness.md).
 
 ## Перший локальний етап — реалізовано
 
@@ -284,3 +284,15 @@ docs/planning/prototype-acceptance.md.
 Adaptive/Fixed по 4 probes, Static 6; перевага Adaptive над Fixed не доведена.
 Raw evidence та автоматичний описовий звіт: docs/experiments/repeated-series.
 CI додано й actions pinned; факт успішного remote workflow не перевірявся.
+
+## Backpressure та складені несправності — перевірено
+
+Реальна файлова spool на 1000 fixture records зупинила нові HTTP probes,
+після ACK scheduler поновився; restart/drain зберегли всі 1000 pending
+records. Race-перевірка пройшла. Це не 1000 фізично виконаних probes.
+Опис: docs/architecture/backpressure.md.
+
+Ще 9 live запусків HTTP+TCP/DNS+TCP/all-protocols у трьох режимах дали
+очікуваний down та inconclusive без хибного визначеного класу. Дані:
+docs/experiments/compound-series. Матеріал для остаточної звірки записки:
+docs/thesis/implementation-alignment.md. Завантажений DOCX не змінено.

@@ -1,7 +1,7 @@
 # Оцінка готовності мінімального прототипу
 
 Орієнтир після confirmation, повного DNS timeout, webhook і bounded technical retry:
-**приблизно 94% виконано, близько 6% залишається**. Це інженерна оцінка
+**приблизно 96% виконано, близько 4% залишається**. Це інженерна оцінка
 узгодженого мінімуму із записки, не вимірювання кількості коду, не гарантія
 приймання роботи й не оцінка повного продуктового v1alpha1.
 
@@ -14,18 +14,18 @@
 | YAML, модель, стандартні probes | 20 | 18 | HTTP/TCP/DNS/ICMP реальні; підмножина DSL, не всі refs/моделі |
 | Розподіленість і доставка | 15 | 15 | mTLS, leases, spool/replay, generation fencing, PostgreSQL, dual-zone deployment; додано BOOTTIME guard і перевірено backup/restore |
 | Комплексне оцінювання | 20 | 18 | H/Q, required, TTL/revision/maxSkew, зони, CEL, extraction; потрібна остаточна звірка зі сценаріями записки |
-| Діагностичний метод | 20 | 19 | Confirmation, bounded technical retry, budget/domains/spacing, HTTP+DNS; залишаються ширші unknown/multiple patterns |
+| Діагностичний метод | 20 | 20 | Confirmation/retry, budgets і 9 додаткових live compound faults; довільна точність не гарантується |
 | Запуск і демонстрація | 10 | 10 | CLI, HTML зі станом алерту, Compose й durable HTTPS webhook; CI, приватний backup/restore та матриця приймання |
-| Незалежні відтворювані експерименти | 15 | 14 | Повторна серія 30 запусків, 30 очікуваних результатів; потрібні ширші fault patterns і фінальна інтерпретація для записки |
-| Разом | 100 | 94 ≈ 94 | Приблизний орієнтир обсягу, не метрика якості |
+| Незалежні відтворювані експерименти | 15 | 15 | Серії 30+9 запусків із сирими даними й описовими звітами; узагальнення обмежене цим стендом |
+| Разом | 100 | 96 ≈ 96 | Приблизний орієнтир обсягу, не метрика якості |
 
 ## Найближчі результати до завершення
 
 1. Перенести матрицю приймання та обмеження до фінальної записки;
    не описувати Multi-replica/ResourceGroup як перевірені компоненти.
-2. Перевірити довші tasks,
-   backpressure/queue, suspend і неперевірені комбінації несправностей.
-3. Розширити unknown/multiple patterns; повторна 30-run серія вже завершена.
+2. Зафіксувати межі довгих tasks та ОС: full disk-queue перевірено;
+   BOOTTIME guard перевірено моделлю часу, фактичний OS suspend не проводився.
+3. Перенести результати 30-run і 9-run compound серій до фінальної записки.
    Два повтори не дають статистичних гарантій.
 4. Звірити текст записки з фактичними межами прототипу. Групи/залежності,
    які не перевіряє прототип, лишаються явно позначеним розширенням.
@@ -39,7 +39,8 @@
 [DNS-drop](../experiments/dns-drop-pilot/README.md),
 [webhook/restart](../experiments/webhook-pilot/README.md),
 [technical retry](../experiments/diagnostic-retry-pilot/README.md),
-[повторна серія](../experiments/repeated-series/README.md).
+[повторна серія](../experiments/repeated-series/README.md),
+[складені faults](../experiments/compound-series/README.md).
 
 Повний CRUD/RBAC/enrollment/React UI/HA та всі можливості великого v1alpha1
 не є умовою завершення цього мінімального дослідницького профілю.

@@ -1,0 +1,10 @@
+repetition,mode,scenario,expected_state,state,state_correct,status,prediction,diagnosis_correct,duration_ms,assessment_sample_after_control_ms,reserved_checks,probe_observations,completed_probes,execution_failures,reason
+1,adaptive,all-protocols,down,down,True,inconclusive,,True,2584,5999,3,3,3,0,evidence_conflict
+1,adaptive,http-tcp,down,down,True,inconclusive,,True,3581,9162,4,4,4,0,evidence_conflict
+1,adaptive,dns-tcp,down,down,True,inconclusive,,True,2568,8937,3,3,3,0,evidence_conflict
+1,static,dns-tcp,down,down,True,inconclusive,,True,5591,7409,6,6,6,0,evidence_conflict
+1,static,all-protocols,down,down,True,inconclusive,,True,4592,8482,6,6,6,0,evidence_conflict
+1,static,http-tcp,down,down,True,inconclusive,,True,5593,8549,6,6,6,0,evidence_conflict
+1,fixed,all-protocols,down,down,True,inconclusive,,True,2458,6063,4,4,4,0,evidence_conflict
+1,fixed,http-tcp,down,down,True,inconclusive,,True,2511,8568,4,4,4,0,evidence_conflict
+1,fixed,dns-tcp,down,down,True,inconclusive,,True,2524,10012,4,4,4,0,evidence_conflict

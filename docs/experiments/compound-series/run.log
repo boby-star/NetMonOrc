@@ -1,0 +1,19 @@
+RUN 1 adaptive all-protocols
+RESULT inconclusive prediction=None correct=True completed_probes=3
+RUN 1 adaptive http-tcp
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 1 adaptive dns-tcp
+RESULT inconclusive prediction=None correct=True completed_probes=3
+RUN 1 static dns-tcp
+RESULT inconclusive prediction=None correct=True completed_probes=6
+RUN 1 static all-protocols
+RESULT inconclusive prediction=None correct=True completed_probes=6
+RUN 1 static http-tcp
+RESULT inconclusive prediction=None correct=True completed_probes=6
+RUN 1 fixed all-protocols
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 1 fixed http-tcp
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 1 fixed dns-tcp
+RESULT inconclusive prediction=None correct=True completed_probes=4
+Saved 9 live trials to .local/compound-series.json and .local/compound-series.csv
