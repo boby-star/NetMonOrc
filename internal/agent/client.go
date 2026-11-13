@@ -25,6 +25,7 @@ import (
 	pb "github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 type assignment struct {
@@ -61,7 +62,7 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 		for child.Err() == nil {
 			start := time.Now()
 			if err := connect(child, endpoint, tls, id, dir, spool, st, blackbox, allowed); err != nil && child.Err() == nil {
-				log.Print("Agent stream unavailable; retrying with pending observations retained")
+				log.Printf("Agent stream unavailable (%s): %.512s; pending observations retained", status.Code(err), status.Convert(err).Message())
 			}
 			if time.Since(start) > 30*time.Second {
 				backoff = 250 * time.Millisecond
@@ -99,7 +100,7 @@ func agentFrame(id string) *pb.AgentFrame {
 }
 
 func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir string, spool *Spool, st *state, blackbox string, allowed []netip.Prefix) error {
-	conn, e := grpc.NewClient(endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tls)), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1<<20), grpc.MaxCallSendMsgSize(1<<20)))
+	conn, e := grpc.NewClient(endpoint, grpc.WithNoProxy(), grpc.WithTransportCredentials(credentials.NewTLS(tls)), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1<<20), grpc.MaxCallSendMsgSize(1<<20)))
 	if e != nil {
 		return e
 	}

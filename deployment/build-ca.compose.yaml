@@ -1,0 +1,8 @@
+# Optional corporate/Cloud trust bundle, mounted only during image build.
+services:
+  controller:
+    build:
+      secrets: [build_ca]
+secrets:
+  build_ca:
+    file: ${NMO_BUILD_CA_FILE:?Set NMO_BUILD_CA_FILE to a trusted CA bundle}

@@ -1,0 +1,152 @@
+# Isolated research stand. No service ports are published to the host.
+name: netmonorc-lab
+x-app: &app
+  image: netmonorc-research:local
+  build: {context: ., dockerfile: Dockerfile}
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ['/tmp:rw,noexec,nosuid,size=32m,mode=0700,uid=10001,gid=10001']
+  restart: unless-stopped
+  pids_limit: 128
+  mem_limit: 256m
+x-net: &net
+  image: netmonorc-lab-fixture:local
+  build: {context: deployment/lab}
+  entrypoint: [/bin/sh, /netns.sh]
+  read_only: true
+  cap_drop: [ALL]
+  cap_add: [NET_ADMIN]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ['/run:rw,noexec,nosuid,size=1m']
+  healthcheck:
+    test: [CMD, test, -f, /run/netns-ready]
+    interval: 1s
+    timeout: 1s
+    retries: 20
+services:
+  init:
+    image: netmonorc-lab-fixture:local
+    build: {context: deployment/lab}
+    profiles: [tools]
+    entrypoint: [tar, -xpf, '-', -C, /lab]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE]
+    network_mode: none
+    volumes:
+      - controller-config:/lab/controller
+      - branch-config:/lab/branch
+      - dc-config:/lab/dc
+      - postgres-config:/lab/postgres
+      - fixture-state:/lab/fixture
+      - controller-data:/lab/controller-data
+      - branch-data:/lab/branch-data
+      - dc-data:/lab/dc-data
+  postgres:
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    environment:
+      POSTGRES_USER: netmonorc
+      POSTGRES_DB: netmonorc
+      POSTGRES_PASSWORD_FILE: /run/postgres/password
+    volumes: [postgres-config:/run/postgres:ro, postgres-data:/var/lib/postgresql/data]
+    networks: [control]
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, netmonorc]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+    mem_limit: 256m
+  target:
+    <<: *net
+    entrypoint: [/bin/sh, /netns.sh, target]
+    volumes: [fixture-state:/state:ro]
+    networks:
+      office: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.41.10'}
+      server: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.42.10'}
+    healthcheck:
+      test: [CMD, python3, -c, "import socket; socket.create_connection(('127.0.0.1',8080),1).close()"]
+      interval: 1s
+      timeout: 2s
+      retries: 20
+  office-net:
+    <<: *net
+    command: [office]
+    environment: {NMO_GATEWAY: '${NMO_NET_PREFIX:-172.30}.41.10'}
+    depends_on: {target: {condition: service_healthy}}
+    networks:
+      control: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.40.11'}
+      office: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.41.2'}
+  server-net:
+    <<: *net
+    command: [server]
+    environment: {NMO_GATEWAY: '${NMO_NET_PREFIX:-172.30}.42.10'}
+    depends_on: {target: {condition: service_healthy}}
+    networks:
+      control: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.40.12'}
+      server: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.42.2'}
+  controller:
+    <<: *app
+    command:
+      - -config=/run/netmonorc/monitor.yaml
+      - -listen=0.0.0.0:9443
+      - -database-file=/run/netmonorc/database.dsn
+      - -slots=branch=office,dc=server
+      - -ca=/run/netmonorc/ca.crt
+      - -cert=/run/netmonorc/controller.crt
+      - -key=/run/netmonorc/controller.key
+      - -assessment-file=/data/assessment.json
+      - -diagnostic-file=/data/diagnostic.json
+      - -report-file=/data/report.html
+      - -diagnostic-profile=/run/netmonorc/${NMO_PROFILE:-adaptive}.yaml
+      - -diagnostic-comparison-static=${NMO_STATIC:-false}
+    depends_on: {postgres: {condition: service_healthy}}
+    volumes: [controller-config:/run/netmonorc:ro, controller-data:/data]
+    networks:
+      control: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.40.4'}
+  branch:
+    <<: *app
+    entrypoint: [/usr/local/bin/netmonorc-agent]
+    command:
+      - -controller=${NMO_NET_PREFIX:-172.30}.40.4:9443
+      - -data-dir=/data
+      - -allow-cidrs=198.18.0.80/32
+      - -ca=/run/netmonorc/ca.crt
+      - -cert=/run/netmonorc/branch.crt
+      - -key=/run/netmonorc/branch.key
+    depends_on: {controller: {condition: service_started}, office-net: {condition: service_healthy}}
+    volumes: [branch-config:/run/netmonorc:ro, branch-data:/data]
+    network_mode: service:office-net
+  dc:
+    <<: *app
+    entrypoint: [/usr/local/bin/netmonorc-agent]
+    command:
+      - -controller=${NMO_NET_PREFIX:-172.30}.40.4:9443
+      - -data-dir=/data
+      - -allow-cidrs=198.18.0.80/32
+      - -ca=/run/netmonorc/ca.crt
+      - -cert=/run/netmonorc/dc.crt
+      - -key=/run/netmonorc/dc.key
+    depends_on: {controller: {condition: service_started}, server-net: {condition: service_healthy}}
+    volumes: [dc-config:/run/netmonorc:ro, dc-data:/data]
+    network_mode: service:server-net
+networks:
+  control:
+    internal: true
+    ipam: {config: [{subnet: '${NMO_NET_PREFIX:-172.30}.40.0/24'}]}
+  office:
+    driver_opts: {com.docker.network.bridge.enable_ip_masquerade: 'false'}
+    ipam: {config: [{subnet: '${NMO_NET_PREFIX:-172.30}.41.0/24'}]}
+  server:
+    driver_opts: {com.docker.network.bridge.enable_ip_masquerade: 'false'}
+    ipam: {config: [{subnet: '${NMO_NET_PREFIX:-172.30}.42.0/24'}]}
+volumes:
+  controller-config:
+  branch-config:
+  dc-config:
+  postgres-config:
+  fixture-state:
+  controller-data:
+  branch-data:
+  dc-data:
+  postgres-data:

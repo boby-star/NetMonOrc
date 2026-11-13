@@ -76,6 +76,7 @@ func run() error {
 	fixedPath := flag.String("fixed", "examples/diagnostics/fixed.yaml", "fixed profile")
 	casesPath := flag.String("scenarios", "examples/diagnostics/scenarios.json", "explicit replay matrix, not live observations")
 	output := flag.String("output", ".local/diagnostics-replay.json", "JSON report; sibling CSV is also written")
+	validateOnly := flag.Bool("validate-only", false, "validate equal compiled catalogs, hypotheses and budgets without running experiments")
 	flag.Parse()
 	b, e := read(*adaptivePath)
 	if e != nil {
@@ -108,6 +109,10 @@ func run() error {
 	}
 	if !reflect.DeepEqual(catalog(adaptive), catalog(fixed)) || adaptive.Budget != fixed.Budget || !reflect.DeepEqual(hypotheses(adaptive), hypotheses(fixed)) {
 		return fmt.Errorf("comparison requires identical catalogs, hypotheses and budgets")
+	}
+	if *validateOnly {
+		fmt.Println("Validated identical compiled action catalogs, hypotheses and budgets")
+		return nil
 	}
 	b, e = read(*casesPath)
 	if e != nil {

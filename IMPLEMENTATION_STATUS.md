@@ -151,10 +151,23 @@ restart і crash/recovery. Engine записує монотонно виміря
 втрачене через crash вимірювання лишається відсутнім. Порівняння latency
 на незалежному стенді й повторення для висновків дослідження ще не виконані.
 
+## Compose-стенд — реалізовано
+
+Окремі control/office/server bridges, один VIP ресурсу та різні маршрути
+з двох Agent namespace. Контейнери Agent/Controller працюють без capabilities,
+UID 10001; NET_ADMIN лишається в мережевих fixture. Образи та builder
+зафіксовані digest. Приватні per-service config/key volumes заповнюються
+через stdin; CA key не потрапляє в образи чи runtime Agent.
+
+Реальний build і запуск пройшли з HTTP/TCP/UDP DNS та свіжим healthy з
+обох Agent. Виправлено неявне використання HTTP proxy каналом gRPC і
+ініціалізацію прав порожнього Docker data-volume. Команда up перевіряє
+спостереження, а не лише стан процесу. Інструкція: docs/deployment/research-compose.md.
+
 ## Ще не реалізовано
 
-1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
-   керування сертифікатами та готовий Compose deployment всіх компонентів.
+1. Динамічне призначення, повний agent protocol і керування сертифікатами.
+   Load/heartbeat і Compose мінімального профілю вже реалізовані.
 2. Hostname targets і повна firewall-політика exporter.
 3. CheckProfile/AssessmentPolicy refs і решта необхідних DSL
    можливостей; CEL assessment та CEL fixed conditions уже реалізовані.

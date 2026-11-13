@@ -8,6 +8,11 @@
 lease, локальна черга та PostgreSQL. Запуск і межі реалізації:
 [docs/architecture/distributed-slice.md](docs/architecture/distributed-slice.md).
 
+## Compose-стенд із двома сегментами
+
+[Інструкція запуску й контрольованих відмов](docs/deployment/research-compose.md).
+Стенд не публікує порти й використовує приватні конфігураційні volumes.
+
 ## Запуск першого зрізу
 
 Потрібні Go ≥1.25 і Python 3 для демонстраційного HTTP-сервера.

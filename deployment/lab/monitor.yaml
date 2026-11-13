@@ -1,0 +1,34 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: research-web}
+spec:
+  target: {address: 198.18.0.80}
+  checks:
+    - id: http
+      type: http
+      runner: blackbox
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://198.18.0.80:8080/', expectedStatus: [200]}
+    - id: tcp
+      type: tcp
+      interval: 10s
+      timeout: 2s
+      config: {port: 9090}
+    - id: dns
+      type: dns
+      interval: 10s
+      timeout: 2s
+      config: {resolver: '198.18.0.80:1053', queryName: health.example}
+  assessment:
+    requiredZones: [office, server]
+    freshness: {maxAge: 20s, maxSkew: 15s}
+    checks:
+      - {id: http, weight: 1, required: true}
+      - {id: tcp, weight: 1, required: true}
+      - {id: dns, weight: 1, required: true}
+  diagnostics:
+    enabled: true
+    profileRef: web-lab
+    onStates: [degraded, down]
+    cooldown: 1s
