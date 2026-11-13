@@ -84,7 +84,8 @@ DNS-цілі, redirects, proxy та вимкнення перевірки TLS н
 
 Розподілений запуск підтримує фіксовані джерела, mTLS, послідовне регулярне
 виконання й PostgreSQL. Наразі немає динамічного Placement/Scheduler,
-алертів і повної інтерактивної вебпанелі. Для демонстрації доступний
+повної інтерактивної вебпанелі. Один monitor-scope алерт та HTTPS webhook
+із PostgreSQL outbox уже доступні: [доставка сповіщень](docs/architecture/alert-delivery.md). Для демонстрації доступний
 [приватний HTML-звіт](docs/architecture/research-report.md). Fixed/Adaptive діагностика вже виконується через Agent:
 [запуск і межі](docs/architecture/diagnostic-runtime.md).
 Regex extraction з типізованими значеннями підтримується для native HTTP:

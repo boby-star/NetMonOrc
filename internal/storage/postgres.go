@@ -51,6 +51,11 @@ ALTER TABLE nmo_observations ADD COLUMN IF NOT EXISTS diagnostic_task_id text NO
 CREATE TABLE IF NOT EXISTS nmo_incidents(monitor text PRIMARY KEY,episode_id text NOT NULL DEFAULT '',run_id text NOT NULL DEFAULT '',last_finished timestamptz);
 CREATE TABLE IF NOT EXISTS nmo_diagnostic_runs(id text PRIMARY KEY,episode_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,profile_hash text NOT NULL,mode text NOT NULL,max_checks integer NOT NULL,used_checks integer NOT NULL DEFAULT 0,deadline timestamptz NOT NULL,state text NOT NULL,reason text NOT NULL DEFAULT '',report jsonb,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz);
 CREATE INDEX IF NOT EXISTS nmo_diagnostic_runs_monitor ON nmo_diagnostic_runs(monitor,started_at DESC,id DESC);
+CREATE TABLE IF NOT EXISTS nmo_alerts(logical_key text PRIMARY KEY,payload jsonb NOT NULL);
+CREATE TABLE IF NOT EXISTS nmo_alert_events(id text PRIMARY KEY,logical_key text NOT NULL,transition jsonb NOT NULL,suppressed boolean NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS nmo_webhook_outbox(event_id text PRIMARY KEY REFERENCES nmo_alert_events(id),endpoint_hash text NOT NULL,payload jsonb NOT NULL,state text NOT NULL DEFAULT 'pending',attempts integer NOT NULL DEFAULT 0,next_after timestamptz NOT NULL,expires_at timestamptz NOT NULL,lease_token text NOT NULL DEFAULT '',lease_until timestamptz,status_code integer NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS nmo_webhook_due ON nmo_webhook_outbox(state,next_after);
+CREATE TABLE IF NOT EXISTS nmo_webhook_attempts(event_id text NOT NULL REFERENCES nmo_webhook_outbox(event_id),attempt integer NOT NULL,lease_token text NOT NULL,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz,status_code integer NOT NULL DEFAULT 0,PRIMARY KEY(event_id,attempt));
 CREATE TABLE IF NOT EXISTS nmo_diagnostic_tasks(id text PRIMARY KEY,run_id text NOT NULL REFERENCES nmo_diagnostic_runs(id),agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,zone text NOT NULL,check_id text NOT NULL,deadline timestamptz NOT NULL,check_spec jsonb NOT NULL,state text NOT NULL);`)
 	if e == nil {
 		e = tx.Commit(ctx)

@@ -42,6 +42,8 @@ services:
       - controller-data:/lab/controller-data
       - branch-data:/lab/branch-data
       - dc-data:/lab/dc-data
+      - webhook-config:/lab/webhook
+      - webhook-data:/lab/webhook-data
   postgres:
     image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     environment:
@@ -100,10 +102,35 @@ services:
       - -report-file=/data/report.html
       - -diagnostic-profile=/run/netmonorc/${NMO_PROFILE:-adaptive-confirmed}.yaml
       - -diagnostic-comparison-static=${NMO_STATIC:-false}
+      - -alert-rule=/run/netmonorc/alert.yaml
+      - -webhook-config=/run/netmonorc/webhook.yaml
+      - -webhook-allow-cidrs=${NMO_NET_PREFIX:-172.30}.40.6/32
+      - -webhook-secret-dir=/run/netmonorc/secrets
+      - -webhook-ca=/run/netmonorc/ca.crt
+      - -alert-file=/data/alert.json
     depends_on: {postgres: {condition: service_healthy}}
     volumes: [controller-config:/run/netmonorc:ro, controller-data:/data]
     networks:
       control: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.40.4'}
+  webhook:
+    image: netmonorc-lab-fixture:local
+    build: {context: deployment/lab}
+    entrypoint: [python3, /webhook_receiver.py]
+    user: '10001:10001'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 64m
+    restart: unless-stopped
+    volumes: [webhook-config:/run/netmonorc:ro, webhook-data:/data]
+    networks:
+      control: {ipv4_address: '${NMO_NET_PREFIX:-172.30}.40.6'}
+    healthcheck:
+      test: [CMD, python3, -c, "import socket; socket.create_connection(('127.0.0.1',9444),1).close()"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
   branch:
     <<: *app
     entrypoint: [/usr/local/bin/netmonorc-agent]
@@ -150,3 +177,5 @@ volumes:
   branch-data:
   dc-data:
   postgres-data:
+  webhook-config:
+  webhook-data:

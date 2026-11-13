@@ -10,7 +10,7 @@ import secrets
 import subprocess
 import tarfile
 import time
-from dev_pki import generate
+from dev_pki import generate, issue_server
 
 ROOT = Path(__file__).resolve().parents[1]
 VIP = '198.18.0.80'
@@ -27,7 +27,7 @@ SCENARIOS = {
 
 def manifests():
     return {name:(ROOT/'deployment'/'lab'/name).read_text()
-            for name in ['monitor.yaml','adaptive.yaml','fixed.yaml','adaptive-confirmed.yaml','fixed-confirmed.yaml']}
+            for name in ['monitor.yaml','adaptive.yaml','fixed.yaml','adaptive-confirmed.yaml','fixed-confirmed.yaml','alert.yaml']}
 
 class Lab:
     def __init__(self, project='netmonorc-lab', prefix='172.30'):
@@ -66,6 +66,10 @@ class Lab:
             marker.write_text(json.dumps({'project':self.project,'prefix':self.prefix}))
             marker.chmod(0o600)
         pki = self.work/'pki'
+        if not (pki/'webhook.crt').exists(): issue_server(pki,'webhook',self.prefix+'.40.6')
+        secret = self.work/'webhook-token'
+        if not secret.exists():
+            secret.write_text(secrets.token_urlsafe(32));secret.chmod(0o600)
         password = (self.work/'password').read_text()
         entries = {}
         for name in ['controller','branch','dc']:
@@ -76,11 +80,30 @@ class Lab:
         entries['controller/database.dsn']=f'postgresql://netmonorc:{password}@postgres:5432/netmonorc?sslmode=disable'.encode()
         entries['postgres/password']=password.encode()
         entries['fixture/mode.json']=json.dumps(NORMAL).encode()
-        for directory in ['controller-data','branch-data','dc-data']:
+        entries['controller/webhook.yaml']=f'''apiVersion: netmonorc.io/v1alpha1
+kind: WebhookEndpoint
+metadata:
+  name: default-webhook
+spec:
+  url: https://{self.prefix}.40.6:9444/events
+  auth:
+    type: bearer
+    secretRef: alert-webhook-token
+  timeout: 2s
+  retry:
+    maxAttempts: 5
+    initialBackoff: 1s
+    maxBackoff: 4s
+'''.encode()
+        entries['controller/secrets/alert-webhook-token']=secret.read_bytes()
+        entries['webhook/token']=secret.read_bytes()
+        for suffix in ['crt','key']: entries[f'webhook/webhook.{suffix}']=(pki/f'webhook.{suffix}').read_bytes()
+        entries['webhook-data/mode.json']=json.dumps({'generation':secrets.token_hex(8),'fail_next':0}).encode()
+        for directory in ['controller-data','branch-data','dc-data','webhook-data']:
             entries[directory+'/.initialized']=b'NetMonOrc private volume\n'
         archive=io.BytesIO()
         with tarfile.open(fileobj=archive,mode='w') as tar:
-            for directory in ['controller','branch','dc','postgres','fixture','controller-data','branch-data','dc-data']:
+            for directory in ['controller','controller/secrets','branch','dc','postgres','fixture','controller-data','branch-data','dc-data','webhook','webhook-data']:
                 info=tarfile.TarInfo(directory);info.type=tarfile.DIRTYPE;info.mode=0o700
                 info.uid=info.gid=0 if directory in ['postgres','fixture'] else 10001
                 tar.addfile(info)
@@ -144,7 +167,7 @@ class Lab:
                          self.sql("SELECT count(*) FROM nmo_incidents WHERE episode_id<>''")=='0','healthy/full coverage closes episode')
     def export(self,destination):
         destination=Path(destination);destination.mkdir(parents=True,mode=0o700,exist_ok=True)
-        for name in ['assessment.json','diagnostic.json','report.html']:
+        for name in ['assessment.json','diagnostic.json','report.html','alert.json']:
             b=self.snapshot(name)
             if b is not None:
                 p=destination/name;p.write_bytes(b);p.chmod(0o600)

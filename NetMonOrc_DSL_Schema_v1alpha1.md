@@ -859,6 +859,15 @@ spec:
 
 **Життєвий цикл:** `normal → pending → firing → resolved`. Якщо умова перестала виконуватися до часу `for`, pending скидається. Якщо результат `unknown`, це не доказ ні firing, ні resolved; відповідне правило не повинно непомітно завершувати критичний алерт. Унікальний ключ dedup включає `AlertRule`, `Monitor`, `scope` і, для зонального алерта, `zone`.
 
+**Погоджені уточнення життєвого циклу:** cooldown окремий для logical alert
+key + firing/resolved; придушені повідомлення не доставляються пізніше.
+Фактичні переходи зберігаються завжди. У мінімальному профілі відлік від
+останнього enqueue відповідного типу. CEL unknown/error, перерва актуальності,
+зміна effective revision/правила скидають pending і таймер, але не firing.
+Після resolved повторне спрацювання вимагає when=false → true; false під час
+resolve вже переозброює. Unknown/error не переозброює. Так унеможливлюється
+цикл firing/resolved на незмінних одночасно істинних умовах.
+
 **Повідомлення та зберігання:** Alert Manager створює подію; Webhook Sender бере її з durable PostgreSQL outbox. Доставка — з можливими повторами, одержувач дедуплікує за `event_id`. В v1alpha1 не існує `telegram:`, `email:`, `slack:` та інших notification kinds.
 
 ---

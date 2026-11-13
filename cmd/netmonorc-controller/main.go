@@ -7,21 +7,25 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/coordinator"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/notify"
 	"github.com/boby-star/NetMonOrc/internal/report"
 	"github.com/boby-star/NetMonOrc/internal/secure"
 	"github.com/boby-star/NetMonOrc/internal/storage"
 	"github.com/boby-star/NetMonOrc/internal/transport"
+	"github.com/boby-star/NetMonOrc/internal/webhook"
 	pb "github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -45,6 +49,12 @@ func run() error {
 	reportPath := flag.String("diagnostic-file", ".local/diagnostic.json", "latest persisted diagnostic report")
 	webReport := flag.String("report-file", "", "optional private HTML report; no HTTP listener")
 	staticComparison := flag.Bool("diagnostic-comparison-static", false, "research baseline: run every action from the same catalog; not a YAML mode")
+	alertPath := flag.String("alert-rule", "", "optional single monitor-scope AlertRule file")
+	endpointPath := flag.String("webhook-config", "", "single WebhookEndpoint file")
+	webhookAllow := flag.String("webhook-allow-cidrs", "", "explicit HTTPS webhook destination CIDRs")
+	webhookSecretDir := flag.String("webhook-secret-dir", "", "directory of preinstalled bearer secrets")
+	webhookCA := flag.String("webhook-ca", "", "optional additional trusted webhook CA bundle")
+	alertOutput := flag.String("alert-file", ".local/alert.json", "local alert state snapshot")
 	flag.Parse()
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
@@ -78,6 +88,52 @@ func run() error {
 		p, e = config.WithStaticComparison(p)
 		if e != nil {
 			return e
+		}
+	}
+	var alertRule *alerting.Evaluator
+	var endpoint webhook.Endpoint
+	var sender *webhook.Sender
+	if (*alertPath == "") != (*endpointPath == "") {
+		return fmt.Errorf("alert-rule and webhook-config must be provided together")
+	}
+	if *alertPath != "" {
+		data, err := os.ReadFile(*alertPath)
+		if err != nil {
+			return err
+		}
+		rule, err := config.CompileAlert(data)
+		if err != nil {
+			return err
+		}
+		data, err = os.ReadFile(*endpointPath)
+		if err != nil {
+			return err
+		}
+		endpoint, err = config.CompileWebhook(data)
+		if err != nil {
+			return err
+		}
+		if rule.Monitor != p.Name || rule.Channel != endpoint.Name {
+			return fmt.Errorf("AlertRule monitor/channel reference mismatch")
+		}
+		alertRule, err = alerting.New(rule)
+		if err != nil {
+			return err
+		}
+		if endpoint.Enabled {
+			var cidrs []netip.Prefix
+			for _, text := range strings.Split(*webhookAllow, ",") {
+				cidr, err := netip.ParsePrefix(text)
+				if err != nil {
+					return fmt.Errorf("explicit webhook-allow-cidrs required")
+				}
+				cidrs = append(cidrs, cidr)
+			}
+			sender, err = webhook.New(endpoint, cidrs, *webhookSecretDir, *webhookCA)
+			if err != nil {
+				return err
+			}
+			defer sender.Close()
 		}
 	}
 	assessor, e := monitor.NewAssessor(p)
@@ -123,14 +179,20 @@ func run() error {
 	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
 	agentServer := &transport.Server{Plan: p, Slots: slots, Store: store}
 	pb.RegisterAgentServiceServer(server, agentServer)
-	var diagnostic *coordinator.Coordinator
-	if p.Diagnostics != nil && p.Diagnostics.Enabled {
+	if (p.Diagnostics != nil && p.Diagnostics.Enabled) || alertRule != nil {
 		c, done := context.WithTimeout(ctx, 5*time.Second)
 		e = store.LockController(c)
 		done()
 		if e != nil {
 			return e
 		}
+	}
+	var notifications *notify.Service
+	if alertRule != nil {
+		notifications = &notify.Service{Store: store, Rule: alertRule, Endpoint: endpoint, Sender: sender}
+	}
+	var diagnostic *coordinator.Coordinator
+	if p.Diagnostics != nil && p.Diagnostics.Enabled {
 		diagnostic, e = coordinator.New(p, profile, agentServer, store, *reportPath)
 		if e != nil {
 			return e
@@ -141,13 +203,27 @@ func run() error {
 		defer diagnostic.Wait()
 	}
 
-	errors := make(chan error, 2)
+	errors := make(chan error, 3)
+	notificationDone := make(chan struct{})
+	if notifications != nil {
+		go func() {
+			defer close(notificationDone)
+			if err := notifications.Run(ctx); err != nil {
+				select {
+				case errors <- err:
+				case <-ctx.Done():
+				}
+			}
+		}()
+	} else {
+		close(notificationDone)
+	}
 	go func() { errors <- server.Serve(lis) }()
 	go func() {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
 		for {
-			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport); e != nil {
+			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport, notifications, *alertOutput); e != nil {
 				errors <- e
 				return
 			}
@@ -165,6 +241,7 @@ func run() error {
 	case result = <-errors:
 	}
 	cancel()
+	<-notificationDone
 	stopped := make(chan struct{})
 	go func() { server.GracefulStop(); close(stopped) }()
 	select {
@@ -174,7 +251,8 @@ func run() error {
 	}
 	return result
 }
-func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string) error {
+func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath string) error {
+	var alertState *alerting.State
 	c, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
 	now := time.Now().UTC()
@@ -204,12 +282,31 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 			return e
 		}
 	}
+	if notifications != nil {
+		if diagnostic == nil {
+			if e = store.ControllerAlive(c); e != nil {
+				return e
+			}
+		}
+		state, err := notifications.Evaluate(c, a)
+		if err != nil {
+			return err
+		}
+		alertState = &state
+		b, err := json.MarshalIndent(state, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err = durable.AtomicWrite(alertPath, b); err != nil {
+			return err
+		}
+	}
 	if reportPath != "" {
 		d, err := store.LatestDiagnostic(c, p.Name)
 		if err != nil {
 			return err
 		}
-		html, err := report.Render(a, d)
+		html, err := report.RenderWithAlert(a, d, alertState)
 		if err != nil {
 			return err
 		}

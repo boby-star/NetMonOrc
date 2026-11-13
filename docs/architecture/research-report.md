@@ -36,3 +36,8 @@ go build -o .local/netmonorc-report ./cmd/netmonorc-report
 Перевірка: `scripts/distributed_smoke.py --diagnostics fixed` перевіряє
 створення приватного файлу після реального Assessment. Unit-перевірка
 зосереджена на екрануванні HTML і відмежуванні історичної revision.
+
+Якщо Controller налаштований на алертинг, звіт показує status правила,
+pending і час останнього enqueue для firing/resolved. Enqueue не означає
+отримання webhook. Окремий CLI приймає `-alert .local/alert.json` разом
+із assessment; без цього параметра додаткового блоку немає.

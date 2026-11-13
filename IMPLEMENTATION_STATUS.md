@@ -1,7 +1,7 @@
 # Фактичний стан мінімального прототипу
 
 Це послідовність завершених етапів. Актуальні межі зведено наприкінці;
-орієнтовна готовність мінімуму — [близько 85%](docs/planning/prototype-readiness.md).
+орієнтовна готовність мінімуму — [близько 88%](docs/planning/prototype-readiness.md).
 
 ## Перший локальний етап — реалізовано
 
@@ -208,6 +208,27 @@ Live one-shot профіль явно обмежено 100ms..15s. Мініму�
 state/class. ADR 0002 і docs/experiments/dns-drop-pilot містять межі й дані.
 Це не гарантія всіх мережевих таймаутів або підтримка OS suspend.
 
+## Сповіщення — один AlertRule і HTTPS webhook інтегровані
+
+Суворий decoder підмножини AlertRule/WebhookEndpoint, типізований CEL,
+normal/pending/firing/resolved, for, окремий cooldown firing/resolved,
+false→true rearm, reset pending при gap/revision/rule/restart.
+PostgreSQL атомарно зберігає стан/перехід/outbox; attempt/lease й exponential
+backoff із jitter переживають restart. Стабільний event_id, bounded attempts
+та локальний TTL 24h; endpoint replacement скасовує старі недоставлені події.
+
+HTTPS TLS verification, literal-IP allowlist, без redirect/proxy; bearer
+лише з приватного файла. HTML і alert.json показують стан правила та enqueue.
+Selector/zone scope/hostname webhook/public API не реалізовані. Документація:
+docs/architecture/alert-delivery.md; рішення — ADR 0003.
+
+Пройдено критичні FSM/TLS/negative config тести та race. Реальний Compose
+прогін scripts/lab_notifications.py підтвердив 503→200 з тим самим UUID,
+unknown при Agent loss без resolve, firing після Controller restart без
+дубліката й доставку resolved після рестарту з durable queue. Обидві події
+мали по дві фізичні HTTP спроби; receiver зберіг по одному logical event.
+Повторюваний скрипт не експортує DSN/токени/ключі.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, повний agent protocol і керування сертифікатами.
@@ -218,8 +239,8 @@ state/class. ADR 0002 і docs/experiments/dns-drop-pilot містять межі
 4. Technical retry, повторні сеанси зі спільним бюджетом, неперевірені
    unknown/multiple patterns, довгі tasks/suspend/backpressure. Явне
    confirmation, відома HTTP+DNS несправність та DNS silent timeout уже перевірені.
-5. Простий webhook; повна інтерактивна вебпанель не входить до мінімуму.
-   Перегляд результатів доступний через приватний HTML-звіт.
+5. Повна інтерактивна вебпанель не входить до мінімуму. Перегляд результатів
+   та стану алерту доступний через приватний HTML-звіт; простий webhook реалізовано.
 6. Повторні серії експериментів і статистичний аналіз. Стенд із окремими
    сегментами, controlled faults та експорт уже реалізовані.
 

@@ -13,6 +13,8 @@ python3 scripts/lab.py prepare
 python3 scripts/lab.py up --mode adaptive
 python3 scripts/lab.py status
 python3 scripts/lab.py export --output .local/lab-report
+# За потреби — наскрізна перевірка алертів із контрольованими відмовами:
+python3 scripts/lab_notifications.py --output .local/notifications.json
 ```
 
 Після export відкрийте `.local/lab-report/report.html`. Це snapshot; повторний
@@ -47,7 +49,8 @@ PostgreSQL працює лише в control network; TLS до БД у цьому
 
 ```mermaid
 flowchart LR
-  C[Controller + PostgreSQL] --- O[Office namespace / Agent branch]
+  C[Controller + PostgreSQL] --> W[Приватний HTTPS webhook fixture]
+  C --- O[Office namespace / Agent branch]
   C --- S[Server namespace / Agent dc]
   O -->|office bridge .41| T[Один ресурс 198.18.0.80]
   S -->|server bridge .42| T
@@ -131,3 +134,17 @@ HTTP/TCP/UDP DNS у цьому стенді. ICMP перевірено окре�
 CAP_NET_RAW до програмних Agent цього стенда не додається. Немає повного
 installer, публічного API/UI керування, HA, hostname targets чи універсальної
 firewall-політики. Стенд слугує відтворенню методу та експериментів.
+
+## Сповіщення
+
+Стенд включає monitor-scope правило з `for: 2s`, `cooldown: 5s` і HTTPS
+приймач на control bridge. Bearer живе лише в приватних Controller/receiver
+volumes. Приймач має свій serverAuth certificate; CA key лишається на хості.
+Receiver SQLite зберігає attempt audit і дедуплікує event_id. Цей контейнер —
+лише дослідницька fixture; у звичайній інсталяції використовується зовнішній
+одержувач. Успішний запуск stand перевіряє також receiver health.
+
+Після оновлення старого стенда виконайте down → prepare → up, щоб додати
+webhook конфігурацію. Історія й пароль БД зберігаються. Export включає
+alert.json; HTML показує стан правила й час enqueue, а не гарантію доставки.
+Повна семантика та обмеження: [alert-delivery.md](../architecture/alert-delivery.md).

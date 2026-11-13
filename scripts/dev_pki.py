@@ -5,6 +5,23 @@ import os
 import re
 import subprocess
 
+def issue_server(root, name, ip):
+    """Issue a lab receiver identity; the existing CA key stays on the host."""
+    import ipaddress
+    root = Path(root)
+    if not re.fullmatch('[a-z][a-z0-9-]{0,62}',name): raise ValueError('invalid identity')
+    ip = str(ipaddress.ip_address(ip))
+    def run(*args):
+        subprocess.run(['openssl',*args],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+    run('req','-new','-newkey','rsa:2048','-nodes','-subj',f'/CN={name}',
+        '-keyout',str(root/f'{name}.key'),'-out',str(root/f'{name}.csr'))
+    ext = root/f'{name}.ext'
+    ext.write_text('basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n'
+                   f'extendedKeyUsage=serverAuth\nsubjectAltName=IP:{ip}\n')
+    run('x509','-req','-in',str(root/f'{name}.csr'),'-CA',str(root/'ca.crt'),
+        '-CAkey',str(root/'ca.key'),'-CAcreateserial','-days','2','-extfile',str(ext),'-out',str(root/f'{name}.crt'))
+    for suffix in ['key','csr','ext','crt']: (root/f'{name}.{suffix}').chmod(0o600)
+
 def generate(root, agents=('branch', 'dc')):
     root = Path(root)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)

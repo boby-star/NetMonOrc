@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -46,6 +47,7 @@ func read(path string, out any) error {
 func run() error {
 	assessment := flag.String("assessment", ".local/assessment.json", "Controller assessment snapshot")
 	diagnostic := flag.String("diagnostic", "", "optional persisted diagnostic report")
+	alert := flag.String("alert", "", "optional Controller alert state snapshot")
 	output := flag.String("output", ".local/report.html", "private read-only HTML report")
 	flag.Parse()
 	var a monitor.Assessment
@@ -59,7 +61,14 @@ func run() error {
 			return e
 		}
 	}
-	b, e := report.Render(a, d)
+	var alertState *alerting.State
+	if *alert != "" {
+		alertState = &alerting.State{}
+		if e := read(*alert, alertState); e != nil {
+			return e
+		}
+	}
+	b, e := report.RenderWithAlert(a, d, alertState)
 	if e != nil {
 		return e
 	}

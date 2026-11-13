@@ -22,6 +22,13 @@
 </tbody></table></div>
 <p class="sub">H показує зважену успішність наявних перевірок, Q — повноту доказів. Це не ймовірності. Втрата покриття сама по собі не доводить відмову сервісу.</p>
 <details><summary>Ревізія та ID доказів</summary><p class="code">{{.Assessment.Revision}}</p>{{range .Assessment.Zones}}<p>{{.Zone}}:</p><ul>{{range .Evidence}}<li class="code">{{.}}</li>{{else}}<li>Немає актуальних доказів</li>{{end}}</ul>{{end}}</details></section>
+{{with .Alert}}<section class="card"><h2>Сповіщення</h2>
+<p>Стан правила: <strong>{{.Status}}</strong> · {{stamp .LastEvaluatedAt}}</p>
+{{with .PendingSince}}<p>Умова очікує підтвердження з {{stamp .}}</p>{{end}}
+{{with .LastFiringQueuedAt}}<p>Останнє повідомлення про відмову поставлено в чергу: {{stamp .}}</p>{{end}}
+{{with .LastResolvedQueuedAt}}<p>Останнє повідомлення про відновлення поставлено в чергу: {{stamp .}}</p>{{end}}
+<p class="sub">Це стан правила. Постановка повідомлення в чергу не підтверджує отримання webhook. Невідомий стан ресурсу не закриває активне сповіщення.</p>
+</section>{{end}}
 <section class="card"><h2>Остання діагностична сесія</h2>
 {{if .Diagnostic}}{{with .Diagnostic}}
 <div class="top"><span class="badge {{class .Result.Status}}">{{state .Result.Status}}</span><span class="sub">{{.Result.Mode}} · {{stamp .StartedAt}}</span></div>

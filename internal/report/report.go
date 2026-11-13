@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 )
@@ -21,9 +22,14 @@ type View struct {
 	Diagnostic           *diagnostics.Report
 	GeneratedAt          time.Time
 	HistoricalDiagnostic bool
+	Alert                *alerting.State
 }
 
 func Render(a monitor.Assessment, d *diagnostics.Report) ([]byte, error) {
+	return RenderWithAlert(a, d, nil)
+}
+
+func RenderWithAlert(a monitor.Assessment, d *diagnostics.Report, alert *alerting.State) ([]byte, error) {
 	if a.Monitor == "" || a.At.IsZero() {
 		return nil, fmt.Errorf("assessment name/time required")
 	}
@@ -69,7 +75,7 @@ func Render(a monitor.Assessment, d *diagnostics.Report) ([]byte, error) {
 	}
 	var out bytes.Buffer
 	historical := d != nil && d.Revision != a.Revision
-	e = t.Execute(&out, View{a, d, time.Now().UTC(), historical})
+	e = t.Execute(&out, View{Assessment: a, Diagnostic: d, GeneratedAt: time.Now().UTC(), HistoricalDiagnostic: historical, Alert: alert})
 	if e != nil {
 		return nil, e
 	}

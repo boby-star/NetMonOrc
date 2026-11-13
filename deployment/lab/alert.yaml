@@ -1,0 +1,14 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: AlertRule
+metadata:
+  name: service-outage
+spec:
+  monitorRef: research-web
+  scope: monitor
+  when: monitor.state == "down"
+  resolveWhen: monitor.state == "healthy"
+  for: 2s
+  cooldown: 5s
+  severity: critical
+  channelRef: default-webhook
+  notifyEvents: [firing, resolved]
