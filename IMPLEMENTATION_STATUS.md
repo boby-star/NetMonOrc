@@ -62,13 +62,33 @@ permission failure перевірено окремими ізольованим�
 Змішаний distributed smoke пройшов mTLS/PostgreSQL/replay/TTL.
 Позитивний ICMP на хості недоступний через права; це не позначено успіхом.
 
+## Ядро діагностики — реалізовано окремим компонентом
+
+Gain/Cost selector, hypothesis filtering, actor eligibility/placement,
+budget ledger, відсутність повторів Adaptive actions, Fixed DAG/CEL,
+Static comparison mode, baseline equivalence matcher та пояснення рішень.
+DiagnosticProfile parser використовує наявні kind/fields; підтримує
+bounded subset і явно відхиляє неготові confirmation/retry/replicas>1.
+
+Виконано синтетичний replay 15 runs у JSON/CSV з однаковими каталогами
+та бюджетами. Це не мережевий експеримент. Контрприклад для early-stop
+поза каталогом збережений і описаний у docs/architecture/diagnostic-core.md.
+Перевірено формули, budgets/reuse, no-gain, technical failures,
+baseline freshness/equivalence, placement, повторні Fixed steps і CEL.
+
+Runtime Controller ще не викликає це ядро: немає durable diagnostic
+coordinator, task dispatch/result protocol, автоматичних тригерів чи
+публічного запуску. Confirmation/retry та невідома множинна несправність
+потребують наступного етапу. Це не завершена діагностика системи.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
    керування сертифікатами та готовий Compose deployment всіх компонентів.
 2. Hostname targets і повна firewall-політика exporter.
 3. Профілі, CEL та extraction, необхідна частина DSL для сценаріїв записки.
-4. Static, Fixed та Adaptive, бюджети й підтвердження.
+4. Інтеграція Static/Fixed/Adaptive з Controller/Agent, durable episode
+   budgets, triggers, підтвердження та retries.
 5. Простий webhook і перегляд результатів.
 6. Стенд із незалежним порушенням доступу в різних сегментах,
    порівняльні експерименти та експорт вимірювань.

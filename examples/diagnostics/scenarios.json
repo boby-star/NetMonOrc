@@ -1,0 +1,38 @@
+{
+  "executors": [
+    {"ID":"branch", "Zone":"office", "Online":true, "Capacity":1, "Active":0, "Supported":{"http":true,"dns":true,"tcp":true,"blackbox":true}},
+    {"ID":"dc", "Zone":"server", "Online":true, "Capacity":1, "Active":0, "Supported":{"http":true,"dns":true,"tcp":true,"blackbox":true}}
+  ],
+  "scenarios": [
+    {"name":"dns", "truth":"dns-failure", "outcomes":{
+      "d01-dns@branch":{"Execution":"completed","Outcome":"failure"},
+      "d02-server-http@dc":{"Execution":"completed","Outcome":"success"},
+      "d03-office-tcp@branch":{"Execution":"completed","Outcome":"success"},
+      "d04-office-http@branch":{"Execution":"completed","Outcome":"success"}
+    }},
+    {"name":"application", "truth":"service-failure", "outcomes":{
+      "d01-dns@branch":{"Execution":"completed","Outcome":"success"},
+      "d02-server-http@dc":{"Execution":"completed","Outcome":"failure"},
+      "d03-office-tcp@branch":{"Execution":"completed","Outcome":"success"},
+      "d04-office-http@branch":{"Execution":"completed","Outcome":"failure"}
+    }},
+    {"name":"office-path", "truth":"zone-path-failure", "outcomes":{
+      "d01-dns@branch":{"Execution":"completed","Outcome":"success"},
+      "d02-server-http@dc":{"Execution":"completed","Outcome":"success"},
+      "d03-office-tcp@branch":{"Execution":"completed","Outcome":"failure"},
+      "d04-office-http@branch":{"Execution":"completed","Outcome":"failure"}
+    }},
+    {"name":"no-execution", "truth":"unknown", "outcomes":{
+      "d01-dns@branch":{"Execution":"execution_failed","Outcome":"unknown"},
+      "d02-server-http@dc":{"Execution":"execution_failed","Outcome":"unknown"},
+      "d03-office-tcp@branch":{"Execution":"execution_failed","Outcome":"unknown"},
+      "d04-office-http@branch":{"Execution":"execution_failed","Outcome":"unknown"}
+    }},
+    {"name":"outside-catalog-all-success", "truth":"outside-catalog", "outcomes":{
+      "d01-dns@branch":{"Execution":"completed","Outcome":"success"},
+      "d02-server-http@dc":{"Execution":"completed","Outcome":"success"},
+      "d03-office-tcp@branch":{"Execution":"completed","Outcome":"success"},
+      "d04-office-http@branch":{"Execution":"completed","Outcome":"success"}
+    }}
+  ]
+}

@@ -1,0 +1,41 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata:
+  name: web-adaptive
+spec:
+  mode: adaptive
+  budget: {maxAdditionalChecks: 6, maxDuration: 60s, maxParallel: 1}
+  hypotheses:
+    - {id: dns-failure}
+    - {id: service-failure}
+    - {id: zone-path-failure}
+  actions:
+    - id: d01-dns
+      check:
+        type: dns
+        config: {resolver: '127.0.0.1:1053', queryName: health.example}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {dns-failure: failure, service-failure: success, zone-path-failure: success}
+    - id: d02-server-http
+      check:
+        type: http
+        config: {url: 'http://127.0.0.1:18080/'}
+      placement: {agentRefs: [dc], zones: [server], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {dns-failure: success, service-failure: failure, zone-path-failure: success}
+    - id: d03-office-tcp
+      check:
+        type: tcp
+        config: {port: 18080}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {dns-failure: success, service-failure: either, zone-path-failure: failure}
+    - id: d04-office-http
+      check:
+        type: http
+        config: {url: 'http://127.0.0.1:18080/'}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      costUnits: 2
+      expectedOutcomes: {dns-failure: success, service-failure: failure, zone-path-failure: failure}
+  adaptive: {}

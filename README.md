@@ -102,3 +102,7 @@ export GOCACHE=/workspace/.cache/netmonorc-go
 ```
 
 План і фактичний стан: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+
+Ядро Static/Fixed/Adaptive та синтетичний replay для дослідження:
+[docs/architecture/diagnostic-core.md](docs/architecture/diagnostic-core.md).
+Операційний запуск діагностики через Controller/Agent ще не підключений.
