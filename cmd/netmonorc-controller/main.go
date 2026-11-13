@@ -64,6 +64,9 @@ func run() error {
 	httpTokenFile := flag.String("http-token-file", "", "private read-only bootstrap bearer token file")
 	uiDir := flag.String("http-ui-dir", "", "built React directory; optional")
 	flag.Parse()
+	if *httpListen == "" && (*httpTokenFile != "" || *uiDir != "") {
+		return fmt.Errorf("http-token-file/http-ui-dir require http-listen")
+	}
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
 		return e
@@ -243,6 +246,7 @@ func run() error {
 		close(notificationDone)
 	}
 	if httpServer != nil {
+		log.Print("HTTPS assessment API enabled; read-only bootstrap authorization")
 		go func() {
 			err := httpServer.ListenAndServeTLS(*cert, *key)
 			if err != nil && !stderrors.Is(err, http.ErrServerClosed) {

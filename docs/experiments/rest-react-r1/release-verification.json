@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "containerImage": "sha256:b77e89b826af507256503ed389b1119ae7b2c7ef7caaef64e966ca23d39d0d36",
+  "openapiAssessmentSchemaValidated": true,
+  "productionReactBuild": true,
+  "trustedTLS": "TLSv1.3",
+  "anonymousStatus": 401,
+  "singleReaderAdmissionTested": true,
+  "caseInsensitiveBearerTested": true,
+  "browserInteractionTested": false,
+  "fullRBACImplemented": false
+}

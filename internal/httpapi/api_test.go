@@ -54,6 +54,13 @@ func TestReadOnlyContractAndFreshness(t *testing.T) {
 	if calls != 1 {
 		t.Fatal("unauthorized request accessed storage")
 	}
+	lower := httptest.NewRequest("GET", "/api/v1/monitors/service/assessment", nil)
+	lower.Header.Set("Authorization", "bearer "+string(token))
+	lowerResponse := httptest.NewRecorder()
+	h.ServeHTTP(lowerResponse, lower)
+	if lowerResponse.Code != 200 {
+		t.Fatal("Bearer scheme must be case insensitive")
+	}
 	h.readSlots <- struct{}{}
 	busyRequest := httptest.NewRequest("GET", "/api/v1/monitors/service/assessment", nil)
 	busyRequest.Header.Set("Authorization", "Bearer "+string(token))

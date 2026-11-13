@@ -21,3 +21,10 @@ React/TS production build пройшов. Автоматизації клікі�
 на підготовленому стенді. API/UI використовують той самий Controller/PG;
 frontend не обчислює Assessment. Runtime-секрети й приватна PKI не входять
 до цих файлів. Новий обсяг: docs/specs/thesis-scope-2026-11-13.md.
+
+Фінальна збірка після adb3fe9: release.json та release-verification.json
+містять повторний Docker TLS/REST/assets прогін із відформатованим React,
+українськими coverage labels, bounded читанням API та request timeout.
+Окремі Go-тести перевірили 429 при зайнятому reader і нечутливість Bearer
+scheme до регістру. Source browser DOM interaction лишається неперевіреним.
+Named volumes збережені; стенд зупинено.

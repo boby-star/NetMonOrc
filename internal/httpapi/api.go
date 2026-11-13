@@ -67,7 +67,7 @@ func New(name string, token []byte, load Load, ui fs.FS) (*Handler, error) {
 		return nil, fmt.Errorf("Monitor, strong token and assessment loader required")
 	}
 	if ui != nil {
-		if _, err := fs.Stat(ui, "index.html"); err != nil {
+		if info, err := fs.Stat(ui, "index.html"); err != nil || info.IsDir() {
 			return nil, fmt.Errorf("built React index.html unavailable")
 		}
 	}
@@ -79,6 +79,7 @@ func NewServer(address string, h http.Handler) *http.Server {
 func failure(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	// Encoding these strings can fail only when the client disconnects.
 	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message, "requestId": rand.Text()}})
 }
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -90,9 +91,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.static(w, r)
 		return
 	}
-	value := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	scheme, value, present := strings.Cut(r.Header.Get("Authorization"), " ")
 	hash := sha256.Sum256([]byte(value))
-	if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") || subtle.ConstantTimeCompare(hash[:], h.tokenHash[:]) != 1 {
+	if !present || !strings.EqualFold(scheme, "Bearer") || subtle.ConstantTimeCompare(hash[:], h.tokenHash[:]) != 1 {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="NetMonOrc"`)
 		failure(w, 401, "UNAUTHORIZED", "Valid read-only bearer token required")
 		return
@@ -144,6 +145,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dto.CoverageState = "unknown"
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// The persisted DTO is JSON-safe; a disconnected client needs no repair.
 	_ = json.NewEncoder(w).Encode(dto)
 }
 func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
