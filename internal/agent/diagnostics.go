@@ -42,6 +42,13 @@ func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, m
 	if a.deadline.Before(deadline) {
 		deadline = a.deadline
 	}
+	needed := c.Timeout
+	if c.Runner == "blackbox" {
+		needed += 5 * time.Second
+	}
+	if time.Until(deadline) < needed {
+		return nil, c, time.Time{}, fmt.Errorf("insufficient safe time for configured probe and startup")
+	}
 	// Persist the receipt before any side effect. A lost result can be replayed
 	// from the observation spool; a receipt without a result is never rerun.
 	path := filepath.Join(dir, ".diagnostic-"+task.TaskId)
@@ -62,6 +69,9 @@ func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, m
 	}
 	if e = syncTaskDir(dir); e != nil {
 		return nil, c, time.Time{}, e
+	}
+	if time.Until(deadline) < needed {
+		return nil, c, time.Time{}, fmt.Errorf("safe time expired while committing task receipt")
 	}
 	return a, c, deadline, nil
 }

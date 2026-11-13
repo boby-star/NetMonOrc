@@ -44,7 +44,9 @@ class DNS(socketserver.BaseRequestHandler):
             end += length + 1
         if end+5 > len(data) or data[end+1:end+5] != b'\x00\x01\x00\x01':
             return
-        failure = mode()['dns_mode'] == 'nxdomain'
+        dns_mode=mode()['dns_mode']
+        if dns_mode=='drop':return  # Silent packet loss: no ICMP error or DNS response.
+        failure = dns_mode == 'nxdomain'
         answer = b'' if failure else b'\xc0\x0c'+struct.pack('!HHIH',1,1,30,4)+socket.inet_aton('198.18.0.80')
         response = data[:2]+struct.pack('!HHHHH',0x8183 if failure else 0x8180,1,0 if failure else 1,0,0)+data[12:end+5]+answer
         sock.sendto(response,self.client_address)

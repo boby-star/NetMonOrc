@@ -224,3 +224,28 @@ func TestConcurrentEpisodeRunIsFenced(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestTaskOverheadPreservesExecutionTimeWithinGlobalBudget(t *testing.T) {
+	p := repeatProfile()
+	p.Confirmation = nil
+	p.ContinueAfterUnique = false
+	engine := d.Engine{TaskOverhead: 30 * time.Millisecond, Eligible: gate, Runner: runFunc(func(ctx context.Context, a d.Action, e d.Executor) (d.Outcome, error) {
+		timer := time.NewTimer(a.Check.Timeout + 5*time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			return failureRunner(ctx, a, e)
+		case <-ctx.Done():
+			return d.Outcome{}, ctx.Err()
+		}
+	})}
+	r, e := engine.Run(context.Background(), p, "adaptive", independentAgents(), &d.Ledger{}, nil, "down")
+	if e != nil || r.Status != "completed" {
+		t.Fatal("orchestration consumed the driver's execution budget", r, e)
+	}
+	ledger := &d.Ledger{StartedAt: time.Now().Add(-890 * time.Millisecond)}
+	r, e = engine.Run(context.Background(), p, "adaptive", independentAgents(), ledger, nil, "down")
+	if e != nil || r.Status != "inconclusive" || r.Attempts != 0 {
+		t.Fatal("overhead escaped the episode deadline", r, e)
+	}
+}

@@ -108,7 +108,10 @@ type Runner interface {
 	Execute(context.Context, Action, Executor) (Outcome, error)
 }
 type Engine struct {
-	Runner Runner
+	// TaskOverhead reserves orchestration time inside the same global deadline;
+	// it never increases the driver's configured network probe timeout.
+	TaskOverhead time.Duration
+	Runner       Runner
 	// Eligibility is a required Controller-owned policy gate, not a permission
 	// inferred from score or from the Agent's self-reported reachability.
 	Eligible      func(Action, Executor) bool

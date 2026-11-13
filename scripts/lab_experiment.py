@@ -11,7 +11,7 @@ import subprocess
 import time
 from lab import Lab
 
-TRUTH={'http':'http-failure','dns':'dns-failure','tcp':'tcp-failure','office-path':'office-path-failure','multiple':None}
+TRUTH={'http':'http-failure','dns':'dns-failure','dns-drop':'dns-failure','tcp':'tcp-failure','office-path':'office-path-failure','multiple':None}
 MODES=['static','fixed','adaptive']
 
 def write_private(path,data):
@@ -92,7 +92,7 @@ def main():
     parser.add_argument('--repetitions',type=int,default=1)
     parser.add_argument('--seed',type=int,default=7)
     parser.add_argument('--modes',default=','.join(MODES))
-    parser.add_argument('--scenarios',default=','.join(TRUTH))
+    parser.add_argument('--scenarios',default='http,dns,tcp,office-path,multiple')
     parser.add_argument('--output',default='.local/lab-experiment.json')
     args=parser.parse_args()
     modes=args.modes.split(',');scenarios=args.scenarios.split(',')

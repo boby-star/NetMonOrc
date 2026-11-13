@@ -189,6 +189,9 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	if mode == "fixed" && p.Mode != "fixed" {
 		return r, fmt.Errorf("fixed requires a fixed profile")
 	}
+	if e.TaskOverhead < 0 || e.TaskOverhead > 30*time.Second {
+		return r, fmt.Errorf("invalid task overhead allowance")
+	}
 	if e.Runner == nil || e.Eligible == nil || ledger == nil {
 		return r, fmt.Errorf("runner, eligibility and episode ledger required")
 	}
@@ -428,7 +431,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		var selectedBytes int64
 		for i := range candidates {
 			a := &candidates[i]
-			if time.Now().Add(a.Check.Timeout).After(deadline) {
+			if time.Now().Add(a.Check.Timeout + e.TaskOverhead).After(deadline) {
 				continue
 			}
 			var eligible []Executor
@@ -501,7 +504,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		ledger.EstimatedBytes += selectedBytes
 		r.Attempts++
 		r.Cost += selected.Cost
-		attempt, done := context.WithTimeout(child, selected.Check.Timeout)
+		attempt, done := context.WithTimeout(child, selected.Check.Timeout+e.TaskOverhead)
 		outcome, err := e.Runner.Execute(attempt, *selected, executor)
 		validExecution := (outcome.Execution == "completed" && (outcome.Outcome == "success" || outcome.Outcome == "failure" || outcome.Outcome == "unknown")) || (outcome.Execution == "execution_failed" && outcome.Outcome == "unknown")
 		if err != nil || attempt.Err() != nil || !validExecution {

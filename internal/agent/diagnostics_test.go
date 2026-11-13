@@ -29,18 +29,23 @@ func TestDiagnosticAuthorizationReceiptAndDeadline(t *testing.T) {
 	a := &assignment{plan: p, zone: "office", deadline: time.Now().Add(25 * time.Second)}
 	st := &state{current: a}
 	dir := t.TempDir()
-	task := &pb.DiagnosticTask{TaskId: "0123456789abcdef0123456789abcdef", SessionId: "1123456789abcdef0123456789abcdef", Revision: p.Revision, CompiledCheck: data, AttemptNo: 1, ExpiresAtUnixMilli: time.Now().Add(10 * time.Second).UnixMilli()}
+	task := &pb.DiagnosticTask{TaskId: "0123456789abcdef0123456789abcdef", SessionId: "1123456789abcdef0123456789abcdef", Revision: p.Revision, CompiledCheck: data, AttemptNo: 1, ExpiresAtUnixMilli: time.Now().Add(30 * time.Second).UnixMilli()}
 	_, _, deadline, e := prepareTask(task, st, dir)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if deadline.After(time.Now().Add(5 * time.Second)) {
+	if deadline.After(time.Now().Add(25 * time.Second)) {
 		t.Fatal("clock uncertainty was not subtracted")
 	}
 	if _, _, _, e = prepareTask(task, st, dir); e == nil {
 		t.Fatal("duplicate task could execute again")
 	}
 	task.TaskId = "2123456789abcdef0123456789abcdef"
+	task.ExpiresAtUnixMilli = time.Now().Add(10 * time.Second).UnixMilli()
+	if _, _, _, e = prepareTask(task, st, dir); e == nil {
+		t.Fatal("probe with insufficient safe time was accepted")
+	}
+
 	task.ExpiresAtUnixMilli = time.Now().Add(-time.Second).UnixMilli()
 	if _, _, _, e = prepareTask(task, st, dir); e == nil {
 		t.Fatal("expired task accepted")

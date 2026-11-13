@@ -188,6 +188,14 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				s.taskResult(req.task.TaskId, id, diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"})
 				continue
 			}
+			// Refresh authorization before a potentially long physical probe.
+			// This extends no in-flight task and never survives disconnect.
+			if e = sendAssignment(); e != nil {
+				return e
+			}
+			if req.ctx.Err() != nil {
+				continue
+			}
 			f := frame(id)
 			f.Payload = &pb.ControllerFrame_DiagnosticTask{DiagnosticTask: req.task}
 			if e = stream.Send(f); e != nil {

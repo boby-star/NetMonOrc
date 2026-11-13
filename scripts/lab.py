@@ -19,6 +19,7 @@ SCENARIOS = {
     'healthy': NORMAL,
     'http': {**NORMAL,'http_status':503},
     'dns': {**NORMAL,'dns_mode':'nxdomain'},
+    'dns-drop': {**NORMAL,'dns_mode':'drop'},
     'tcp': {**NORMAL,'tcp_open':False},
     'office-path': NORMAL,
     'multiple': {**NORMAL,'http_status':503,'dns_mode':'nxdomain'},

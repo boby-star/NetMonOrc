@@ -38,8 +38,8 @@ func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store
 		return nil, fmt.Errorf("live diagnostic byte estimates are not measured; byte budget unsupported")
 	}
 	for _, a := range profile.Actions {
-		if a.Check.Timeout < 6*time.Second {
-			return nil, fmt.Errorf("live diagnostic timeout must be >=6s to cover the 5s clock uncertainty bound")
+		if a.Check.Timeout > 15*time.Second {
+			return nil, fmt.Errorf("research diagnostic timeout must be <=15s to fit a renewed 30s lease with startup/clock bounds")
 		}
 	}
 	t, e := diagnostics.CompileTrigger(p.Diagnostics.When)
@@ -105,7 +105,7 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 		defer c.workers.Done()
 		defer func() { c.mu.Lock(); c.running = false; c.mu.Unlock() }()
 		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: c.Plan}
-		engine := diagnostics.Engine{Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
+		engine := diagnostics.Engine{TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
 			return agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
 		}}
 		result, e := engine.Run(ctx, c.Profile, c.mode, agents, &diagnostics.Ledger{StartedAt: started}, initial, a.State)

@@ -69,10 +69,12 @@ revision чи завершення сесії не відкривають дру
 Це не повна реалізація багатосеансової діагностики з confirmation/retry.
 
 Clock uncertainty для стенда прийнята рівною 5s. Agent віднімає її від
-абсолютного task deadline і обмежує його lease. Тому операційний профіль
-вимагає timeout щонайменше 6s; приклади використовують 10s. Тривалий probe
-може завершитись раніше як execution_failed, якщо вичерпано безпечний час.
-Ця межа не є результатом вимірювання синхронізації годинників.
+абсолютного task deadline й обмежує lease. Task має окремий 20s запас на
+orchestration всередині budget.maxDuration; перед dispatch lease поновлюється.
+Live one-shot timeout підтримується від 100ms до 15s, за достатнього
+залишку часу на startup/probe. Це не збільшення check.timeout; див.
+[ADR 0002](../adr/0002-probe-time-and-task-budget.md). Межа clock uncertainty
+не є результатом вимірювання синхронізації годинників.
 
 ## Перевірка
 
