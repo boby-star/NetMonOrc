@@ -158,8 +158,11 @@ func Compile(data []byte) (monitor.Plan, error) {
 			return p, fmt.Errorf("spec.checks[%d].id invalid or duplicated", i)
 		}
 		seen[c.ID] = true
-		if c.Type != "http" || c.Runner != "native-http" {
-			return p, fmt.Errorf("check %s: this slice supports only http with explicit native-http runner", c.ID)
+		if c.Runner == "" || c.Runner == "auto" {
+			c.Runner = "blackbox"
+		}
+		if c.Type != "http" || (c.Runner != "native-http" && c.Runner != "blackbox") {
+			return p, fmt.Errorf("check %s: this slice supports http with native-http or blackbox runner", c.ID)
 		}
 		u, err := url.Parse(c.Config.URL)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
@@ -168,7 +171,7 @@ func Compile(data []byte) (monitor.Plan, error) {
 		if c.Config.FollowRedirects || (c.Config.VerifyTLS != nil && !*c.Config.VerifyTLS) {
 			return p, fmt.Errorf("redirects and disabled TLS verification are not supported")
 		}
-		x := monitor.Check{ID: c.ID, URL: u.String(), Method: c.Config.Method, ExpectedStatus: c.Config.ExpectedStatus, MaxBodyBytes: 16384, Weight: 1}
+		x := monitor.Check{Runner: c.Runner, ID: c.ID, URL: u.String(), Method: c.Config.Method, ExpectedStatus: c.Config.ExpectedStatus, MaxBodyBytes: 16384, Weight: 1}
 		if x.Method == "" {
 			x.Method = "GET"
 		}

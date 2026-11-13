@@ -3,6 +3,7 @@ package monitor
 import "time"
 
 type Check struct {
+	Runner         string
 	ID             string
 	URL            string
 	Method         string

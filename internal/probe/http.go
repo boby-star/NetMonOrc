@@ -19,23 +19,12 @@ import (
 // IP targets only, so policy validation cannot race a second DNS resolution.
 // No environment proxy, redirects, cookies or insecure TLS are permitted.
 func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, allowed []netip.Prefix) (monitor.Observation, error) {
+	if e := allowedTarget(c.URL, allowed); e != nil {
+		return monitor.Observation{}, e
+	}
 	u, e := url.Parse(c.URL)
 	if e != nil {
 		return monitor.Observation{}, e
-	}
-	ip, e := netip.ParseAddr(u.Hostname())
-	if e != nil {
-		return monitor.Observation{}, fmt.Errorf("first slice requires IP-literal probe URLs")
-	}
-	ip = ip.Unmap()
-	permitted := false
-	for _, n := range allowed {
-		if n.Contains(ip) {
-			permitted = true
-		}
-	}
-	if !permitted || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return monitor.Observation{}, fmt.Errorf("probe target is outside explicit allowed CIDRs or is a forbidden address")
 	}
 	var id [16]byte
 	if _, e = rand.Read(id[:]); e != nil {
@@ -62,8 +51,6 @@ func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, 
 	} else {
 		o.StatusCode = response.StatusCode
 		n, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, c.MaxBodyBytes+1))
-		// Status probes do not retain bodies. Reject oversized or incomplete
-		// responses conservatively instead of treating truncated data as success.
 		if n > c.MaxBodyBytes {
 			readErr = fmt.Errorf("body limit exceeded")
 		}
@@ -84,4 +71,26 @@ func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, 
 	}
 	o.FinishedAt = time.Now().UTC()
 	return o, nil
+}
+
+func allowedTarget(raw string, allowed []netip.Prefix) error {
+	u, e := url.Parse(raw)
+	if e != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.Fragment != "" {
+		return fmt.Errorf("invalid HTTP target")
+	}
+	ip, e := netip.ParseAddr(u.Hostname())
+	if e != nil {
+		return fmt.Errorf("first slice requires IP-literal probe URLs")
+	}
+	ip = ip.Unmap()
+	permitted := false
+	for _, n := range allowed {
+		if n.Contains(ip) {
+			permitted = true
+		}
+	}
+	if !permitted || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return fmt.Errorf("probe target is outside explicit allowed CIDRs or is a forbidden address")
+	}
+	return nil
 }

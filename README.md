@@ -1,7 +1,7 @@
 # NetMonOrc
 
 Мінімальний дослідницький прототип методу комплексного моніторингу.
-Перший робочий зріз — локальний ланцюг YAML → HTTP probe → Observation → Assessment.
+Робочий зріз — локальний ланцюг YAML → native HTTP / Blackbox → Observation → Assessment.
 Повної відповідності попередньому v1alpha1 поки немає.
 
 ## Запуск першого зрізу
@@ -32,10 +32,37 @@ HTTP 503 у філії та HTTP 200 у серверній зоні → degraded
 читає NDJSON зі стандартного вводу; заплановані агенти задаються окремо,
 тому втрата джерела не зменшує очікуване покриття.
 
+## Blackbox Exporter
+
+Підтримується підготовлений executable **Blackbox Exporter 0.27.0**.
+Для HTTP check використовуйте `runner: blackbox` або `runner: auto`;
+відсутній runner також обирає Blackbox відповідно до DSL.
+CLI запускає один керований exporter на виклик `probe` із приватним
+згенерованим конфігом і випадковим loopback-портом; при завершенні
+процес і тимчасовий конфіг прибираються. Довільні аргументи, модулі
+або executable paths у YAML не допускаються.
+
+```bash
+python3 scripts/smoke.py --blackbox-binary /path/to/blackbox_exporter
+.local/netmonorc probe -config .local/blackbox-smoke.yaml -agent branch -zone office -allow-cidrs 127.0.0.1/32 -blackbox-binary /path/to/blackbox_exporter
+```
+
+Для Cloud binary встановлено в
+`/workspace/toolchains/blackbox_exporter-0.27.0.linux-amd64/blackbox_exporter`.
+Офіційний Linux amd64 archive має SHA256
+`507a77ff411822fd6b543e8b8d9e00e1cc49408df465588cd746753bf05046e2`.
+Джерело: GitHub release `prometheus/blackbox_exporter`, tag `v0.27.0`.
+
+Обидва runner-и приймають лише явні IP-literal URL з дозволених CIDR;
+DNS-цілі, redirects, proxy та вимкнення перевірки TLS недоступні.
+Це обмежена безпечна інтеграція HTTP, а не завершена мережева політика
+для всіх протоколів. Startup exporter враховується в часі CLI-команди;
+продуктивність майбутнього постійного Agent цим запуском не вимірюється.
+
 ## Межі поточної реалізації
 
 - Один Monitor з inline target, HTTP checks та inline weighted assessment.
-- Явний `native-http`, GET/HEAD, IP-literal URL, перевірка TLS,
+- `native-http` та `blackbox`/`auto`, GET/HEAD, IP-literal URL, перевірка TLS,
   обмеження body/headers/timeout, явний CIDR allowlist, без redirects.
 - Required checks, H/Q, TTL для кожної перевірки, maxSkew,
   поточна ревізія, newest observation, фіксований агент на зону,
@@ -43,7 +70,7 @@ HTTP 503 у філії та HTTP 200 у серверній зоні → degraded
 - Непідтримувані YAML-поля та можливості відхиляються.
 - Це локальні CLI-операції, без нового альтернативного HTTP API.
 
-Наразі немає мережевого Controller/Agent, mTLS, Scheduler, Blackbox,
+Наразі немає мережевого Controller/Agent, mTLS, Scheduler, TCP/DNS/ICMP,
 PostgreSQL, CEL/extraction, діагностики, алертів і вебпанелі.
 CLI не автентифікує агентів: NDJSON придатний для контрольованого стенда,
 а не для приймання недовірених мережевих результатів.

@@ -12,17 +12,27 @@
 Локальний CLI: `cmd/netmonorc`. Приклад і наскрізна демонстрація:
 `examples/http.yaml`, `scripts/smoke.py`.
 
+Інтегровано реальний Blackbox Exporter 0.27.0 для HTTP. За runner
+`auto`/`blackbox` генерується закрита конфігурація exporter, запускається
+керований локальний процес і його метрики перетворюються на Observation.
+Різні ревізії враховують вибраний runner. IP allowlist перевіряється перед
+викликом exporter; redirects заборонені, TLS verification обов'язковий.
+Запуск/зупинка процесу належать CLI, executable вибирає адміністратор,
+не YAML. Мережевого Agent поки немає.
+
 Перевірено: `go build`, `go test ./...` (три пакети з тестами),
 `go vet ./...`; smoke з реальними HTTP 200/503 і відсутністю джерела.
 Критичні перевірки включають required failure попри високу H,
 TTL/revision/maxSkew, дублікати, новішу execution failure,
 обмеження відповіді, redirect і заборону metadata-адреси.
+Додатково перевірено реальний Blackbox HTTP 200/503, надмірну відповідь,
+заборону redirects, malformed metrics і HTTP-помилку самого exporter.
 
 ## Ще не реалізовано
 
 1. Окремі Controller/Agent, mTLS із підготовленими сертифікатами,
    регулярне виконання, bounded delivery, збереження PostgreSQL.
-2. Blackbox HTTP/TCP/DNS/ICMP, безпечна мережева політика exporter.
+2. Blackbox TCP/DNS/ICMP, DNS-цілі та ширша мережева політика exporter.
 3. Профілі, CEL та extraction, необхідна частина DSL для сценаріїв записки.
 4. Static, Fixed та Adaptive, бюджети й підтвердження.
 5. Простий webhook і перегляд результатів.

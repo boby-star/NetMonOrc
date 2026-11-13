@@ -35,6 +35,7 @@ func run(args []string) error {
 	zone := f.String("zone", "", "source zone")
 	allow := f.String("allow-cidrs", "", "comma-separated explicit target CIDRs")
 	slotsArg := f.String("slots", "", "planned agent=zone pairs, one per zone")
+	blackboxBinary := f.String("blackbox-binary", "blackbox_exporter", "prepared Blackbox Exporter 0.27.0 executable")
 	if e := f.Parse(args[1:]); e != nil {
 		return e
 	}
@@ -81,8 +82,24 @@ func run(args []string) error {
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
+		var exporter *probe.Exporter
 		for _, c := range p.Checks {
-			o, e := probe.HTTP(ctx, p, c, monitor.Slot{Agent: *agent, Zone: *zone}, networks)
+			if c.Runner == "blackbox" {
+				exporter, e = probe.StartExporter(ctx, *blackboxBinary, p)
+				if e != nil {
+					return e
+				}
+				defer exporter.Close()
+				break
+			}
+		}
+		for _, c := range p.Checks {
+			var o monitor.Observation
+			if c.Runner == "blackbox" {
+				o, e = exporter.HTTP(ctx, p, c, monitor.Slot{Agent: *agent, Zone: *zone}, networks)
+			} else {
+				o, e = probe.HTTP(ctx, p, c, monitor.Slot{Agent: *agent, Zone: *zone}, networks)
+			}
 			if e != nil {
 				return e
 			}
