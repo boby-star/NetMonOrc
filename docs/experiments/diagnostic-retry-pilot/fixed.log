@@ -1,0 +1,28 @@
+PASS: PostgreSQL ready
+PASS: no observations -> unknown
+PASS: foreign CA rejected
+PASS: two authenticated processes -> healthy
+PASS: private HTML report reflects live assessment
+PASS: observations buffered while Controller is offline
+PASS: Controller/Agent restart and durable replay
+PASS: replay did not create a duplicate database observation
+PASS: assessment restored after reconnect
+PASS: confirmed service failure -> down
+PASS: real Agent diagnostics -> supported service-failure
+PASS: one real exporter startup failure retried with a new task ID and durable attempt 2
+PASS: same failure assessed after diagnostic Controller restart
+PASS: physical probes committed; reconnect/restart did not reset episode budget
+PASS: service recovery -> healthy
+PASS: healthy/full coverage closes incident
+PASS: new incident admitted with an active physical task
+PASS: crashed run remains inconclusive with preserved reservation
+PASS: interrupted report restored from PostgreSQL
+PASS: recovery after interrupted diagnostic
+PASS: Agent loss plus TTL -> unknown, not down
+=== RUN   TestPostgresDiagnosticBudgetsAndIsolation
+--- PASS: TestPostgresDiagnosticBudgetsAndIsolation (0.08s)
+=== RUN   TestPostgresDurabilityAndFencing
+--- PASS: TestPostgresDurabilityAndFencing (0.04s)
+PASS
+ok  	github.com/boby-star/NetMonOrc/internal/storage	0.135s
+Evidence: /workspace/NetMonOrc/.local/distributed-b5e4aa0f

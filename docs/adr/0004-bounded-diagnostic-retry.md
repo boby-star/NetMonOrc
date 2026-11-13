@@ -1,6 +1,6 @@
 # ADR 0004: явний technical retry діагностичної активації
 
-Статус: реалізовано; критичні перевірки та натурні Fixed/Adaptive пройдено.
+Статус: реалізовано; критичні перевірки та натурні Static/Fixed/Adaptive пройдено.
 
 Користувач раніше погодив DiagnosticAction.retry.maxAttempts і облік усіх
 фізичних спроб у чинному budget. Реалізовано цей об'єкт без нових routes,
@@ -37,3 +37,5 @@ Runtime підтримує одну послідовну діагностичн�
 shell engine чи підставлений service outcome. Реальні mTLS/Agent/spool/PG
 зберігають execution_failed, потім completed/failure. Друга подія доводить
 відмову сервісу, перша — тільки технічну проблему.
+
+Дані: [diagnostic-retry-pilot](../experiments/diagnostic-retry-pilot/README.md).

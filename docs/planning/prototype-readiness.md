@@ -37,7 +37,8 @@
 Дані: [старий пілот](../experiments/compose-pilot/README.md),
 [confirmation](../experiments/confirmation-pilot/README.md),
 [DNS-drop](../experiments/dns-drop-pilot/README.md),
-[webhook/restart](../experiments/webhook-pilot/README.md).
+[webhook/restart](../experiments/webhook-pilot/README.md),
+[technical retry](../experiments/diagnostic-retry-pilot/README.md).
 
 Повний CRUD/RBAC/enrollment/React UI/HA та всі можливості великого v1alpha1
 не є умовою завершення цього мінімального дослідницького профілю.

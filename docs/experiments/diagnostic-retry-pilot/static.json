@@ -1,0 +1,138 @@
+{
+  "status": "passed",
+  "fixture": "diagnostics-static",
+  "postgres_fencing_test": "passed",
+  "replay": "passed",
+  "ttl": "passed",
+  "diagnosticRetry": true,
+  "diagnostic": {
+    "id": "a61c6ce164e548a0dfda30ece8c126c6",
+    "monitor": "research-web",
+    "revision": "97069d766c290f8a21400032c7ec8b2387bbce8ab289c56cd5e7418b6fb1c83d",
+    "reservedChecks": 3,
+    "startedAt": "2026-11-13T18:05:37.520259Z",
+    "finishedAt": "2026-11-13T18:05:39.933297Z",
+    "result": {
+      "durationMs": 2408,
+      "mode": "static",
+      "status": "completed",
+      "reason": "supported_class",
+      "hypotheses": [
+        "service-failure"
+      ],
+      "attempts": 3,
+      "costUnits": 3,
+      "decisions": [
+        {
+          "attemptNo": 1,
+          "actionId": "inspect-office",
+          "agentId": "branch",
+          "hypothesesBefore": [
+            "office-path-failure",
+            "service-failure"
+          ],
+          "gain": 0,
+          "score": 0,
+          "result": {
+            "Execution": "completed",
+            "Outcome": "failure"
+          }
+        },
+        {
+          "attemptNo": 1,
+          "actionId": "inspect-server",
+          "agentId": "dc",
+          "hypothesesBefore": [
+            "office-path-failure",
+            "service-failure"
+          ],
+          "gain": 1,
+          "score": 1,
+          "result": {
+            "Execution": "execution_failed",
+            "Outcome": "unknown"
+          }
+        },
+        {
+          "attemptNo": 2,
+          "actionId": "inspect-server",
+          "agentId": "dc",
+          "hypothesesBefore": [
+            "office-path-failure",
+            "service-failure"
+          ],
+          "gain": 1,
+          "score": 1,
+          "result": {
+            "Execution": "completed",
+            "Outcome": "failure"
+          }
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "d87f219c798eb955a883727dc7a39328",
+      "check": "inspect-office",
+      "attemptNo": 1,
+      "state": "finished",
+      "observation": {
+        "id": "d87f219c798eb955a883727dc7a39328",
+        "zone": "office",
+        "agent": "branch",
+        "check": "inspect-office",
+        "reason": "negative_probe",
+        "monitor": "research-web",
+        "outcome": "failure",
+        "revision": "97069d766c290f8a21400032c7ec8b2387bbce8ab289c56cd5e7418b6fb1c83d",
+        "execution": "completed",
+        "startedAt": "2026-11-13T18:05:37.583079907Z",
+        "finishedAt": "2026-11-13T18:05:37.59546569Z",
+        "statusCode": 503,
+        "diagnosticTaskID": "d87f219c798eb955a883727dc7a39328"
+      }
+    },
+    {
+      "id": "518141e9249891d47bbca34da25d15c9",
+      "check": "inspect-server",
+      "attemptNo": 1,
+      "state": "finished",
+      "observation": {
+        "id": "518141e9249891d47bbca34da25d15c9",
+        "zone": "server",
+        "agent": "dc",
+        "check": "inspect-server",
+        "reason": "diagnostic_runner_or_policy_unavailable",
+        "monitor": "research-web",
+        "outcome": "unknown",
+        "revision": "97069d766c290f8a21400032c7ec8b2387bbce8ab289c56cd5e7418b6fb1c83d",
+        "execution": "execution_failed",
+        "startedAt": "2026-11-13T18:05:38.52596808Z",
+        "finishedAt": "2026-11-13T18:05:38.52596808Z",
+        "diagnosticTaskID": "518141e9249891d47bbca34da25d15c9"
+      }
+    },
+    {
+      "id": "0fb9ca3b4b86791a21e9d412552f5afd",
+      "check": "inspect-server",
+      "attemptNo": 2,
+      "state": "finished",
+      "observation": {
+        "id": "0fb9ca3b4b86791a21e9d412552f5afd",
+        "zone": "server",
+        "agent": "dc",
+        "check": "inspect-server",
+        "reason": "negative_probe",
+        "monitor": "research-web",
+        "outcome": "failure",
+        "revision": "97069d766c290f8a21400032c7ec8b2387bbce8ab289c56cd5e7418b6fb1c83d",
+        "execution": "completed",
+        "startedAt": "2026-11-13T18:05:38.993293904Z",
+        "finishedAt": "2026-11-13T18:05:38.998205849Z",
+        "statusCode": 503,
+        "diagnosticTaskID": "0fb9ca3b4b86791a21e9d412552f5afd"
+      }
+    }
+  ]
+}

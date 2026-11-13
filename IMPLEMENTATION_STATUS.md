@@ -239,10 +239,11 @@ execution_failed; negative probe/unknown не повторюються. Кожн
 Fixed передає залежним крокам фінальний результат ланцюга.
 
 Перевірено критичні budgets/deadline/cancel/no-repeat/domain тести й race.
-Реальні Fixed і Adaptive smoke через mTLS/Blackbox/PostgreSQL пройшли
+Реальні Static, Fixed і Adaptive smoke через mTLS/Blackbox/PostgreSQL пройшли
 startup failure → новий task з attemptNo=2 → completed/failure, правильний
 клас, replay/TTL/generation fencing і crash без повернення reservations.
 Деталі й межі: ADR 0004, docs/architecture/diagnostic-runtime.md.
+Сирі дані всіх трьох режимів: docs/experiments/diagnostic-retry-pilot.
 
 ## Ще не реалізовано
 

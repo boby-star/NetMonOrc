@@ -1,0 +1,13 @@
+{
+  "source_commit": "fc0d7bd2a7d76d0766053eaaab63e6685ad470f2",
+  "source_tree_clean_at_start": true,
+  "modes": [
+    "adaptive",
+    "fixed",
+    "static"
+  ],
+  "repetitions": 1,
+  "application_docker_image": "sha256:1a6685a20f5bfeeecbf2dbfecb6420c9746c4e5fa4485e2b3e1f90917e555314",
+  "execution": "Host Controller/Agent binaries built from source, real Blackbox 0.27.0, one separate temporary PostgreSQL container per mode. This is not a multi-zone network experiment.",
+  "command": "python3 scripts/distributed_smoke.py --diagnostics MODE --diagnostic-runner blackbox --diagnostic-retry --blackbox-binary /workspace/toolchains/blackbox_exporter-0.27.0.linux-amd64/blackbox_exporter"
+}

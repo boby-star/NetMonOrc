@@ -1,0 +1,102 @@
+{
+  "status": "passed",
+  "fixture": "diagnostics-adaptive",
+  "postgres_fencing_test": "passed",
+  "replay": "passed",
+  "ttl": "passed",
+  "diagnosticRetry": true,
+  "diagnostic": {
+    "id": "ffe6525fba295f399d158a8ca19aec9a",
+    "monitor": "research-web",
+    "revision": "f0cd385ac6be7ff158ccce247ef707b54f8b269ee7675ee77447b8363700fda1",
+    "reservedChecks": 2,
+    "startedAt": "2026-11-13T18:05:38.108871Z",
+    "finishedAt": "2026-11-13T18:05:39.380126Z",
+    "result": {
+      "durationMs": 1263,
+      "mode": "adaptive",
+      "status": "completed",
+      "reason": "supported_class",
+      "hypotheses": [
+        "service-failure"
+      ],
+      "attempts": 2,
+      "costUnits": 2,
+      "decisions": [
+        {
+          "attemptNo": 1,
+          "actionId": "inspect-server",
+          "agentId": "dc",
+          "hypothesesBefore": [
+            "office-path-failure",
+            "service-failure"
+          ],
+          "gain": 1,
+          "score": 1,
+          "result": {
+            "Execution": "execution_failed",
+            "Outcome": "unknown"
+          }
+        },
+        {
+          "attemptNo": 2,
+          "actionId": "inspect-server",
+          "agentId": "dc",
+          "hypothesesBefore": [
+            "office-path-failure",
+            "service-failure"
+          ],
+          "gain": 1,
+          "score": 1,
+          "result": {
+            "Execution": "completed",
+            "Outcome": "failure"
+          }
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "66438c8943a26030d64b6f9c53690ae4",
+      "check": "inspect-server",
+      "attemptNo": 1,
+      "state": "finished",
+      "observation": {
+        "id": "66438c8943a26030d64b6f9c53690ae4",
+        "zone": "server",
+        "agent": "dc",
+        "check": "inspect-server",
+        "reason": "diagnostic_runner_or_policy_unavailable",
+        "monitor": "research-web",
+        "outcome": "unknown",
+        "revision": "f0cd385ac6be7ff158ccce247ef707b54f8b269ee7675ee77447b8363700fda1",
+        "execution": "execution_failed",
+        "startedAt": "2026-11-13T18:05:38.164113303Z",
+        "finishedAt": "2026-11-13T18:05:38.164113303Z",
+        "diagnosticTaskID": "66438c8943a26030d64b6f9c53690ae4"
+      }
+    },
+    {
+      "id": "68cd68186da07ea35aecd2c94d5daadd",
+      "check": "inspect-server",
+      "attemptNo": 2,
+      "state": "finished",
+      "observation": {
+        "id": "68cd68186da07ea35aecd2c94d5daadd",
+        "zone": "server",
+        "agent": "dc",
+        "check": "inspect-server",
+        "reason": "negative_probe",
+        "monitor": "research-web",
+        "outcome": "failure",
+        "revision": "f0cd385ac6be7ff158ccce247ef707b54f8b269ee7675ee77447b8363700fda1",
+        "execution": "completed",
+        "startedAt": "2026-11-13T18:05:38.547113581Z",
+        "finishedAt": "2026-11-13T18:05:38.553483173Z",
+        "statusCode": 503,
+        "diagnosticTaskID": "68cd68186da07ea35aecd2c94d5daadd"
+      }
+    }
+  ]
+}
