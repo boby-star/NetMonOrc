@@ -10,6 +10,9 @@ import shutil
 import ssl
 import subprocess
 import sys
+import urllib.request
+import urllib.error
+from html.parser import HTMLParser
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +31,7 @@ parser.add_argument('--diagnostics', choices=['adaptive','fixed','static'])
 parser.add_argument('--diagnostic-runner',choices=['native-http','blackbox'],default='native-http')
 parser.add_argument('--blackbox-binary')
 parser.add_argument('--diagnostic-retry',action='store_true',help='research fixture: fail exactly one diagnostic exporter startup')
+parser.add_argument("--http-ui",action="store_true",help="verify real HTTPS assessment REST and built React assets")
 args = parser.parse_args()
 if sum([bool(args.network),bool(args.cel),bool(args.extract),bool(args.diagnostics)])>1:
     parser.error('choose one fixture mode at a time')
@@ -168,6 +172,12 @@ try:
                        '-ca', str(pki/'ca.crt'), '-cert', str(pki/'controller.crt'),
                        '-key', str(pki/'controller.key'), '-assessment-file', str(work/'assessment.json'),
                        '-report-file',str(work/'report.html')]
+    if args.http_ui:
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1',0));api_port=sock.getsockname()[1]
+        viewer_token=secrets.token_urlsafe(32)
+        token_file=work/'viewer.token';token_file.write_text(viewer_token);token_file.chmod(0o600)
+        controller_args += ['-http-listen',f'127.0.0.1:{api_port}','-http-token-file',str(token_file),'-http-ui-dir',str(ROOT/'web/dist')]
     if args.diagnostics:
         controller_args += ['-diagnostic-profile',str(profile),'-diagnostic-file',str(work/'diagnostic.json')]
         if args.diagnostics=='static':
@@ -193,6 +203,29 @@ try:
     wait_for('two authenticated processes -> healthy', lambda: view().get('state') == 'healthy')
     wait_for('private HTML report reflects live assessment',lambda: (work/'report.html').exists() and 'Працює' in (work/'report.html').read_text())
     assert (work/'report.html').stat().st_mode & 0o077==0
+    if args.http_ui:
+        verified_tls=ssl.create_default_context(cafile=str(pki/'ca.crt'))
+        base=f'https://localhost:{api_port}'
+        def get(path,authorized=True):
+            request=urllib.request.Request(base+path,headers={'Authorization':'Bearer '+viewer_token} if authorized else {})
+            with urllib.request.urlopen(request,context=verified_tls,timeout=5) as response:return response.read()
+        dto=json.loads(get('/api/v1/monitors/research-web/assessment'))
+        assert dto['monitorId']=='research-web' and dto['state']=='healthy' and len(dto['zoneStates'])==2,dto
+        assert dto['coverageState']=='sufficient' and dto['evidenceIds']
+        try:get('/api/v1/monitors/research-web/assessment',False);raise AssertionError('anonymous API access')
+        except urllib.error.HTTPError as error:
+            assert error.code==401
+            assert json.loads(error.read())['error']['requestId']
+        class Assets(HTMLParser):
+            def __init__(self):super().__init__();self.paths=[]
+            def handle_starttag(self,tag,attrs):
+                for key,value in attrs:
+                    if key in ['src','href'] and value.startswith('/assets/'):self.paths.append(value)
+        assets=Assets();assets.feed(get('/').decode())
+        assert assets.paths,'React build not served'
+        for asset in assets.paths:assert len(get(asset))>0
+        assert 'NetMonOrc' in get('/').decode()
+        print('PASS: trusted HTTPS REST returns live PostgreSQL Assessment; anonymous rejected; production React assets served',flush=True)
     old = json.loads(sql("SELECT payload FROM nmo_observations WHERE agent_id='branch' ORDER BY finished_at LIMIT 1"))
     stop(controller)
     wait_for('observations buffered while Controller is offline',
@@ -290,6 +323,7 @@ try:
                     'TestPostgres', '-count=1', '-v'],
                    cwd=ROOT, env=test_env, check=True)
     result={'status': 'passed', 'fixture': ('diagnostics-'+args.diagnostics) if args.diagnostics else ('extract' if args.extract else ('cel' if args.cel else ('network' if args.network else 'http'))), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}
+    if args.http_ui: result['httpUi']={'httpsVerified':True,'assessmentContractVerified':True,'anonymousRejected':True,'reactAssetsServed':True,'browserInteractionTested':False}
     if args.diagnostic_retry: result.update({'diagnosticRetry':True,'diagnostic':retry_report,'tasks':retry_tasks})
     (work/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     print('Evidence:', work, flush=True)

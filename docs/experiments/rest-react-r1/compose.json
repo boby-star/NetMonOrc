@@ -1,0 +1,59 @@
+{
+  "assessment": {
+    "monitorId": "research-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "811bb9606e64dd193ed2d373011fc19b",
+          "ad56cbd30647b551dbfc992b7335ecd1",
+          "36799370a770a8b281ad7ea9faf61734"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "30669297e2cba40eb6367a643c181f5b",
+          "daff4d365922dbefab6bee5f49d89132",
+          "876a9a4da8333ec4f341b901ae0c9730"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success",
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "811bb9606e64dd193ed2d373011fc19b",
+      "ad56cbd30647b551dbfc992b7335ecd1",
+      "36799370a770a8b281ad7ea9faf61734",
+      "30669297e2cba40eb6367a643c181f5b",
+      "daff4d365922dbefab6bee5f49d89132",
+      "876a9a4da8333ec4f341b901ae0c9730"
+    ],
+    "evaluatedAt": "2026-11-13T20:13:24.328139231Z",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43"
+  },
+  "anonymousStatus": 401,
+  "productionAssets": 2,
+  "tlsVersions": [
+    "TLSv1.3",
+    "TLSv1.3",
+    "TLSv1.3",
+    "TLSv1.3",
+    "TLSv1.3"
+  ],
+  "browserInteractionTested": false
+}

@@ -1,3 +1,11 @@
+# Розширення обсягу за запискою: REST API та React
+
+Актуальний технічний план: [thesis-scope-2026-11-13.md](docs/specs/thesis-scope-2026-11-13.md).
+Попередні 96% нижче описують історичний мінімальний профіль, а не новий обсяг.
+R1 реалізує один read-only GET Assessment і React-перегляд. Повні auth/RBAC,
+CRUD, policy refs, regular replicas/placement і групи ще не завершені.
+Деталі: [rest-react-r1.md](docs/architecture/rest-react-r1.md).
+
 # Фактичний стан мінімального прототипу
 
 Це послідовність завершених етапів. Актуальні межі зведено наприкінці;

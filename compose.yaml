@@ -109,6 +109,9 @@ services:
       - -webhook-ca=/run/netmonorc/ca.crt
       - -alert-file=/data/alert.json
       - -delivery-file=/data/delivery.json
+      - -http-listen=0.0.0.0:8443
+      - -http-token-file=/run/netmonorc/viewer.token
+      - -http-ui-dir=/usr/local/share/netmonorc/web
     depends_on: {postgres: {condition: service_healthy}}
     volumes: [controller-config:/run/netmonorc:ro, controller-data:/data]
     networks:

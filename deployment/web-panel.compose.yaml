@@ -1,0 +1,5 @@
+# Optional local browser access; default stand publishes no host ports.
+services:
+  controller:
+    ports:
+      - '127.0.0.1:${NMO_WEB_PORT:-8443}:8443'

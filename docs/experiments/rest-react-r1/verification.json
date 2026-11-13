@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "openapiAssessmentSchemaValidated": true,
+  "productionReactBuild": true,
+  "containerImage": "sha256:8b3a9b223644a9c2879166806f28e5a526d4fcd334778ba1c573d615ed51b558",
+  "bootstrapReadOnlyAuth": true,
+  "fullRBACImplemented": false,
+  "browserInteractionTested": false
+}

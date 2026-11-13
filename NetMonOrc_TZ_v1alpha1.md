@@ -1180,3 +1180,22 @@ reservation і витрату cost/time/estimated bytes. Негативний р
 Окремий явний Fixed step або confirmation probe є новою активацією,
 але не новим бюджетом. Перезапуск Controller не поновлює спроби:
 перервана сесія залишається inconclusive з durable reservations.
+
+## Додаток: розширений технічний проєкт за запискою від 2026-11-13
+
+За прямим дорученням користувача кінцевий обсяг охоплює REST API,
+React/TypeScript панель та власні можливості моделі записки. Мінімальний
+профіль більше не є кінцевим обсягом. Детальна матриця джерел, компонентів,
+залежностей та критеріїв завершення: docs/specs/thesis-scope-2026-11-13.md.
+
+До реалізації включені reusable CheckProfile і policy refs, multi-replica
+all/any/quorum, regular placement, ResourceGroup/Dependency, typed HTTP DTO,
+auth/RBAC/CSRF, конфігураційні операції та React UI. Нормативні DSL ресурси,
+HTTP routes та раніше погоджена математична семантика зберігають пріоритет.
+SNMP/SIEM/PCAP та shell engine з огляду інших платформ до власного обсягу
+не додаються. Нових довільних YAML kinds не вводиться.
+
+R1 реалізує захищене HTTPS читання Assessment та React-перегляд одного
+Monitor. Bootstrap bearer reader є обмеженим першим етапом, не повною
+реалізацією persisted sessions/PAT/RBAC. R2–R6 і відкриті розбіжності
+описані в технічному плані. Історична оцінка 96% не поширюється на новий обсяг.

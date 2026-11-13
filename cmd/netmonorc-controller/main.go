@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
+	"net/http"
 	"net/netip"
 	"os"
 	"os/signal"
@@ -19,6 +22,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/coordinator"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/durable"
+	"github.com/boby-star/NetMonOrc/internal/httpapi"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/notify"
 	"github.com/boby-star/NetMonOrc/internal/report"
@@ -56,6 +60,9 @@ func run() error {
 	webhookCA := flag.String("webhook-ca", "", "optional additional trusted webhook CA bundle")
 	alertOutput := flag.String("alert-file", ".local/alert.json", "local alert state snapshot")
 	deliveryOutput := flag.String("delivery-file", "", "optional private webhook delivery snapshot")
+	httpListen := flag.String("http-listen", "", "optional HTTPS REST/UI listener")
+	httpTokenFile := flag.String("http-token-file", "", "private read-only bootstrap bearer token file")
+	uiDir := flag.String("http-ui-dir", "", "built React directory; optional")
 	flag.Parse()
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
@@ -204,7 +211,23 @@ func run() error {
 		defer diagnostic.Wait()
 	}
 
-	errors := make(chan error, 3)
+	var httpServer *http.Server
+	if *httpListen != "" {
+		token, err := httpapi.LoadToken(*httpTokenFile)
+		if err != nil {
+			return err
+		}
+		var assets fs.FS
+		if *uiDir != "" {
+			assets = os.DirFS(*uiDir)
+		}
+		handler, err := httpapi.New(p.Name, token, store.ReadAssessment, assets)
+		if err != nil {
+			return err
+		}
+		httpServer = httpapi.NewServer(*httpListen, handler)
+	}
+	errors := make(chan error, 4)
 	notificationDone := make(chan struct{})
 	if notifications != nil {
 		go func() {
@@ -218,6 +241,14 @@ func run() error {
 		}()
 	} else {
 		close(notificationDone)
+	}
+	if httpServer != nil {
+		go func() {
+			err := httpServer.ListenAndServeTLS(*cert, *key)
+			if err != nil && !stderrors.Is(err, http.ErrServerClosed) {
+				errors <- err
+			}
+		}()
 	}
 	go func() { errors <- server.Serve(lis) }()
 	go func() {
@@ -242,6 +273,11 @@ func run() error {
 	case result = <-errors:
 	}
 	cancel()
+	if httpServer != nil {
+		shutdown, done := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = httpServer.Shutdown(shutdown)
+		done()
+	}
 	<-notificationDone
 	stopped := make(chan struct{})
 	go func() { server.GracefulStop(); close(stopped) }()

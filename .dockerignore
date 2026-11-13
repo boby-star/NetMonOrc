@@ -5,3 +5,6 @@
 *.docx
 *.zip
 *.bundle
+
+web/node_modules
+web/dist

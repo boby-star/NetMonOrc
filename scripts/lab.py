@@ -74,6 +74,9 @@ class Lab:
         secret = self.work/'webhook-token'
         if not secret.exists():
             secret.write_text(secrets.token_urlsafe(32));secret.chmod(0o600)
+        viewer = self.work/'viewer-token'
+        if not viewer.exists():
+            viewer.write_text(secrets.token_urlsafe(32));viewer.chmod(0o600)
         password = (self.work/'password').read_text()
         entries = {}
         for name in ['controller','branch','dc']:
@@ -83,6 +86,7 @@ class Lab:
         entries.update({'controller/'+k:v.encode() for k,v in manifests().items()})
         entries['controller/database.dsn']=f'postgresql://netmonorc:{password}@postgres:5432/netmonorc?sslmode=disable'.encode()
         entries['postgres/password']=password.encode()
+        entries['controller/viewer.token']=viewer.read_bytes()
         entries['fixture/mode.json']=json.dumps(NORMAL).encode()
         entries['controller/webhook.yaml']=f'''apiVersion: netmonorc.io/v1alpha1
 kind: WebhookEndpoint

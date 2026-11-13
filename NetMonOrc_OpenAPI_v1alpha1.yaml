@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Майбутній API, ще не реалізовано.
+    Реалізовано read-only GET /api/v1/monitors/{name}/assessment через HTTPS bootstrap bearer reader. Інші маршрути та повні sessions/PAT/RBAC ще заплановані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -2455,7 +2455,7 @@ components:
           - admin
           - viewer
         expiresAt:
-          type: string
+          type: [string, 'null']
           format: date-time
         csrfToken:
           type: string
@@ -2902,7 +2902,7 @@ components:
         zoneStates:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/ZoneAssessment'
         reasonCodes:
           type: array
           items:
@@ -2916,6 +2916,18 @@ components:
           format: date-time
         revision:
           type: string
+    ZoneAssessment:
+      type: object
+      required: [zone, state, coverage, q, h, evidence, reason]
+      properties:
+        zone: {type: string}
+        state: {type: string, enum: [healthy, degraded, down, unknown]}
+        coverage: {type: string, enum: [complete, coverage_degraded]}
+        q: {type: number, minimum: 0, maximum: 1}
+        h: {type: [number, 'null'], minimum: 0, maximum: 1}
+        evidence: {type: array, items: {type: string}}
+        reason: {type: string}
+        ruleErrors: {type: array, items: {type: string}}
     DiagnosticStart:
       type: object
       required:

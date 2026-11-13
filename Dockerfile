@@ -1,3 +1,11 @@
+FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN --mount=type=secret,id=build_ca \
+    if [ -s /run/secrets/build_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/build_ca npm ci --ignore-scripts; else npm ci --ignore-scripts; fi
+COPY web/index.html web/tsconfig.json ./
+COPY web/src ./src
+RUN npm run build
 FROM golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb AS build
 WORKDIR /src
 ENV GOTOOLCHAIN=local CGO_ENABLED=0
@@ -21,6 +29,7 @@ COPY --from=build --chmod=0755 /out/netmonorc /usr/local/bin/netmonorc
 COPY --from=build --chmod=0755 /out/experiment /usr/local/bin/netmonorc-experiment
 COPY --from=exporter --chmod=0755 /bin/blackbox_exporter /usr/local/bin/blackbox_exporter
 COPY --from=build --chown=10001:10001 /runtime /
+COPY --from=web /web/dist /usr/local/share/netmonorc/web
 USER 10001:10001
 WORKDIR /data
 ENTRYPOINT ["/usr/local/bin/netmonorc-controller"]
