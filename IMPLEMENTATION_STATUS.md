@@ -192,7 +192,9 @@ expiry, duplicate baseline aliases та concurrent episode fencing. Погодж
 поля й консервативна семантика задокументовані у DSL/TЗ/DOCX та ADR 0001.
 Реальний Adaptive smoke через mTLS/PostgreSQL/Blackbox підтвердив:
 HTTP+DNS → inconclusive після двох primary і двох confirmation probes.
-Повна серія для трьох режимів і всіх п'яти сценаріїв ще перевіряється.
+Повна серія із 15 запусків завершилася очікуваними state/diagnosis у всіх
+семплах; HTTP+DNS → inconclusive в усіх режимах. Набір: docs/experiments/confirmation-pilot/README.md.
+Це один повтор, не статистичний доказ універсальної точності.
 
 ## Ще не реалізовано
 

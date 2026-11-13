@@ -1,0 +1,16 @@
+repetition,mode,scenario,expected_state,state,state_correct,status,prediction,diagnosis_correct,duration_ms,assessment_sample_after_control_ms,reserved_checks,probe_observations,completed_probes,execution_failures,reason
+1,adaptive,dns,down,down,True,completed,dns-failure,True,3564,7876,4,4,4,0,confirmed_class
+1,adaptive,tcp,down,down,True,completed,tcp-failure,True,3561,9110,4,4,4,0,confirmed_class
+1,adaptive,multiple,down,down,True,inconclusive,,True,3566,9045,4,4,4,0,evidence_conflict
+1,adaptive,http,down,down,True,completed,http-failure,True,3565,9039,4,4,4,0,confirmed_class
+1,adaptive,office-path,degraded,degraded,True,completed,office-path-failure,True,3565,9063,4,4,4,0,confirmed_class
+1,static,dns,down,down,True,completed,dns-failure,True,4619,7645,6,6,6,0,confirmed_class
+1,static,office-path,degraded,degraded,True,completed,office-path-failure,True,4628,9609,6,6,6,0,confirmed_class
+1,static,multiple,down,down,True,inconclusive,,True,5633,9567,6,6,6,0,evidence_conflict
+1,static,http,down,down,True,completed,http-failure,True,4621,9430,6,6,6,0,confirmed_class
+1,static,tcp,down,down,True,completed,tcp-failure,True,4647,8485,6,6,6,0,confirmed_class
+1,fixed,office-path,degraded,degraded,True,completed,office-path-failure,True,3439,7772,4,4,4,0,supported_class
+1,fixed,tcp,down,down,True,completed,tcp-failure,True,3443,8443,4,4,4,0,supported_class
+1,fixed,dns,down,down,True,completed,dns-failure,True,3443,8166,4,4,4,0,supported_class
+1,fixed,multiple,down,down,True,inconclusive,,True,3441,8420,4,4,4,0,evidence_conflict
+1,fixed,http,down,down,True,completed,http-failure,True,3445,8341,4,4,4,0,supported_class
