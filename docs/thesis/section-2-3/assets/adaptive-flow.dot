@@ -1,0 +1,21 @@
+digraph flow {
+  graph [rankdir=TB, bgcolor="white", nodesep=0.25, ranksep=0.25, pad=0.12];
+  node [shape=box, style="rounded,filled", fillcolor="#f7f7f7", color="#333333", fontname="DejaVu Sans", fontsize=12, margin="0.14,0.08"];
+  edge [fontname="DejaVu Sans", fontsize=10, color="#333333", arrowsize=0.65];
+  start [label="Початок: Assessment, профіль,\nспостереження, агенти, бюджет", shape=oval];
+  evidence [label="Відібрати актуальні докази;\nвизначити сумісні гіпотези"];
+  stop [label="Є підстава\nдля завершення?", shape=diamond, style=filled];
+  candidates [label="Сформувати допустимі пари\n«дія–агент» та обчислити Score"];
+  gain [label="Є інформативна\nдопустима дія?", shape=diamond, style=filled];
+  run [label="Обрати кандидата, зарезервувати\nбюджет та виконати перевірку"];
+  update [label="Записати результат і витрати;\nза придатного доказу оновити гіпотези"];
+  end [label="Завершення: підтриманий клас\nабо inconclusive з поясненням", shape=oval];
+  start -> evidence -> stop;
+  stop -> end [label="так"];
+  stop -> candidates [label="ні"];
+  candidates -> gain;
+  gain -> end [label="ні"];
+  gain -> run [label="так"];
+  run -> update;
+  update -> evidence [constraint=false];
+}

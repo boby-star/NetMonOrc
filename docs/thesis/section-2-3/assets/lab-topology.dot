@@ -1,0 +1,22 @@
+digraph lab {
+  graph [rankdir=TB, bgcolor="white", pad=0.12, nodesep=0.6, ranksep=0.6];
+  node [shape=box, style="rounded,filled", fillcolor="#f7f7f7", color="#333333", fontname="DejaVu Sans", fontsize=14, margin="0.14,0.12"];
+  edge [fontname="DejaVu Sans", fontsize=12, color="#333333", arrowsize=0.7];
+  controller [label="Controller\nпланування та оцінювання"];
+  subgraph cluster_office {
+    label="Зона філії"; fontname="DejaVu Sans"; fontsize=13; color="#888888";
+    office [label="Agent + exporter"];
+    dns [label="DNS філії"];
+    office -> dns [label="DNS"];
+  }
+  subgraph cluster_dc {
+    label="Серверна зона"; fontname="DejaVu Sans"; fontsize=13; color="#888888";
+    dc [label="Agent + exporter"];
+    service [label="Контрольований\nвебсервіс"];
+    dc -> service [label="HTTP / TCP"];
+  }
+  controller -> office [dir=both, label="завдання / результати"];
+  controller -> dc [dir=both];
+  office -> service [label="окремо керований\nмережевий доступ", style=dashed];
+  {rank=same; office; dc;}
+}
