@@ -40,6 +40,19 @@ func TestDiagnosticAuthorizationReceiptAndDeadline(t *testing.T) {
 	if _, _, _, e = prepareTask(task, st, dir); e == nil {
 		t.Fatal("duplicate task could execute again")
 	}
+	task.TaskId = "3123456789abcdef0123456789abcdef"
+	task.AttemptNo = 2
+	if _, _, _, e = prepareTask(task, st, dir); e != nil {
+		t.Fatal("new physical retry receipt rejected", e)
+	}
+	for _, n := range []uint32{0, 51} {
+		task.TaskId = "4123456789abcdef0123456789abcdef"
+		task.AttemptNo = n
+		if _, _, _, e = prepareTask(task, st, dir); e == nil {
+			t.Fatal("invalid attempt ordinal accepted", n)
+		}
+	}
+	task.AttemptNo = 1
 	task.TaskId = "2123456789abcdef0123456789abcdef"
 	task.ExpiresAtUnixMilli = time.Now().Add(10 * time.Second).UnixMilli()
 	if _, _, _, e = prepareTask(task, st, dir); e == nil {

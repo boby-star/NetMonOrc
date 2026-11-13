@@ -50,6 +50,9 @@ type DiagnosticRunner struct {
 func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.Outcome, error) {
 	s := r.Server
 	unknown := diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"}
+	if a.AttemptNo < 1 || a.AttemptNo > 50 {
+		return unknown, fmt.Errorf("invalid diagnostic attempt number")
+	}
 	if r.Plan.Diagnostics == nil || !r.Plan.Diagnostics.Enabled {
 		return unknown, fmt.Errorf("diagnostics disabled")
 	}
@@ -72,7 +75,7 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	if err != nil || len(data) > 64<<10 {
 		return unknown, fmt.Errorf("invalid compiled diagnostic check")
 	}
-	t := storage.DiagnosticTask{ID: id, RunID: r.RunID, Agent: e.ID, Generation: session.generation, Plan: r.Plan, Check: a.Check, Zone: e.Zone, Deadline: deadline}
+	t := storage.DiagnosticTask{ID: id, RunID: r.RunID, Agent: e.ID, Generation: session.generation, Plan: r.Plan, Check: a.Check, Zone: e.Zone, Deadline: deadline, AttemptNo: a.AttemptNo}
 	if err = s.Store.ReserveDiagnostic(ctx, t); err != nil {
 		return unknown, err
 	}
@@ -84,7 +87,7 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	s.tasks[id] = taskWaiter{e.ID, result}
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); delete(s.tasks, id); s.mu.Unlock() }()
-	task := &pb.DiagnosticTask{TaskId: id, SessionId: r.RunID, Revision: r.Plan.Revision, CompiledCheck: data, ExpiresAtUnixMilli: deadline.UnixMilli(), AttemptNo: 1}
+	task := &pb.DiagnosticTask{TaskId: id, SessionId: r.RunID, Revision: r.Plan.Revision, CompiledCheck: data, ExpiresAtUnixMilli: deadline.UnixMilli(), AttemptNo: uint32(a.AttemptNo)}
 	select {
 	case session.tasks <- taskRequest{ctx, task}:
 	case <-ctx.Done():

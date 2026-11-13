@@ -6,7 +6,8 @@
 Пілот ec685e3 підтвердив хибну класифікацію HTTP+DNS як тільки DNS.
 Поля AdaptivePolicy.confirmation користувач погодив раніше: actionRefs,
 minObservations, minDistinctFailureDomains, minSpacing; stopWhenUnique=false
-вимагає явної політики. Retry залишається окремою, ще не реалізованою функцією.
+вимагає явної політики. На цьому етапі retry був окремою нереалізованою функцією; пізніше його
+додано в [ADR 0004](0004-bounded-diagnostic-retry.md).
 
 У межах доручення самостійно обирати рекомендовані рішення вибрано
 консервативну трактовку: actionRefs — обов'язковий набір, не випадковий вибір

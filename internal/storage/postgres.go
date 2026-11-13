@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS nmo_alert_events(id text PRIMARY KEY,logical_key text
 CREATE TABLE IF NOT EXISTS nmo_webhook_outbox(event_id text PRIMARY KEY REFERENCES nmo_alert_events(id),endpoint_hash text NOT NULL,payload jsonb NOT NULL,state text NOT NULL DEFAULT 'pending',attempts integer NOT NULL DEFAULT 0,next_after timestamptz NOT NULL,expires_at timestamptz NOT NULL,lease_token text NOT NULL DEFAULT '',lease_until timestamptz,status_code integer NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS nmo_webhook_due ON nmo_webhook_outbox(state,next_after);
 CREATE TABLE IF NOT EXISTS nmo_webhook_attempts(event_id text NOT NULL REFERENCES nmo_webhook_outbox(event_id),attempt integer NOT NULL,lease_token text NOT NULL,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz,status_code integer NOT NULL DEFAULT 0,PRIMARY KEY(event_id,attempt));
-CREATE TABLE IF NOT EXISTS nmo_diagnostic_tasks(id text PRIMARY KEY,run_id text NOT NULL REFERENCES nmo_diagnostic_runs(id),agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,zone text NOT NULL,check_id text NOT NULL,deadline timestamptz NOT NULL,check_spec jsonb NOT NULL,state text NOT NULL);`)
+CREATE TABLE IF NOT EXISTS nmo_diagnostic_tasks(id text PRIMARY KEY,run_id text NOT NULL REFERENCES nmo_diagnostic_runs(id),agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,zone text NOT NULL,check_id text NOT NULL,deadline timestamptz NOT NULL,check_spec jsonb NOT NULL,state text NOT NULL);
+ALTER TABLE nmo_diagnostic_tasks ADD COLUMN IF NOT EXISTS attempt_no integer NOT NULL DEFAULT 1;`)
 	if e == nil {
 		e = tx.Commit(ctx)
 	}

@@ -37,3 +37,29 @@ func TestDiagnosticProfiles(t *testing.T) {
 		t.Fatal("nonboolean CEL accepted")
 	}
 }
+
+func TestExplicitDiagnosticRetryValidation(t *testing.T) {
+	b, err := os.ReadFile("../../examples/diagnostics/live-adaptive.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	insert := func(retry string) []byte {
+		return []byte(strings.Replace(string(b), "    - id: inspect-server\n", "    - id: inspect-server\n      retry: "+retry+"\n", 1))
+	}
+	for _, bad := range []string{"{}", "{maxAttempts: 0}", "{maxAttempts: 51}", "{maxAttempts: true}", "{maxAttempts: 2, delay: 1s}"} {
+		if _, err = CompileDiagnostics(insert(bad)); err == nil {
+			t.Errorf("accepted %s", bad)
+		}
+	}
+	p, err := CompileDiagnostics(insert("{maxAttempts: 2}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Actions[0].Retry == nil || p.Actions[0].Retry.MaxAttempts != 2 {
+		t.Fatal("retry lost during compilation")
+	}
+	plain, err := CompileDiagnostics(b)
+	if err != nil || plain.Actions[0].Retry != nil {
+		t.Fatal("implicit retry policy invented")
+	}
+}

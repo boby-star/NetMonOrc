@@ -1143,8 +1143,8 @@ minSpacing має підтверджувати розділення фізичн
 початкові результати мають залишатись актуальними до завершення діагнозу.
 Gain/Cost не змінюється. Для Fixed виконаний DAG з technical failure/unknown
 активованого кроку або CEL error також дає inconclusive; штатний when=false
-не блокує завершення. Поля retry є окремою можливістю й цим етапом не
-реалізовані. Обґрунтування й межі — ADR 0001.
+не блокує завершення. Поля retry є окремою можливістю; їх реалізовано наступним
+етапом, описаним у додатку technical retry. Обґрунтування й межі — ADR 0001.
 
 ## Додаток: погоджені уточнення життєвого циклу алертів
 
@@ -1161,3 +1161,22 @@ CEL unknown/error або перерва актуальності Assessment ск
 false вже під час resolve evaluation достатньо. Unknown/error не
 переозброює правило. Це запобігає циклу на незмінних даних, коли when
 і resolveWhen одночасно true. Поля DSL та HTTP-маршрути не змінюються.
+
+## Додаток: реалізований погоджений technical retry
+
+Раніше погоджене DiagnosticAction.retry.maxAttempts реалізовано як
+обмежений ланцюг однієї action × Agent активації. Об'єкт необов'язковий;
+без нього одна спроба. Явний об'єкт вимагає maxAttempts integer 1…50,
+включно з першою спробою; global budget і deadline мають пріоритет.
+Контракт деталізовано в DSL §11.4.1 та ADR 0004.
+
+Повтор дозволений тільки після execution failure. Completed success,
+failure або unknown завершують ланцюг без автоматичного повтору.
+Кожна спроба має новий task/observation ID, номер attemptNo, окрему
+reservation і витрату cost/time/estimated bytes. Негативний результат
+не маскується як execution error; technical failure не звужує гіпотези
+й не підтверджує клас. Формула Gain/Cost незмінна.
+
+Окремий явний Fixed step або confirmation probe є новою активацією,
+але не новим бюджетом. Перезапуск Controller не поновлює спроби:
+перервана сесія залишається inconclusive з durable reservations.

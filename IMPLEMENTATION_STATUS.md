@@ -1,7 +1,7 @@
 # Фактичний стан мінімального прототипу
 
 Це послідовність завершених етапів. Актуальні межі зведено наприкінці;
-орієнтовна готовність мінімуму — [близько 88%](docs/planning/prototype-readiness.md).
+орієнтовна готовність мінімуму — [близько 90%](docs/planning/prototype-readiness.md).
 
 ## Перший локальний етап — реалізовано
 
@@ -71,7 +71,7 @@ Gain/Cost selector, hypothesis filtering, actor eligibility/placement,
 budget ledger, відсутність повторів Adaptive actions, Fixed DAG/CEL,
 Static comparison mode, baseline equivalence matcher та пояснення рішень.
 DiagnosticProfile parser використовує наявні kind/fields; підтримує
-bounded subset; confirmation додано нижче, retry/replicas>1 ще відхиляються.
+bounded subset; confirmation і bounded retry додано нижче; replicas>1 ще відхиляються.
 
 Виконано синтетичний replay 15 runs у JSON/CSV з однаковими каталогами
 та бюджетами. Це не мережевий експеримент. Контрприклад для early-stop
@@ -80,7 +80,7 @@ bounded subset; confirmation додано нижче, retry/replicas>1 ще ві
 baseline freshness/equivalence, placement, повторні Fixed steps і CEL.
 
 Runtime Fixed/Adaptive підключено наступним етапом нижче. Публічного
-запуску й technical retry немає; confirmation та натурні пілоти додані нижче.
+запуску немає; bounded technical retry додано нижче; confirmation та натурні пілоти додані нижче.
 
 ## CEL Assessment — реалізовано в робочому ланцюгу
 
@@ -229,6 +229,21 @@ unknown при Agent loss без resolve, firing після Controller restart �
 мали по дві фізичні HTTP спроби; receiver зберіг по одному logical event.
 Повторюваний скрипт не експортує DSN/токени/ключі.
 
+## Technical retry — реалізовано
+
+Явне actions[].retry.maxAttempts (1…50, включно з першою), без неявних
+повторів. Ланцюг тієї самої action × Agent активації повторюється лише після
+execution_failed; negative probe/unknown не повторюються. Кожна спроба
+витрачає незмінний global budget, має новий task ID і durable attempt_no.
+Технічний результат не звужує гіпотези й не додає confirmation proof.
+Fixed передає залежним крокам фінальний результат ланцюга.
+
+Перевірено критичні budgets/deadline/cancel/no-repeat/domain тести й race.
+Реальні Fixed і Adaptive smoke через mTLS/Blackbox/PostgreSQL пройшли
+startup failure → новий task з attemptNo=2 → completed/failure, правильний
+клас, replay/TTL/generation fencing і crash без повернення reservations.
+Деталі й межі: ADR 0004, docs/architecture/diagnostic-runtime.md.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, повний agent protocol і керування сертифікатами.
@@ -236,7 +251,7 @@ unknown при Agent loss без resolve, firing після Controller restart �
 2. Hostname targets і повна firewall-політика exporter.
 3. CheckProfile/AssessmentPolicy refs і решта необхідних DSL
    можливостей; CEL assessment та CEL fixed conditions уже реалізовані.
-4. Technical retry, повторні сеанси зі спільним бюджетом, неперевірені
+4. Повторні сеанси зі спільним бюджетом, неперевірені
    unknown/multiple patterns, довгі tasks/suspend/backpressure. Явне
    confirmation, відома HTTP+DNS несправність та DNS silent timeout уже перевірені.
 5. Повна інтерактивна вебпанель не входить до мінімуму. Перегляд результатів

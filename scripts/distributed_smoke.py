@@ -9,6 +9,7 @@ import socket
 import shutil
 import ssl
 import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,6 +27,7 @@ parser.add_argument('--extract', action='store_true')
 parser.add_argument('--diagnostics', choices=['adaptive','fixed','static'])
 parser.add_argument('--diagnostic-runner',choices=['native-http','blackbox'],default='native-http')
 parser.add_argument('--blackbox-binary')
+parser.add_argument('--diagnostic-retry',action='store_true',help='research fixture: fail exactly one diagnostic exporter startup')
 args = parser.parse_args()
 if sum([bool(args.network),bool(args.cel),bool(args.extract),bool(args.diagnostics)])>1:
     parser.error('choose one fixture mode at a time')
@@ -33,10 +35,14 @@ if args.diagnostic_runner=='blackbox' and (not args.diagnostics or not args.blac
     parser.error('Blackbox diagnostics require --diagnostics and --blackbox-binary')
 if args.network and not args.blackbox_binary:
     parser.error('--network requires --blackbox-binary')
+if args.diagnostic_retry and (not args.diagnostics or args.diagnostic_runner!='blackbox' or not args.blackbox_binary):
+    parser.error('--diagnostic-retry requires Blackbox diagnostics and its prepared binary')
 dns = DNSFixture() if args.network else None
 processes = []
 files = []
 owned_container = False
+retry_report = None
+retry_tasks = None
 
 def command(*args, **kwargs):
     return subprocess.check_output(args, cwd=ROOT, stderr=subprocess.PIPE, **kwargs).decode().strip()
@@ -134,6 +140,27 @@ try:
         text += '\n  diagnostics:\n    enabled: true\n    profileRef: live-web\n    cooldown: 1s\n'
         profile = work/'diagnostic-profile.yaml'
         profile.write_text((ROOT/'examples/diagnostics'/('live-'+('adaptive' if args.diagnostics=='static' else args.diagnostics)+'.yaml')).read_text().replace('18080',str(http.server_port)).replace("/', expectedStatus","/diagnostic', expectedStatus").replace("runner: native-http","runner: "+args.diagnostic_runner))
+        if args.diagnostic_retry:
+            profile.write_text(profile.read_text().replace('maxAdditionalChecks: 2','maxAdditionalChecks: 3').replace('    - id: inspect-server\n','    - id: inspect-server\n      retry: {maxAttempts: 2}\n'))
+            # Operator-selected test executable, outside manifests and product
+            # code. It exits once before exporter readiness; all other launches
+            # exec the real prepared Blackbox binary without a shell.
+            wrapper = work/'blackbox-once.py'
+            marker = work/'startup-failed-once'
+            binary = str(Path(args.blackbox_binary).resolve())
+            wrapper.write_text('#!'+sys.executable+'\n'+
+                'import json,os,sys\n'+
+                'from pathlib import Path\n'+
+                'path=next(a.split("=",1)[1] for a in sys.argv[1:] if a.startswith("--config.file="))\n'+
+                'modules=json.loads(Path(path).read_text())["modules"]\n'+
+                'if "inspect-server" in modules:\n'+
+                '    try:\n'+
+                '        fd=os.open('+repr(str(marker))+',os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600);os.close(fd)\n'+
+                '    except FileExistsError: pass\n'+
+                '    else: sys.exit(7)\n'+
+                'os.execv('+repr(binary)+',['+repr(binary)+',*sys.argv[1:]])\n')
+            wrapper.chmod(0o700)
+            args.blackbox_binary=str(wrapper)
     manifest.write_text(text)
     pki = work/'pki'
     controller_args = ['-config', str(manifest), '-listen', f'127.0.0.1:{rpc_port}',
@@ -205,10 +232,20 @@ try:
                           lambda: (r if (r:=diagnosis()) and r['result']['status']=='completed' else None),seconds=25)
         assert report['result']['mode']==args.diagnostics,report
         assert report['result']['hypotheses']==['service-failure'], report
-        expected = 1 if args.diagnostics=='adaptive' else 2
+        expected = (1 if args.diagnostics=='adaptive' else 2)+(1 if args.diagnostic_retry else 0)
         assert report['result']['attempts']==expected, report
         assert int(sql("SELECT count(*) FROM nmo_diagnostic_tasks WHERE state='finished'"))==expected
         assert int(sql("SELECT count(*) FROM nmo_observations WHERE diagnostic_task_id<>''"))==expected
+        if args.diagnostic_retry:
+            retry_report=report
+            retry_tasks=json.loads(sql("SELECT json_agg(json_build_object('id',t.id,'check',t.check_id,'attemptNo',t.attempt_no,'state',t.state,'observation',o.payload)) FROM nmo_diagnostic_tasks t LEFT JOIN nmo_observations o ON t.id=o.diagnostic_task_id WHERE t.run_id='"+report['id']+"'"))
+            technical=[t for t in retry_tasks if t['observation']['execution']=='execution_failed']
+            assert len(technical)==1 and technical[0]['check']=='inspect-server' and technical[0]['attemptNo']==1,retry_tasks
+            second=[t for t in retry_tasks if t['check']=='inspect-server' and t['attemptNo']==2]
+            assert len(second)==1 and second[0]['observation']['execution']=='completed' and second[0]['observation']['outcome']=='failure',retry_tasks
+            assert technical[0]['id']!=second[0]['id'],'retry reused physical task identity'
+            assert report['reservedChecks']==expected
+            print('PASS: one real exporter startup failure retried with a new task ID and durable attempt 2',flush=True)
         first_run = report['id']
         # Unchanged failure and a Controller restart cannot renew this episode.
         stop(controller)
@@ -252,7 +289,9 @@ try:
     subprocess.run([shutil.which('go'), 'test', './internal/storage', '-run',
                     'TestPostgres', '-count=1', '-v'],
                    cwd=ROOT, env=test_env, check=True)
-    (work/'result.json').write_text(json.dumps({'status': 'passed', 'fixture': ('diagnostics-'+args.diagnostics) if args.diagnostics else ('extract' if args.extract else ('cel' if args.cel else ('network' if args.network else 'http'))), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}))
+    result={'status': 'passed', 'fixture': ('diagnostics-'+args.diagnostics) if args.diagnostics else ('extract' if args.extract else ('cel' if args.cel else ('network' if args.network else 'http'))), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}
+    if args.diagnostic_retry: result.update({'diagnosticRetry':True,'diagnostic':retry_report,'tasks':retry_tasks})
+    (work/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     print('Evidence:', work, flush=True)
 finally:
     for p in reversed(processes):

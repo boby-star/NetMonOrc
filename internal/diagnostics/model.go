@@ -21,11 +21,17 @@ type Placement struct {
 	Strategy  string
 }
 type Action struct {
+	Retry *Retry `json:",omitempty"`
+	// AttemptNo belongs to dispatch only and must not change effective revision.
+	AttemptNo int `json:"-"`
 	ID        string
 	Check     monitor.Check
 	Cost      float64
 	Expected  map[string]string
 	Placement Placement
+}
+type Retry struct {
+	MaxAttempts int
 }
 type Outcome struct {
 	Execution string
@@ -71,6 +77,7 @@ type Evidence struct {
 	Outcome       Outcome
 }
 type Decision struct {
+	AttemptNo        int      `json:"attemptNo,omitempty"`
 	Phase            string   `json:"phase,omitempty"`
 	ActionID         string   `json:"actionId"`
 	AgentID          string   `json:"agentId"`

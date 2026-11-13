@@ -52,6 +52,9 @@ func Validate(p Profile) error {
 	}
 	actions := map[string]bool{}
 	for _, a := range p.Actions {
+		if a.Retry != nil && (a.Retry.MaxAttempts < 1 || a.Retry.MaxAttempts > 50) {
+			return fmt.Errorf("retry.maxAttempts must be within 1..50")
+		}
 		if a.ID == "" || actions[a.ID] || math.IsNaN(a.Cost) || math.IsInf(a.Cost, 0) || a.Cost <= 0 {
 			return fmt.Errorf("invalid action ID/cost")
 		}
@@ -499,18 +502,6 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				continue
 			}
 		}
-		before := append([]string(nil), r.Hypotheses...)
-		ledger.UsedChecks++
-		ledger.EstimatedBytes += selectedBytes
-		r.Attempts++
-		r.Cost += selected.Cost
-		attempt, done := context.WithTimeout(child, selected.Check.Timeout+e.TaskOverhead)
-		outcome, err := e.Runner.Execute(attempt, *selected, executor)
-		validExecution := (outcome.Execution == "completed" && (outcome.Outcome == "success" || outcome.Outcome == "failure" || outcome.Outcome == "unknown")) || (outcome.Execution == "execution_failed" && outcome.Outcome == "unknown")
-		if err != nil || attempt.Err() != nil || !validExecution {
-			outcome = Outcome{"execution_failed", "unknown"}
-		}
-		done()
 		phase := ""
 		if p.Confirmation != nil {
 			phase = "primary"
@@ -518,7 +509,13 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				phase = "confirmation"
 			}
 		}
-		r.Decisions = append(r.Decisions, Decision{ActionID: selected.ID, AgentID: executor.ID, HypothesesBefore: before, Gain: selectedGain, Score: float64(selectedGain) / selected.Cost, Outcome: outcome, Phase: phase})
+		chain := attemptChain{engine: e, profile: p, ledger: ledger, result: &r, deadline: deadline}
+		outcome, reason := chain.execute(child, *selected, executor, selectedBytes, phase, selectedGain)
+		if reason != "" {
+			r.Reason = reason
+			return r, nil
+		}
+		visited[selected.ID] = true
 		if outcome.Execution != "completed" || (outcome.Outcome != "success" && outcome.Outcome != "failure") {
 			unusablePairs[selected.ID+"/"+executor.ID] = true
 			if mode == "fixed" {
@@ -527,10 +524,6 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		}
 		tracker.add(fmt.Sprintf("attempt:%d", ledger.UsedChecks), *selected, executor, outcome, time.Now(), deadline)
 		accept(*selected, outcome)
-		visited[selected.ID] = true
-		if mode == "adaptive" {
-			ledger.adaptiveAttempted[selected.ID] = true
-		}
 		rounds[selected.ID]++
 		if stepID != "" {
 			terminal[stepID] = true

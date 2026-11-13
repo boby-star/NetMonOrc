@@ -126,6 +126,7 @@ func (s *Store) FinishDiagnostic(ctx context.Context, id string, r diagnostics.R
 }
 
 type DiagnosticTask struct {
+	AttemptNo  int
 	ID         string
 	RunID      string
 	Agent      string
@@ -139,6 +140,12 @@ type DiagnosticTask struct {
 // A reservation is consumed before sending. A lost frame or restart never
 // refunds it or silently launches a new physical attempt under the same ID.
 func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
+	if t.AttemptNo == 0 {
+		t.AttemptNo = 1
+	} // Existing internal callers are first attempts.
+	if t.AttemptNo < 1 || t.AttemptNo > 50 {
+		return fmt.Errorf("invalid task attempt number")
+	}
 	tx, e := s.pool.Begin(ctx)
 	if e != nil {
 		return e
@@ -167,7 +174,7 @@ func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_tasks(id,run_id,agent_id,monitor,revision,zone,check_id,deadline,check_spec,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'reserved')`, t.ID, t.RunID, t.Agent, t.Plan.Name, t.Plan.Revision, t.Zone, t.Check.ID, t.Deadline, b)
+	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_tasks(id,run_id,agent_id,monitor,revision,zone,check_id,deadline,check_spec,state,attempt_no) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'reserved',$10)`, t.ID, t.RunID, t.Agent, t.Plan.Name, t.Plan.Revision, t.Zone, t.Check.ID, t.Deadline, b, t.AttemptNo)
 	if e != nil {
 		return e
 	}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"os"
 	"testing"
 )
@@ -56,5 +57,16 @@ func TestResolvedDiagnosticDependencyChangesRevision(t *testing.T) {
 	}
 	if changed.Revision == resolved.Revision {
 		t.Fatal("profile dependency change did not change effective revision")
+	}
+	profile.Actions[0].Cost = 1
+	profile.Actions[0].Retry = &diagnostics.Retry{MaxAttempts: 2}
+	retried, e := ResolveDiagnostics(p, profile)
+	if e != nil || retried.Revision == resolved.Revision {
+		t.Fatal("retry policy did not change effective revision", e)
+	}
+	profile.Actions[0].AttemptNo = 2
+	dispatched, e := ResolveDiagnostics(p, profile)
+	if e != nil || dispatched.Revision != retried.Revision {
+		t.Fatal("dispatch ordinal changed declarative revision", e)
 	}
 }

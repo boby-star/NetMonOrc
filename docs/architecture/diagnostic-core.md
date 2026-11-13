@@ -51,9 +51,10 @@ PostgreSQL і не повторює сесію того самого епізо�
 
 Підтримуються replicas=1 та maxNoGainSteps=0. Явні confirmation та
 stopWhenUnique=false реалізовано: [ADR 0001](../adr/0001-diagnostic-confirmation.md).
-Retry, selectors і placementRef залишаються непідтримуваними. Повтор
-потребує явно зазначеної confirmation action; та сама пара action/agent
-після technical failure не повторюється через цей механізм. Погоджені
+Selectors і placementRef залишаються непідтримуваними. Явний bounded retry
+реалізовано наступним етапом (ADR 0004). Новий доказ потребує явної
+confirmation action; technical failure повторюється тільки за окремою
+retry policy, не через сам механізм confirmation. Погоджені
 confirmation поля внесено до DSL §11.6.1 і додатка ТЗ/DOCX.
 Надзвичайні costUnits, які переповнюють finite float score/report,
 відхиляються явно, а не породжують Inf у JSON.

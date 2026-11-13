@@ -66,7 +66,8 @@ outcomes: reservation не є доказом фізичного завершен
 revision чи завершення сесії не відкривають другу. Лише актуальний healthy
 з повним coverage закриває епізод; cooldown зберігається й після закриття.
 Невідправлені/відхилені reservations консервативно витрачають бюджет.
-Це не повна реалізація багатосеансової діагностики з confirmation/retry.
+Confirmation й bounded technical retry підтримані всередині одного run;
+відновлення багатосеансової історії не реалізоване.
 
 Clock uncertainty для стенда прийнята рівною 5s. Agent віднімає її від
 абсолютного task deadline й обмежує lease. Task має окремий 20s запас на
@@ -93,7 +94,7 @@ healthy/full coverage, replay, TTL і ізоляцію результатів у
 Це кілька процесів на одному хості. Висновків про якість локалізації між
 незалежними мережевими сегментами або перевагу над Static ці дані не дають.
 
-Не реалізовано public/manual start, TaskCancel, technical retry, replicas,
+Не реалізовано public/manual start, TaskCancel, replicas,
 паралельний planner, byte estimator, повний placement/PKI та натурні мережеві
 експерименти. Без byte estimator maxEstimatedBytes для live профілю
 відхиляється. Closed-catalog early-stop limitation описано в diagnostic-core.md.
@@ -124,6 +125,25 @@ observationID не подвоюються через кілька aliases. Не�
 У Fixed технічна невдача або невідома CEL-умова активованого кроку не
 дозволяє completed. Відомий when=false — штатний пропуск. Для live стенда
 є explicit four-step fixed-confirmed DAG; original branching profile
-залишається окремим legacy варіантом. Retry й відновлення багатосеансової
-історії confirmation після crash не реалізовані: run лишається inconclusive
+залишається окремим legacy варіантом. Відновлення багатосеансової
+історії confirmation після crash не реалізоване: run лишається inconclusive
 без повторного запуску й повернення reservations.
+
+## Обмежений повтор технічної помилки
+
+`actions[].retry: {maxAttempts: 2}` дозволяє не більше двох спроб однієї
+активації action × Agent, тільки після execution_failed. За відсутності
+retry автоматичного повтору немає. Failure/unknown завершують ланцюг;
+retry не підміняє confirmation. Кожний запуск має новий task ID й окрему
+reservation у спільному бюджеті, той самий Agent/target і номер attemptNo.
+У звіті видно всі спроби, у PostgreSQL — task.attempt_no. Політика входить
+до effective revision; dispatch ordinal не входить.
+
+```bash
+python3 scripts/distributed_smoke.py --diagnostics adaptive --diagnostic-runner blackbox --diagnostic-retry --blackbox-binary /path/to/blackbox_exporter
+```
+
+Fixture зриває один diagnostic exporter startup до readiness, потім виконує
+справжній probe. Окремі інші Fixed/Static активації й confirmation мають свій
+локальний ordinal, але не додатковий бюджет. При crash Controller ланцюг
+не продовжується; reservations не повертаються. [ADR 0004](../adr/0004-bounded-diagnostic-retry.md).

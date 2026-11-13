@@ -703,10 +703,38 @@ spec:
 | `placement` | `PlacementSpec` | Ні | — | Якщо відсутній — policy Monitor; для дослідження різних зон задавати явно. |
 | `expectedOutcomes` | map<HypothesisID, OutcomePattern> | Умов. | `{}` | Для `adaptive` обов'язково покрити **кожну** гіпотезу. Для fixed не обов'язково. |
 | `costUnits` | number >0 | Ні | `1` | Нормована відносна ціна action для алгоритму; фактичні checks завжди обліковуються окремо. |
+| `retry` | `DiagnosticRetry` | Ні | — | Явний обмежений повтор technical execution failure; §11.4.1. |
 
 `OutcomePattern` = `success`, `failure`, `unknown`, `either`. `either` означає, що дія **не розрізняє** відповідну гіпотезу (можливі всі результати); `unknown` означає, що очікувано немає придатного спостереження. Відмінність `failure` і `execution error` принципова; технічна помилка не вважається підтвердженням гіпотези про сервіс.
 
 **Для одного action з `placement.replicas > 1`:** кожен реально виконаний probe враховується в `maxAdditionalChecks` окремо. Для простоти v1alpha1 рекомендує `replicas: 1` у діагностиці; одночасні різнозональні перевірки описують окремими `DiagnosticAction`.
+
+### 11.4.1. Погоджена явна політика technical retry
+
+Користувач погодив `DiagnosticAction.retry.maxAttempts` раніше. Об'єкт
+необов'язковий; без нього автоматичних повторів немає. Якщо об'єкт заданий,
+`maxAttempts` — обов'язковий integer 1…50, включно з первинною спробою.
+Ця верхня межа узгоджена з максимальною кількістю physical attempts у budget;
+сам budget може бути меншим і завжди має пріоритет.
+
+```yaml
+retry: {maxAttempts: 2}
+```
+
+Політика застосовується до однієї запланованої активації action × Agent.
+Повтор дозволений тільки після execution failure. Completed success,
+failure або unknown завершують ланцюг без автоматичного retry. Інший
+явний Fixed step або confirmation probe є окремою активацією зі своїм
+лічильником, але зі спільним незмінним бюджетом епізоду. Це не дозволяє
+повторно обирати Adaptive action без нових доказів або явного confirmation.
+
+Кожна спроба має новий physical task/observation ID, той самий Agent/target/
+check, свій attemptNo й окрему витрату check/cost/time/estimated bytes.
+Технічні результати не звужують гіпотези й не є confirmation evidence.
+Негативний probe не перетворюється на execution error заради retry.
+Перезапуск Controller не поновлює бюджет або ланцюг: поточний мінімальний
+профіль завершує перервану сесію inconclusive зі збереженими reservations.
+Формула Gain/Cost незмінна. ADR 0004 описує локальні деталі виконання.
 
 ### 11.5. `FixedDAG`
 

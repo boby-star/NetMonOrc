@@ -1,7 +1,7 @@
 # Оцінка готовності мінімального прототипу
 
-Орієнтир після confirmation, повного DNS timeout та інтеграції webhook:
-**приблизно 88% виконано, близько 12% залишається**. Це інженерна оцінка
+Орієнтир після confirmation, повного DNS timeout, webhook і bounded technical retry:
+**приблизно 90% виконано, близько 10% залишається**. Це інженерна оцінка
 узгодженого мінімуму із записки, не вимірювання кількості коду, не гарантія
 приймання роботи й не оцінка повного продуктового v1alpha1.
 
@@ -14,16 +14,16 @@
 | YAML, модель, стандартні probes | 20 | 18 | HTTP/TCP/DNS/ICMP реальні; підмножина DSL, не всі refs/моделі |
 | Розподіленість і доставка | 15 | 14 | mTLS, leases, spool/replay, generation fencing, PostgreSQL, dual-zone deployment; залишилася стабілізація мінімального профілю |
 | Комплексне оцінювання | 20 | 18 | H/Q, required, TTL/revision/maxSkew, зони, CEL, extraction; потрібна остаточна звірка зі сценаріями записки |
-| Діагностичний метод | 20 | 17 | Явне confirmation, budget/domains/spacing та HTTP+DNS перевірені; залишаються retry й інші unknown/multiple patterns |
+| Діагностичний метод | 20 | 19 | Confirmation, bounded technical retry, budget/domains/spacing, HTTP+DNS; залишаються ширші unknown/multiple patterns |
 | Запуск і демонстрація | 10 | 9 | CLI, HTML зі станом алерту, Compose й durable HTTPS webhook; залишилася остаточна експлуатаційна звірка |
 | Незалежні відтворювані експерименти | 15 | 12 | Є legacy/confirmed/DNS silent-drop та live webhook/restart; потрібні повторення та ширші fault patterns |
-| Разом | 100 | 88 ≈ 88 | Приблизний орієнтир обсягу, не метрика якості |
+| Разом | 100 | 90 ≈ 90 | Приблизний орієнтир обсягу, не метрика якості |
 
 ## Найближчі результати до завершення
 
 1. Завершити експлуатаційну звірку. Мінімальний webhook уже інтегрований
    з реальною HTTPS-доставкою, retries і restart.
-2. Реалізувати bounded technical retry та перевірити довші tasks,
+2. Перевірити довші tasks,
    backpressure/queue, suspend і неперевірені комбінації несправностей.
 3. Провести серії повторень; проаналізувати час, inconclusive й хибні
    висновки. Один повтор не дає статистичних гарантій.
@@ -36,7 +36,8 @@
 
 Дані: [старий пілот](../experiments/compose-pilot/README.md),
 [confirmation](../experiments/confirmation-pilot/README.md),
-[DNS-drop](../experiments/dns-drop-pilot/README.md).
+[DNS-drop](../experiments/dns-drop-pilot/README.md),
+[webhook/restart](../experiments/webhook-pilot/README.md).
 
 Повний CRUD/RBAC/enrollment/React UI/HA та всі можливості великого v1alpha1
 не є умовою завершення цього мінімального дослідницького профілю.

@@ -35,6 +35,9 @@ type diagnosticDocument struct {
 		} `yaml:"hypotheses"`
 		Actions []struct {
 			ID    string `yaml:"id"`
+			Retry *struct {
+				MaxAttempts int `yaml:"maxAttempts"`
+			} `yaml:"retry"`
 			Check struct {
 				Type    string        `yaml:"type"`
 				Runner  string        `yaml:"runner"`
@@ -140,6 +143,9 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 			return p, fmt.Errorf("invalid diagnostic timeout")
 		}
 		x := diagnostics.Action{ID: a.ID, Check: c, Cost: 1, Expected: a.Expected, Placement: diagnostics.Placement{Strategy: "leastLoaded"}}
+		if a.Retry != nil {
+			x.Retry = &diagnostics.Retry{MaxAttempts: a.Retry.MaxAttempts}
+		}
 		if a.Cost != nil {
 			x.Cost = *a.Cost
 		}
