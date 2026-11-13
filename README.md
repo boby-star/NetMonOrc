@@ -79,7 +79,8 @@ DNS-цілі, redirects, proxy та вимкнення перевірки TLS н
 
 Розподілений запуск підтримує фіксовані джерела, mTLS, послідовне регулярне
 виконання й PostgreSQL. Наразі немає динамічного Placement/Scheduler,
-операційної діагностики, алертів і вебпанелі.
+алертів і вебпанелі. Fixed/Adaptive діагностика вже виконується через Agent:
+[запуск і межі](docs/architecture/diagnostic-runtime.md).
 Regex extraction з типізованими значеннями підтримується для native HTTP:
 [семантика та приклад](docs/architecture/extraction.md).
 Inline CEL assessment rules підтримуються:
@@ -109,4 +110,6 @@ export GOCACHE=/workspace/.cache/netmonorc-go
 
 Ядро Static/Fixed/Adaptive та синтетичний replay для дослідження:
 [docs/architecture/diagnostic-core.md](docs/architecture/diagnostic-core.md).
-Операційний запуск діагностики через Controller/Agent ще не підключений.
+Операційний запуск Fixed/Adaptive підтримує один консервативний сеанс на
+інцидент, PostgreSQL budget reservations та відновлення після crash.
+Static поки порівнюється через replay; натурне порівняння трьох режимів ще попереду.

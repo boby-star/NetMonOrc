@@ -24,6 +24,14 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || len(p.Checks) == 0 || len(p.Checks) > 100 {
 		return fmt.Errorf("invalid plan revision or size")
 	}
+	if d := p.Diagnostics; d != nil {
+		if d.Enabled && (d.ProfileRef == "" || len(d.ProfileHash) != 64) {
+			return fmt.Errorf("unresolved diagnostic binding")
+		}
+		if d.Cooldown <= 0 || len(d.OnStates) > 3 || len(d.When) > 2048 {
+			return fmt.Errorf("invalid diagnostic binding bounds")
+		}
+	}
 	seenZones := map[string]bool{}
 	for _, z := range p.Zones {
 		if z == "" || seenZones[z] {

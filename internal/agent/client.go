@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/config"
@@ -32,8 +33,11 @@ type assignment struct {
 	deadline time.Time
 }
 type state struct {
-	mu      sync.Mutex
-	current *assignment
+	mu             sync.Mutex
+	current        *assignment
+	active         atomic.Int32
+	diagnosticBusy atomic.Bool
+	fatal          chan error
 }
 
 func (s *state) get() *assignment  { s.mu.Lock(); defer s.mu.Unlock(); return s.current }
@@ -47,7 +51,7 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 	defer spool.Close()
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
-	st := &state{}
+	st := &state{fatal: make(chan error, 1)}
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- schedule(child, st, spool, id, blackbox, allowed) }()
 	connectionDone := make(chan struct{})
@@ -56,7 +60,7 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 		backoff := 250 * time.Millisecond
 		for child.Err() == nil {
 			start := time.Now()
-			if err := connect(child, endpoint, tls, id, dir, spool, st); err != nil && child.Err() == nil {
+			if err := connect(child, endpoint, tls, id, dir, spool, st, blackbox, allowed); err != nil && child.Err() == nil {
 				log.Print("Agent stream unavailable; retrying with pending observations retained")
 			}
 			if time.Since(start) > 30*time.Second {
@@ -79,6 +83,11 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 		<-schedulerDone
 		<-connectionDone
 		return nil
+	case e := <-st.fatal:
+		cancel()
+		<-schedulerDone
+		<-connectionDone
+		return e
 	case e := <-schedulerDone:
 		cancel()
 		<-connectionDone
@@ -89,7 +98,7 @@ func agentFrame(id string) *pb.AgentFrame {
 	return &pb.AgentFrame{ProtocolVersion: transport.Version, AgentId: id, MessageId: rand.Text(), SentAtUnixMilli: time.Now().UnixMilli()}
 }
 
-func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir string, spool *Spool, st *state) error {
+func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir string, spool *Spool, st *state, blackbox string, allowed []netip.Prefix) error {
 	conn, e := grpc.NewClient(endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tls)), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1<<20), grpc.MaxCallSendMsgSize(1<<20)))
 	if e != nil {
 		return e
@@ -97,12 +106,14 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 	defer conn.Close()
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
+	var workers sync.WaitGroup
+	defer func() { cancel(); workers.Wait() }()
 	stream, e := pb.NewAgentServiceClient(conn).Connect(child)
 	if e != nil {
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-3", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-4", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial"}}}
 	if e = stream.Send(f); e != nil {
 		return e
 	}
@@ -131,11 +142,25 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 	applied := false
 	var flight map[string]bool
 	var sent time.Time
+	var sequence uint64
+	lastHeartbeat := time.Time{}
 	for {
 		select {
 		case <-child.Done():
 			return child.Err()
 		case <-tick.C:
+			if applied && time.Since(lastHeartbeat) >= 5*time.Second {
+				sequence++
+				f := agentFrame(id)
+				f.Payload = &pb.AgentFrame_Heartbeat{Heartbeat: &pb.Heartbeat{Sequence: sequence, MaxConcurrentProbes: 2, ActiveProbes: uint32(st.active.Load())}}
+				if e = stream.Send(f); e != nil {
+					return e
+				}
+				lastHeartbeat = time.Now()
+				if e = cleanupTaskReceipts(dir); e != nil {
+					return e
+				}
+			}
 			if time.Since(lastReceived) > 20*time.Second {
 				return fmt.Errorf("Controller lease renewal timeout")
 			}
@@ -197,6 +222,51 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 					return e
 				}
 				applied = true
+				continue
+			}
+			if task := f.GetDiagnosticTask(); task != nil {
+				receipt := &pb.TaskReceipt{TaskId: task.TaskId, Reason: "invalid_or_busy"}
+				var a *assignment
+				var c monitor.Check
+				var deadline time.Time
+				reserved := accepted && applied && st.diagnosticBusy.CompareAndSwap(false, true)
+				if reserved && !spool.Reserve() {
+					st.diagnosticBusy.Store(false)
+					reserved = false
+				}
+				if reserved {
+					a, c, deadline, e = prepareTask(task, st, dir)
+					receipt.Accepted = e == nil
+					if receipt.Accepted {
+						receipt.Reason = ""
+					}
+					if !receipt.Accepted {
+						st.diagnosticBusy.Store(false)
+						spool.Release()
+					}
+				}
+				reply := agentFrame(id)
+				reply.Payload = &pb.AgentFrame_TaskReceipt{TaskReceipt: receipt}
+				if e = stream.Send(reply); e != nil {
+					if receipt.Accepted {
+						st.diagnosticBusy.Store(false)
+						spool.Release()
+					}
+					return e
+				}
+				if receipt.Accepted {
+					workers.Add(1)
+					go func() {
+						defer workers.Done()
+						defer st.diagnosticBusy.Store(false)
+						if err := executeTask(child, task, a, c, deadline, st, spool, id, blackbox, allowed); err != nil {
+							select {
+							case st.fatal <- err:
+							default:
+							}
+						}
+					}()
+				}
 				continue
 			}
 			if ack := f.GetObservationAck(); ack != nil {
@@ -295,11 +365,15 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 			if time.Now().Before(next[c.ID]) {
 				continue
 			}
+			if !spool.Reserve() {
+				break
+			}
 			next[c.ID] = time.Now().Add(c.Interval)
 			child, cancel := context.WithDeadline(ctx, a.deadline)
 			slot := monitor.Slot{Agent: id, Zone: a.zone}
 			var o monitor.Observation
 			var e error
+			st.active.Add(1)
 			if c.Runner == "blackbox" {
 				if exporter == nil {
 					exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
@@ -311,15 +385,17 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 				o, e = probe.HTTP(child, a.plan, c, slot, allowed)
 			}
 			cancel()
+			st.active.Add(-1)
 			if e != nil {
 				var id [16]byte
 				if _, err := rand.Read(id[:]); err != nil {
+					spool.Release()
 					return err
 				}
 				now := time.Now().UTC()
 				o = monitor.Observation{ID: hex.EncodeToString(id[:]), Monitor: a.plan.Name, Revision: a.plan.Revision, Check: c.ID, Agent: slot.Agent, Zone: slot.Zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "runner_unavailable_or_policy_denied"}
 			}
-			if e = spool.Add(o); e != nil {
+			if e = spool.AddReserved(o); e != nil {
 				return e
 			}
 		}

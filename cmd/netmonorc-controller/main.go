@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/config"
+	"github.com/boby-star/NetMonOrc/internal/coordinator"
+	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/secure"
@@ -38,6 +40,8 @@ func run() error {
 	key := flag.String("key", "", "Controller private key file")
 	roster := flag.String("slots", "", "fixed planned agent=zone pairs")
 	output := flag.String("assessment-file", ".local/assessment.json", "local assessment snapshot")
+	profilePath := flag.String("diagnostic-profile", "", "referenced DiagnosticProfile file; no diagnostics without enabled binding")
+	reportPath := flag.String("diagnostic-file", ".local/diagnostic.json", "latest persisted diagnostic report")
 	flag.Parse()
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
@@ -46,6 +50,26 @@ func run() error {
 	p, e := config.Compile(b)
 	if e != nil {
 		return e
+	}
+	var profile diagnostics.Profile
+	if p.Diagnostics != nil && p.Diagnostics.Enabled {
+		if *profilePath == "" {
+			return fmt.Errorf("enabled diagnostics require diagnostic-profile")
+		}
+		data, err := os.ReadFile(*profilePath)
+		if err != nil {
+			return err
+		}
+		profile, err = config.CompileDiagnostics(data)
+		if err != nil {
+			return err
+		}
+		p, err = config.ResolveDiagnostics(p, profile)
+		if err != nil {
+			return err
+		}
+	} else if *profilePath != "" {
+		return fmt.Errorf("diagnostics disabled; profile cannot trigger a run")
 	}
 	assessor, e := monitor.NewAssessor(p)
 	if e != nil {
@@ -88,14 +112,33 @@ func run() error {
 	}
 	defer lis.Close()
 	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
-	pb.RegisterAgentServiceServer(server, &transport.Server{Plan: p, Slots: slots, Store: store})
+	agentServer := &transport.Server{Plan: p, Slots: slots, Store: store}
+	pb.RegisterAgentServiceServer(server, agentServer)
+	var diagnostic *coordinator.Coordinator
+	if p.Diagnostics != nil && p.Diagnostics.Enabled {
+		c, done := context.WithTimeout(ctx, 5*time.Second)
+		e = store.LockController(c)
+		done()
+		if e != nil {
+			return e
+		}
+		diagnostic, e = coordinator.New(p, profile, agentServer, store, *reportPath)
+		if e != nil {
+			return e
+		}
+		if e = diagnostic.RestoreReport(ctx); e != nil {
+			return e
+		}
+		defer diagnostic.Wait()
+	}
+
 	errors := make(chan error, 2)
 	go func() { errors <- server.Serve(lis) }()
 	go func() {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
 		for {
-			if e := assess(ctx, store, p, assessor, slots, *output); e != nil {
+			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic); e != nil {
 				errors <- e
 				return
 			}
@@ -122,7 +165,7 @@ func run() error {
 	}
 	return result
 }
-func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string) error {
+func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator) error {
 	c, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
 	now := time.Now().UTC()
@@ -141,5 +184,14 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 	if e != nil {
 		return e
 	}
-	return durable.AtomicWrite(path, b)
+	if e = durable.AtomicWrite(path, b); e != nil {
+		return e
+	}
+	if diagnostic != nil {
+		if e = store.ControllerAlive(c); e != nil {
+			return e
+		}
+		return diagnostic.Tick(ctx, a, observations)
+	}
+	return nil
 }

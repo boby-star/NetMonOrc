@@ -40,7 +40,7 @@ func MatchBaseline(plan monitor.Plan, p Profile, history []monitor.Observation, 
 		if age == 0 {
 			age = plan.MaxAge
 		}
-		if !ok || !known || o.ID == "" || o.Monitor != plan.Name || o.Revision != plan.Revision || o.Zone != a.Zone || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+		if o.DiagnosticTaskID != "" || !ok || !known || o.ID == "" || o.Monitor != plan.Name || o.Revision != plan.Revision || o.Zone != a.Zone || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
 			continue
 		}
 		key := o.Check + "/" + o.Agent

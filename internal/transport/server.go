@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/secure"
 	"github.com/boby-star/NetMonOrc/internal/storage"
@@ -22,8 +23,15 @@ import (
 )
 
 type activeSession struct {
-	generation int64
-	cancel     context.CancelFunc
+	generation        int64
+	cancel            context.CancelFunc
+	tasks             chan taskRequest
+	applied           bool
+	capabilities      map[string]bool
+	lastHeartbeat     time.Time
+	capacity          int
+	active            int
+	heartbeatSequence uint64
 }
 type Server struct {
 	pb.UnimplementedAgentServiceServer
@@ -32,6 +40,7 @@ type Server struct {
 	Store  *storage.Store
 	mu     sync.Mutex
 	active map[string]activeSession
+	tasks  map[string]taskWaiter
 }
 
 func frame(agent string) *pb.ControllerFrame {
@@ -105,6 +114,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			return status.Error(codes.FailedPrecondition, "runner capability unavailable")
 		}
 	}
+	if s.Plan.Diagnostics != nil && s.Plan.Diagnostics.Enabled && !capabilities["diagnostics:serial"] {
+		return status.Error(codes.FailedPrecondition, "diagnostic execution capability unavailable")
+	}
 	dbctx, dbCancel := context.WithTimeout(ctx, 5*time.Second)
 	generation, e := s.Store.BeginSession(dbctx, id)
 	dbCancel()
@@ -123,7 +135,8 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	if exists {
 		old.cancel()
 	}
-	s.active[id] = activeSession{generation, cancel}
+	jobs := make(chan taskRequest, 1)
+	s.active[id] = activeSession{generation: generation, cancel: cancel, tasks: jobs, capabilities: capabilities}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -164,6 +177,19 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		select {
 		case <-ctx.Done():
 			return status.Error(codes.Aborted, "session ended or superseded")
+		case req := <-jobs:
+			if req.ctx.Err() != nil {
+				continue
+			}
+			if !applied {
+				s.taskResult(req.task.TaskId, id, diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"})
+				continue
+			}
+			f := frame(id)
+			f.Payload = &pb.ControllerFrame_DiagnosticTask{DiagnosticTask: req.task}
+			if e = stream.Send(f); e != nil {
+				return e
+			}
 		case <-tick.C:
 			if e = sendAssignment(); e != nil {
 				return e
@@ -188,7 +214,49 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				if e != nil {
 					return status.Error(codes.Aborted, "cannot apply fenced session")
 				}
+				s.mu.Lock()
+				v := s.active[id]
+				if v.generation == generation {
+					v.applied = true
+					s.active[id] = v
+				}
+				s.mu.Unlock()
 				applied = true
+				continue
+			}
+			if h := r.f.GetHeartbeat(); h != nil {
+				if !applied || h.Sequence == 0 || h.MaxConcurrentProbes != 2 || h.ActiveProbes > h.MaxConcurrentProbes {
+					return status.Error(codes.InvalidArgument, "invalid heartbeat")
+				}
+				s.mu.Lock()
+				v := s.active[id]
+				valid := v.generation == generation && h.Sequence > v.heartbeatSequence
+				if valid {
+					v.lastHeartbeat = time.Now()
+					v.heartbeatSequence = h.Sequence
+					v.capacity = int(h.MaxConcurrentProbes)
+					v.active = int(h.ActiveProbes)
+					s.active[id] = v
+				}
+				s.mu.Unlock()
+				if !valid {
+					return status.Error(codes.Aborted, "stale heartbeat generation or sequence")
+				}
+				continue
+			}
+			if receipt := r.f.GetTaskReceipt(); receipt != nil {
+				if !applied || !observationID.MatchString(receipt.TaskId) || len(receipt.Reason) > 128 {
+					return status.Error(codes.InvalidArgument, "invalid task receipt")
+				}
+				c, done := context.WithTimeout(ctx, 5*time.Second)
+				err := s.Store.DiagnosticReceipt(c, receipt.TaskId, id, generation, receipt.Accepted)
+				done()
+				if err != nil {
+					return status.Error(codes.Aborted, "task receipt could not be fenced")
+				}
+				if !receipt.Accepted {
+					s.taskResult(receipt.TaskId, id, diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"})
+				}
 				continue
 			}
 			batch := r.f.GetObservationBatch()
@@ -211,6 +279,11 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			done()
 			if e != nil {
 				return status.Error(codes.Unavailable, "durable observation commit failed")
+			}
+			for _, o := range observations {
+				if o.DiagnosticTaskID != "" {
+					s.taskResult(o.DiagnosticTaskID, id, diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome})
+				}
 			}
 			ack := &pb.ObservationAck{}
 			for i, o := range observations {

@@ -15,7 +15,10 @@ import (
 
 var ErrFenced = errors.New("session superseded")
 
-type Store struct{ pool *pgxpool.Pool }
+type Store struct {
+	pool       *pgxpool.Pool
+	controller *pgxpool.Conn
+}
 
 func Open(ctx context.Context, dsn string) (*Store, error) {
 	c, e := pgxpool.ParseConfig(dsn)
@@ -43,7 +46,11 @@ CREATE TABLE IF NOT EXISTS nmo_sessions(agent_id text PRIMARY KEY,generation big
 CREATE TABLE IF NOT EXISTS nmo_assignments(agent_id text NOT NULL,revision text NOT NULL,zone text NOT NULL,monitor text NOT NULL,PRIMARY KEY(agent_id,revision,zone,monitor));
 CREATE TABLE IF NOT EXISTS nmo_observations(id text PRIMARY KEY,agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,check_id text NOT NULL,finished_at timestamptz NOT NULL,received_at timestamptz NOT NULL DEFAULT now(),payload jsonb NOT NULL,payload_hash bytea NOT NULL);
 CREATE INDEX IF NOT EXISTS nmo_observations_live ON nmo_observations(monitor,revision,agent_id,check_id,finished_at DESC,id DESC);
-CREATE TABLE IF NOT EXISTS nmo_assessments(monitor text PRIMARY KEY,revision text NOT NULL,evaluated_at timestamptz NOT NULL,payload jsonb NOT NULL);`)
+CREATE TABLE IF NOT EXISTS nmo_assessments(monitor text PRIMARY KEY,revision text NOT NULL,evaluated_at timestamptz NOT NULL,payload jsonb NOT NULL);
+ALTER TABLE nmo_observations ADD COLUMN IF NOT EXISTS diagnostic_task_id text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS nmo_incidents(monitor text PRIMARY KEY,episode_id text NOT NULL DEFAULT '',run_id text NOT NULL DEFAULT '',last_finished timestamptz);
+CREATE TABLE IF NOT EXISTS nmo_diagnostic_runs(id text PRIMARY KEY,episode_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,profile_hash text NOT NULL,mode text NOT NULL,max_checks integer NOT NULL,used_checks integer NOT NULL DEFAULT 0,deadline timestamptz NOT NULL,state text NOT NULL,reason text NOT NULL DEFAULT '',report jsonb,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz);
+CREATE TABLE IF NOT EXISTS nmo_diagnostic_tasks(id text PRIMARY KEY,run_id text NOT NULL REFERENCES nmo_diagnostic_runs(id),agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,zone text NOT NULL,check_id text NOT NULL,deadline timestamptz NOT NULL,check_spec jsonb NOT NULL,state text NOT NULL);`)
 	if e == nil {
 		e = tx.Commit(ctx)
 	}
@@ -53,7 +60,13 @@ CREATE TABLE IF NOT EXISTS nmo_assessments(monitor text PRIMARY KEY,revision tex
 	}
 	return s, nil
 }
-func (s *Store) Close() { s.pool.Close() }
+func (s *Store) Close() {
+	if s.controller != nil {
+		s.controller.Conn().Close(context.Background())
+		s.controller.Release()
+	}
+	s.pool.Close()
+}
 func (s *Store) BeginSession(ctx context.Context, agent string) (int64, error) {
 	var n int64
 	e := s.pool.QueryRow(ctx, `INSERT INTO nmo_sessions(agent_id,generation) VALUES($1,1) ON CONFLICT(agent_id) DO UPDATE SET generation=nmo_sessions.generation+1,applied_revision='' RETURNING generation`, agent).Scan(&n)
@@ -117,12 +130,17 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 		if !assigned {
 			return nil, fmt.Errorf("observation has no historical assignment binding")
 		}
+		if o.DiagnosticTaskID != "" {
+			if e = validateDiagnosticObservation(ctx, tx, o); e != nil {
+				return nil, e
+			}
+		}
 		b, e := json.Marshal(o)
 		if e != nil {
 			return nil, e
 		}
 		hash := sha256.Sum256(b)
-		t, e := tx.Exec(ctx, `INSERT INTO nmo_observations(id,agent_id,monitor,revision,check_id,finished_at,payload,payload_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`, o.ID, agent, o.Monitor, o.Revision, o.Check, o.FinishedAt, b, hash[:])
+		t, e := tx.Exec(ctx, `INSERT INTO nmo_observations(id,agent_id,monitor,revision,check_id,finished_at,payload,payload_hash,diagnostic_task_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO NOTHING`, o.ID, agent, o.Monitor, o.Revision, o.Check, o.FinishedAt, b, hash[:], o.DiagnosticTaskID)
 		if e != nil {
 			return nil, e
 		}
@@ -144,7 +162,7 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 	return duplicates, nil
 }
 func (s *Store) Latest(ctx context.Context, p monitor.Plan, now time.Time) ([]monitor.Observation, error) {
-	rows, e := s.pool.Query(ctx, `SELECT payload FROM (SELECT DISTINCT ON(agent_id,check_id) payload,agent_id,check_id FROM nmo_observations WHERE monitor=$1 AND revision=$2 AND finished_at >= $3 ORDER BY agent_id,check_id,finished_at DESC,id DESC) x LIMIT 10001`, p.Name, p.Revision, now.Add(-p.MaxAge))
+	rows, e := s.pool.Query(ctx, `SELECT payload FROM (SELECT DISTINCT ON(agent_id,check_id) payload,agent_id,check_id FROM nmo_observations WHERE monitor=$1 AND revision=$2 AND diagnostic_task_id='' AND finished_at >= $3 ORDER BY agent_id,check_id,finished_at DESC,id DESC) x LIMIT 10001`, p.Name, p.Revision, now.Add(-p.MaxAge))
 	if e != nil {
 		return nil, e
 	}

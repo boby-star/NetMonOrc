@@ -15,6 +15,8 @@ message AgentFrame {
     AgentHello hello = 10;
     ConfigApplied config_applied = 11;
     ObservationBatch observation_batch = 12;
+    Heartbeat heartbeat = 13;
+    TaskReceipt task_receipt = 14;
   }
 }
 message ControllerFrame {
@@ -26,6 +28,7 @@ message ControllerFrame {
     HelloAccepted hello_accepted = 10;
     ConfigAssignment assignment = 11;
     ObservationAck observation_ack = 12;
+    DiagnosticTask diagnostic_task = 13;
   }
 }
 message AgentHello { string agent_version = 1; repeated string capabilities = 2; }
@@ -54,6 +57,7 @@ message Observation {
   int32 status_code = 12;
   map<string, string> extraction_status = 13;
   map<string, ScalarValue> values = 14;
+  string diagnostic_task_id = 15;
 }
 message ScalarValue {
   oneof value {
@@ -70,3 +74,22 @@ message ObservationReceipt {
   Status status = 2;
 }
 message ObservationAck { repeated ObservationReceipt receipts = 1; }
+
+message Heartbeat {
+  uint64 sequence = 1;
+  uint32 max_concurrent_probes = 2;
+  uint32 active_probes = 3; // Gauge, not a cumulative counter.
+}
+message DiagnosticTask {
+  string task_id = 1;
+  string session_id = 2;
+  string revision = 3;
+  bytes compiled_check = 4;
+  int64 expires_at_unix_milli = 5;
+  uint32 attempt_no = 6;
+}
+message TaskReceipt {
+  string task_id = 1;
+  bool accepted = 2;
+  string reason = 3;
+}

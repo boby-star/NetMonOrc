@@ -1,0 +1,27 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata: {name: live-web}
+spec:
+  mode: adaptive
+  budget: {maxAdditionalChecks: 2, maxDuration: 60s, maxParallel: 1}
+  hypotheses:
+    - {id: service-failure}
+    - {id: office-path-failure}
+  actions:
+    - id: inspect-server
+      check:
+        type: http
+        runner: native-http
+        timeout: 10s
+        config: {url: 'http://127.0.0.1:18080/', expectedStatus: [200]}
+      placement: {agentRefs: [dc], zones: [server], strategy: fixed}
+      expectedOutcomes: {service-failure: failure, office-path-failure: success}
+    - id: inspect-office
+      check:
+        type: http
+        runner: native-http
+        timeout: 10s
+        config: {url: 'http://127.0.0.1:18080/', expectedStatus: [200]}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      expectedOutcomes: {service-failure: failure, office-path-failure: failure}
+  adaptive: {}

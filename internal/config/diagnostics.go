@@ -187,6 +187,7 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 			}
 			step := diagnostics.Step{ID: v.ID, ActionID: v.ActionRef, DependsOn: v.DependsOn}
 			if v.When != nil {
+				step.Expression = *v.When
 				step.When, e = diagnosticCondition(*v.When)
 				if e != nil {
 					return p, fmt.Errorf("fixed step %s: %w", v.ID, e)

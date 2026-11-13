@@ -76,10 +76,8 @@ bounded subset і явно відхиляє неготові confirmation/retry/
 Перевірено формули, budgets/reuse, no-gain, technical failures,
 baseline freshness/equivalence, placement, повторні Fixed steps і CEL.
 
-Runtime Controller ще не викликає це ядро: немає durable diagnostic
-coordinator, task dispatch/result protocol, автоматичних тригерів чи
-публічного запуску. Confirmation/retry та невідома множинна несправність
-потребують наступного етапу. Це не завершена діагностика системи.
+Runtime Fixed/Adaptive підключено наступним етапом нижче. Публічного
+запуску, confirmation/retry та натурного порівняння трьох режимів немає.
 
 ## CEL Assessment — реалізовано в робочому ланцюгу
 
@@ -110,6 +108,27 @@ coverage, відновлення, Agent loss/TTL. Перевірено збер�
 Blackbox smoke пройшли HTTP 200 з body mismatch → negative probe.
 Докладно: docs/architecture/extraction.md. Raw body не зберігається.
 
+## Автоматична діагностика Fixed/Adaptive — інтегровано
+
+DiagnosticBinding → CEL trigger → Planner → durable reservation → mTLS task
+→ Agent HTTP/Blackbox → spool → PostgreSQL → planner outcome/report.
+Нормалізований DiagnosticProfile впливає на effective revision Monitor.
+Heartbeat передає capacity та active gauge із session-local sequence.
+Agent має незалежні regular/diagnostic lanes; місце результату в spool
+резервується перед probe. Diagnostic observations не підміняють baseline.
+
+Один запуск на епізод до healthy/full coverage — консервативний профіль.
+Рестарт/зміна revision не відкривають новий бюджет. Crash активного запуску
+дає inconclusive/controller_restart; reservations не повертаються. Результати
+й останній звіт відновлюються з PostgreSQL; є single-Controller DB lock.
+
+Live Adaptive перевірено з native HTTP, Fixed DAG — з реальними mTLS Agent.
+Пройдено controller kill під час active task, recovery без повторного запуску,
+coverage/TTL та PostgreSQL-тести ліміту й ізоляції diagnostic results.
+Окремий live Adaptive smoke з реальним Blackbox Exporter також пройшов
+виконання задач, crash/recovery, відновлення звіту й PostgreSQL-тести.
+Докладно: docs/architecture/diagnostic-runtime.md.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
@@ -117,8 +136,9 @@ Blackbox smoke пройшли HTTP 200 з body mismatch → negative probe.
 2. Hostname targets і повна firewall-політика exporter.
 3. CheckProfile/AssessmentPolicy refs і решта необхідних DSL
    можливостей; CEL assessment та CEL fixed conditions уже реалізовані.
-4. Інтеграція Static/Fixed/Adaptive з Controller/Agent, durable episode
-   budgets, triggers, підтвердження та retries.
+4. Натурне порівняння Static/Fixed/Adaptive, confirmation/retry й повторні
+   сеанси в одному епізоді з незмінним бюджетом. Fixed/Adaptive, triggers
+   і durable reservations уже інтегровані.
 5. Простий webhook і перегляд результатів.
 6. Стенд із незалежним порушенням доступу в різних сегментах,
    порівняльні експерименти та експорт вимірювань.

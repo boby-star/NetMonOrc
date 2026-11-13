@@ -46,7 +46,7 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 					break
 				}
 			}
-			if !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || byZone[zone] == "" || o.Agent != byZone[zone] || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || byZone[zone] == "" || o.Agent != byZone[zone] || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
 				continue
 			}
 			old, ok := latest[o.Check]

@@ -22,6 +22,7 @@ type Spool struct {
 	dir, agent string
 	items      map[string]monitor.Observation
 	lock       *os.File
+	reserved   int
 }
 
 func OpenSpool(dir, agent string) (*Spool, error) {
@@ -92,11 +93,37 @@ func OpenSpool(dir, agent string) (*Spool, error) {
 	return s, nil
 }
 func (s *Spool) Close() error { return s.lock.Close() }
-func (s *Spool) Full() bool   { s.mu.Lock(); defer s.mu.Unlock(); return len(s.items) >= MaxPending }
+func (s *Spool) Full() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.items)+s.reserved >= MaxPending
+}
+func (s *Spool) Reserve() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.items)+s.reserved >= MaxPending {
+		return false
+	}
+	s.reserved++
+	return true
+}
+func (s *Spool) Release() { s.mu.Lock(); defer s.mu.Unlock(); s.reserved-- }
+func (s *Spool) AddReserved(o monitor.Observation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.reserved < 1 {
+		return fmt.Errorf("no reserved spool slot")
+	}
+	s.reserved--
+	return s.add(o)
+}
 func (s *Spool) Add(o monitor.Observation) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(s.items) >= MaxPending {
+	return s.add(o)
+}
+func (s *Spool) add(o monitor.Observation) error {
+	if len(s.items)+s.reserved >= MaxPending {
 		return fmt.Errorf("spool full")
 	}
 	if o.Agent != s.agent || !validID(o.ID) {

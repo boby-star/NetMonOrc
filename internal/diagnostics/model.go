@@ -32,10 +32,11 @@ type Outcome struct {
 	Outcome   string
 }
 type Step struct {
-	ID        string
-	ActionID  string
-	DependsOn []string
-	When      func(context.Context, map[string]Outcome, string) (bool, error)
+	ID         string
+	ActionID   string
+	DependsOn  []string
+	When       func(context.Context, map[string]Outcome, string) (bool, error) `json:"-"`
+	Expression string                                                          `json:",omitempty"`
 }
 type Profile struct {
 	Name       string

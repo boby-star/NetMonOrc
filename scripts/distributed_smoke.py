@@ -23,10 +23,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--network', action='store_true')
 parser.add_argument('--cel', action='store_true')
 parser.add_argument('--extract', action='store_true')
+parser.add_argument('--diagnostics', choices=['adaptive','fixed'])
+parser.add_argument('--diagnostic-runner',choices=['native-http','blackbox'],default='native-http')
 parser.add_argument('--blackbox-binary')
 args = parser.parse_args()
-if sum([args.network,args.cel,args.extract])>1:
+if sum([bool(args.network),bool(args.cel),bool(args.extract),bool(args.diagnostics)])>1:
     parser.error('choose one fixture mode at a time')
+if args.diagnostic_runner=='blackbox' and (not args.diagnostics or not args.blackbox_binary):
+    parser.error('Blackbox diagnostics require --diagnostics and --blackbox-binary')
 if args.network and not args.blackbox_binary:
     parser.error('--network requires --blackbox-binary')
 dns = DNSFixture() if args.network else None
@@ -76,7 +80,15 @@ def view():
 class Handler(BaseHTTPRequestHandler):
     status = 200
     omit_ready = False
+    diagnostic_delay = 0
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # Expected when a bounded diagnostic is cancelled.
     def do_GET(self):
+        if self.path=='/diagnostic' and self.diagnostic_delay:
+            time.sleep(self.diagnostic_delay)
         self.send_response(200 if args.extract else self.status)
         self.end_headers()
         if args.extract:
@@ -118,12 +130,18 @@ try:
     if dns:
         text = text.replace('1053', str(dns.port))
     text = text.replace('interval: 30s', 'interval: 10s').replace('maxAge: 90s', 'maxAge: 20s')
+    if args.diagnostics:
+        text += '\n  diagnostics:\n    enabled: true\n    profileRef: live-web\n    cooldown: 1s\n'
+        profile = work/'diagnostic-profile.yaml'
+        profile.write_text((ROOT/'examples/diagnostics'/('live-'+args.diagnostics+'.yaml')).read_text().replace('18080',str(http.server_port)).replace("/', expectedStatus","/diagnostic', expectedStatus").replace("runner: native-http","runner: "+args.diagnostic_runner))
     manifest.write_text(text)
     pki = work/'pki'
     controller_args = ['-config', str(manifest), '-listen', f'127.0.0.1:{rpc_port}',
                        '-database-file', str(dsn), '-slots', 'branch=office,dc=server',
                        '-ca', str(pki/'ca.crt'), '-cert', str(pki/'controller.crt'),
                        '-key', str(pki/'controller.key'), '-assessment-file', str(work/'assessment.json')]
+    if args.diagnostics:
+        controller_args += ['-diagnostic-profile',str(profile),'-diagnostic-file',str(work/'diagnostic.json')]
     controller = start('netmonorc-controller', *controller_args)
     wait_for('no observations -> unknown', lambda: view().get('state') == 'unknown')
     # A foreign trust root cannot authenticate this Controller.
@@ -140,7 +158,7 @@ try:
                      '-data-dir', str(work/name), '-allow-cidrs', '127.0.0.1/32',
                      '-ca', str(pki/'ca.crt'), '-cert', str(pki/f'{name}.crt'),
                      '-key', str(pki/f'{name}.key'),
-                     *(['-blackbox-binary', args.blackbox_binary] if args.network else []))
+                     *(['-blackbox-binary', args.blackbox_binary] if args.blackbox_binary else []))
     branch, dc = start_agent('branch'), start_agent('dc')
     wait_for('two authenticated processes -> healthy', lambda: view().get('state') == 'healthy')
     old = json.loads(sql("SELECT payload FROM nmo_observations WHERE agent_id='branch' ORDER BY finished_at LIMIT 1"))
@@ -172,8 +190,49 @@ try:
         assert stored['values']['queue_depth'] == 0 and stored['values']['ready'] is False
         assert stored['values']['serial'] == 9007199254740993 and isinstance(stored['values']['ratio'], float)
         print('PASS: typed values survived PostgreSQL; HTTP 200 + ready=false -> resource down', flush=True)
+    if args.diagnostics:
+        def diagnosis():
+            try:
+                return json.loads((work/'diagnostic.json').read_text())
+            except (FileNotFoundError,json.JSONDecodeError):
+                return None
+        report = wait_for('real Agent diagnostics -> supported service-failure',
+                          lambda: (r if (r:=diagnosis()) and r['result']['status']=='completed' else None),seconds=25)
+        assert report['result']['hypotheses']==['service-failure'], report
+        expected = 1 if args.diagnostics=='adaptive' else 2
+        assert report['result']['attempts']==expected, report
+        assert int(sql("SELECT count(*) FROM nmo_diagnostic_tasks WHERE state='finished'"))==expected
+        assert int(sql("SELECT count(*) FROM nmo_observations WHERE diagnostic_task_id<>''"))==expected
+        first_run = report['id']
+        # Unchanged failure and a Controller restart cannot renew this episode.
+        stop(controller)
+        controller = start('netmonorc-controller', *controller_args)
+        wait_for('same failure assessed after diagnostic Controller restart',lambda: view().get('state')=='down')
+        time.sleep(3)
+        assert sql("SELECT count(*) FROM nmo_diagnostic_runs")=='1'
+        assert int(sql("SELECT used_checks FROM nmo_diagnostic_runs WHERE id='"+first_run+"'"))==expected
+        print('PASS: physical probes committed; reconnect/restart did not reset episode budget',flush=True)
     Handler.status = 200
     wait_for('service recovery -> healthy', lambda: view().get('state') == 'healthy', seconds=25)
+    if args.diagnostics:
+        wait_for('healthy/full coverage closes incident',lambda: sql("SELECT count(*) FROM nmo_incidents WHERE episode_id<>''")=='0')
+        Handler.status=503
+        Handler.diagnostic_delay=8
+        wait_for('new incident admitted with an active physical task',
+                 lambda: sql("SELECT count(*) FROM nmo_diagnostic_tasks t JOIN nmo_diagnostic_runs r ON r.id=t.run_id WHERE r.state='running' AND t.state='accepted'")=='1',seconds=25)
+        controller.kill();controller.wait()
+        controller=start('netmonorc-controller',*controller_args)
+        wait_for('crashed run remains inconclusive with preserved reservation',
+                 lambda: sql("SELECT count(*) FROM nmo_diagnostic_runs WHERE reason='controller_restart' AND used_checks=1 AND state='inconclusive'")=='1')
+        restored=wait_for('interrupted report restored from PostgreSQL',
+                          lambda: (r if (r:=diagnosis()) and r['id']!=first_run and r['result']['reason']=='controller_restart' else None))
+        assert restored['reservedChecks']==1
+        time.sleep(3)
+        assert sql("SELECT count(*) FROM nmo_diagnostic_runs")=='2'
+        assert int(sql("SELECT count(*) FROM nmo_diagnostic_tasks"))==expected+1
+        Handler.diagnostic_delay=0
+        Handler.status=200
+        wait_for('recovery after interrupted diagnostic',lambda: view().get('state')=='healthy',seconds=25)
     if args.extract:
         Handler.omit_ready = True
         wait_for('missing extracted field -> unknown without fabricated false/zero', lambda: view().get('state') == 'unknown', seconds=25)
@@ -185,9 +244,9 @@ try:
     test_env = os.environ.copy()
     test_env['NETMONORC_TEST_DSN_FILE'] = str(dsn)
     subprocess.run([shutil.which('go'), 'test', './internal/storage', '-run',
-                    'TestPostgresDurabilityAndFencing', '-count=1', '-v'],
+                    'TestPostgres', '-count=1', '-v'],
                    cwd=ROOT, env=test_env, check=True)
-    (work/'result.json').write_text(json.dumps({'status': 'passed', 'fixture': 'extract' if args.extract else ('cel' if args.cel else ('network' if args.network else 'http')), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}))
+    (work/'result.json').write_text(json.dumps({'status': 'passed', 'fixture': ('diagnostics-'+args.diagnostics) if args.diagnostics else ('extract' if args.extract else ('cel' if args.cel else ('network' if args.network else 'http'))), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}))
     print('Evidence:', work, flush=True)
 finally:
     for p in reversed(processes):

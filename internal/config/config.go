@@ -28,8 +28,9 @@ type Manifest struct {
 		Target struct {
 			Address string `yaml:"address"`
 		} `yaml:"target"`
-		Checks     []checkSpec    `yaml:"checks"`
-		Assessment assessmentSpec `yaml:"assessment"`
+		Checks      []checkSpec            `yaml:"checks"`
+		Assessment  assessmentSpec         `yaml:"assessment"`
+		Diagnostics *diagnosticBindingSpec `yaml:"diagnostics"`
 	} `yaml:"spec"`
 }
 type checkSpec struct {
@@ -129,6 +130,13 @@ func Compile(data []byte) (monitor.Plan, error) {
 	}
 	p.Name = m.Metadata.Name
 	p.TargetAddress = m.Spec.Target.Address
+	if m.Spec.Diagnostics != nil {
+		var err error
+		p.Diagnostics, err = compileBinding(*m.Spec.Diagnostics)
+		if err != nil {
+			return p, err
+		}
+	}
 	a := m.Spec.Assessment
 	if a.ZoneAggregation != "" && a.ZoneAggregation != "all-required" {
 		return p, fmt.Errorf("only all-required zoneAggregation is implemented")

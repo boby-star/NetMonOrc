@@ -5,9 +5,9 @@
 `internal/diagnostics` виконує три режими через один Runner і один набір
 обмежень. Воно не залежить від PostgreSQL, gRPC або exporter.
 `CompileDiagnostics` читає закриту підмножину нормативного DiagnosticProfile.
-Це завершений алгоритмічний компонент, але поки **не автоматична мережева
-діагностика Controller**: DiagnosticTask/TaskResult та durable coordinator
-ще не підключені. Публічного start API немає.
+Для Fixed/Adaptive додано автоматичний мережевий запуск через Controller
+і Agent: [операційний контур](diagnostic-runtime.md). Публічного start API
+немає. Static у цьому документі залишається синтетичним replay.
 
 - Adaptive: кількість пар сумісних гіпотез із неперетинними очікуваними
   результатами / costUnits. Формула відповідає ТЗ §4.9.
@@ -33,13 +33,15 @@ Unknown/either самі по собі не підтверджують клас. 
 включно з timeout. Вона перевіряє revision, TTL, агента/зону, latest result
 та узгоджене часове вікно. Новіший execution failure не відновлює старий
 успіх. Вхідні observations мають походити з автентифікованого ingestion.
-Цей helper також ще не викликається автоматичним Coordinator.
+Цей helper викликається автоматичним Coordinator; diagnostic observations
+не підставляються замість регулярних baseline observations.
 
 Ledger утримує час і використані спроби епізоду та забороняє одночасний
 Run. Повторний Run з тим самим Ledger не скидає ліміт і не повторює
 Adaptive actions. Budget policy не можна замінити для збільшення залишку.
 У Fixed явне повторне actionRef — окремий облік спроби.
-Ledger зараз у пам'яті: його не можна видавати за durable episode state.
+Сам Ledger у пам'яті. Операційний контур додатково резервує бюджет у
+PostgreSQL і не повторює сесію того самого епізоду після рестарту.
 
 Без допустимих дій, за no-gain, конфлікту доказів чи завершення бюджету
 повертається inconclusive з причиною. estimatedBytes не обчислюються

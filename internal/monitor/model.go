@@ -23,6 +23,7 @@ type Check struct {
 }
 
 type Plan struct {
+	Diagnostics   *DiagnosticBinding `json:",omitempty"`
 	Rules         []AssessmentRule
 	Name          string
 	TargetAddress string
@@ -43,6 +44,7 @@ type Slot struct {
 }
 
 type Observation struct {
+	DiagnosticTaskID string            `json:"diagnosticTaskID,omitempty"`
 	Values           map[string]Scalar `json:"values,omitempty"`
 	ExtractionStatus map[string]string `json:"extractionStatus,omitempty"`
 	ID               string            `json:"id"`
@@ -57,6 +59,16 @@ type Observation struct {
 	Outcome          string            `json:"outcome"`
 	Reason           string            `json:"reason,omitempty"`
 	StatusCode       int               `json:"statusCode,omitempty"`
+}
+
+// Diagnostic configuration is inert until its referenced profile is resolved.
+type DiagnosticBinding struct {
+	Enabled     bool
+	ProfileRef  string
+	ProfileHash string
+	OnStates    []string
+	When        string
+	Cooldown    time.Duration
 }
 
 type ZoneAssessment struct {
