@@ -1,0 +1,51 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: research-network
+spec:
+  target:
+    address: 127.0.0.1
+  checks:
+    - id: icmp
+      type: icmp
+      interval: 30s
+      timeout: 2s
+      config:
+        preferredIPProtocol: ip4
+        payloadSize: 32
+    - id: tcp
+      type: tcp
+      interval: 30s
+      timeout: 2s
+      config:
+        port: 18080
+    - id: dns
+      type: dns
+      interval: 30s
+      timeout: 2s
+      config:
+        resolver: 127.0.0.1:1053
+        queryName: health.example
+        recordType: A
+        transport: udp
+        expectedRecordRegex: '127\.0\.0\.20$'
+    - id: http
+      type: http
+      interval: 30s
+      timeout: 2s
+      config:
+        url: http://127.0.0.1:18080/
+  assessment:
+    minCoverage: 0.90
+    requiredZones: [office, server]
+    freshness:
+      maxAge: 90s
+      maxSkew: 30s
+    checks:
+      - {id: icmp, weight: 0.05}
+      - {id: tcp, weight: 0.25}
+      - {id: dns, weight: 0.10}
+      - {id: http, weight: 0.60, required: true}
+    weighted:
+      healthyMin: 1
+      degradedMin: 0.5

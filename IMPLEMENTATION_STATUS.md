@@ -48,11 +48,25 @@ fencing і конфлікт ID. Race-перевірки пакетів agent/sec
 реальний Blackbox перевірено окремим локальним smoke.
 Докладно: `docs/architecture/distributed-slice.md`.
 
+## Мережеві протоколи — реалізовано
+
+Типізовані HTTP/TCP/DNS/ICMP checks, окремі decoder-и в registry,
+валідація полів і типів config, Agent-side IR validation та capabilities.
+Blackbox виконує TCP, DNS UDP/TCP з expectedRcodes/answer regex та ICMP.
+IP allowlist застосовується до цілі або resolver; hostname targets не виконуються.
+ICMP socket/permission failures не видаються за відмову ресурсу.
+
+Перевірено real exporter: TCP success/refusal, DNS UDP/TCP, regex на
+другому record, empty/NXDOMAIN та expected NXDOMAIN. ICMP success і
+permission failure перевірено окремими ізольованими контейнерами.
+Змішаний distributed smoke пройшов mTLS/PostgreSQL/replay/TTL.
+Позитивний ICMP на хості недоступний через права; це не позначено успіхом.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
    керування сертифікатами та готовий Compose deployment всіх компонентів.
-2. Blackbox TCP/DNS/ICMP, DNS-цілі та ширша мережева політика exporter.
+2. Hostname targets і повна firewall-політика exporter.
 3. Профілі, CEL та extraction, необхідна частина DSL для сценаріїв записки.
 4. Static, Fixed та Adaptive, бюджети й підтвердження.
 5. Простий webhook і перегляд результатів.

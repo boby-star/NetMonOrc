@@ -102,7 +102,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-1", Capabilities: []string{"native-http", "blackbox"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-2", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp"}}}
 	if e = stream.Send(f); e != nil {
 		return e
 	}
@@ -305,7 +305,7 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 					exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
 				}
 				if e == nil {
-					o, e = exporter.HTTP(child, a.plan, c, slot, allowed)
+					o, e = exporter.Run(child, a.plan, c, slot, allowed)
 				}
 			} else {
 				o, e = probe.HTTP(child, a.plan, c, slot, allowed)

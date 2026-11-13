@@ -96,7 +96,7 @@ func run(args []string) error {
 		for _, c := range p.Checks {
 			var o monitor.Observation
 			if c.Runner == "blackbox" {
-				o, e = exporter.HTTP(ctx, p, c, monitor.Slot{Agent: *agent, Zone: *zone}, networks)
+				o, e = exporter.Run(ctx, p, c, monitor.Slot{Agent: *agent, Zone: *zone}, networks)
 			} else {
 				o, e = probe.HTTP(ctx, p, c, monitor.Slot{Agent: *agent, Zone: *zone}, networks)
 			}

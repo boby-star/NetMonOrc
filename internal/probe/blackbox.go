@@ -34,17 +34,11 @@ func StartExporter(ctx context.Context, binary string, p monitor.Plan) (*Exporte
 	modules := map[string]any{}
 	for _, c := range p.Checks {
 		if c.Runner == "blackbox" {
-			protocol := "ip4"
-			if u, err := url.Parse(c.URL); err == nil {
-				if ip, err := netip.ParseAddr(u.Hostname()); err == nil && ip.Is6() {
-					protocol = "ip6"
-				}
+			module, err := blackboxModule(p, c)
+			if err != nil {
+				return nil, err
 			}
-			modules[c.ID] = map[string]any{"prober": "http", "timeout": c.Timeout.String(), "http": map[string]any{
-				"method": c.Method, "valid_status_codes": c.ExpectedStatus, "follow_redirects": false,
-				"preferred_ip_protocol": protocol, "ip_protocol_fallback": false, "body_size_limit": strconv.FormatInt(c.MaxBodyBytes, 10) + "B",
-				"tls_config": map[string]bool{"insecure_skip_verify": false},
-			}}
+			modules[c.ID] = module
 		}
 	}
 	b, err := json.Marshal(map[string]any{"modules": modules})
@@ -62,7 +56,7 @@ func StartExporter(ctx context.Context, binary string, p monitor.Plan) (*Exporte
 		return nil, err
 	}
 	child, cancel := context.WithCancel(ctx)
-	cmd := exec.CommandContext(child, binary, "--config.file="+path, "--web.listen-address=127.0.0.1:0", "--timeout-offset=0")
+	cmd := exec.CommandContext(child, binary, "--config.file="+path, "--web.listen-address=127.0.0.1:0", "--timeout-offset=0", "--log.level=debug", "--log.prober=debug")
 	cmd.WaitDelay = time.Second
 	logs := &listenLog{ready: make(chan string, 1)}
 	cmd.Stdout = logs
@@ -118,8 +112,9 @@ func (l *listenLog) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (e *Exporter) HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, allowed []netip.Prefix) (monitor.Observation, error) {
-	if err := allowedTarget(c.URL, allowed); err != nil {
+func (e *Exporter) Run(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, allowed []netip.Prefix) (monitor.Observation, error) {
+	target, err := validateTarget(p, c, allowed)
+	if err != nil {
 		return monitor.Observation{}, err
 	}
 	var id [16]byte
@@ -129,7 +124,11 @@ func (e *Exporter) HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s 
 	o := monitor.Observation{ID: hex.EncodeToString(id[:]), Monitor: p.Name, Revision: p.Revision, Check: c.ID, Agent: s.Agent, Zone: s.Zone, StartedAt: time.Now().UTC(), Execution: "execution_failed", Outcome: "unknown", Reason: "exporter_request_failed"}
 	child, cancel := context.WithTimeout(ctx, c.Timeout+time.Second)
 	defer cancel()
-	u := e.endpoint + "/probe?" + url.Values{"module": {c.ID}, "target": {c.URL}}.Encode()
+	query := url.Values{"module": {c.ID}, "target": {target}}
+	if c.Type == "icmp" {
+		query.Set("debug", "true")
+	}
+	u := e.endpoint + "/probe?" + query.Encode()
 	req, err := http.NewRequestWithContext(child, "GET", u, nil)
 	if err != nil {
 		return o, err
@@ -142,7 +141,16 @@ func (e *Exporter) HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s 
 		b, readErr := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 		closeErr := resp.Body.Close()
 		if resp.StatusCode == 200 && readErr == nil && closeErr == nil && len(b) <= 1<<20 {
-			success, status, parseErr := parseMetrics(string(b))
+			logs := ""
+			metrics := string(b)
+			var debugErr error
+			if c.Type == "icmp" {
+				logs, metrics, debugErr = icmpDebug(metrics)
+			}
+			success, status, parseErr := parseMetrics(metrics, c.Type)
+			if debugErr != nil {
+				parseErr = debugErr
+			}
 			if parseErr == nil {
 				o.Execution = "completed"
 				o.StatusCode = status
@@ -155,7 +163,7 @@ func (e *Exporter) HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s 
 				// With this restricted module, a failed probe after an accepted
 				// status can indicate a truncated/bounded response. Do not turn
 				// incomplete response handling into a confirmed service failure.
-				if !success {
+				if !success && c.Type == "http" {
 					for _, expected := range c.ExpectedStatus {
 						if status == expected {
 							o.Execution = "execution_failed"
@@ -163,6 +171,11 @@ func (e *Exporter) HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s 
 							o.Reason = "incomplete_http_probe"
 						}
 					}
+				}
+				if c.Type == "icmp" && !success && !icmpNegative(logs) {
+					o.Execution = "execution_failed"
+					o.Outcome = "unknown"
+					o.Reason = "icmp_execution_unavailable"
 				}
 			} else {
 				o.Reason = "invalid_exporter_metrics"
@@ -173,7 +186,7 @@ func (e *Exporter) HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s 
 	return o, nil
 }
 
-func parseMetrics(body string) (bool, int, error) {
+func parseMetrics(body, kind string) (bool, int, error) {
 	found := false
 	success := false
 	status := 0
@@ -202,7 +215,7 @@ func parseMetrics(body string) (bool, int, error) {
 			statusFound = true
 		}
 	}
-	if !found || !statusFound {
+	if !found || (kind == "http" && !statusFound) {
 		return false, 0, fmt.Errorf("missing probe_success")
 	}
 	return success, status, nil

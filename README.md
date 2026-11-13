@@ -46,6 +46,9 @@ CLI запускає один керований exporter на виклик `pro
 процес і тимчасовий конфіг прибираються. Довільні аргументи, модулі
 або executable paths у YAML не допускаються.
 
+TCP, DNS (UDP/TCP) та ICMP також підтримуються через exporter:
+[мережеві перевірки й запуск стенда](docs/architecture/network-probes.md).
+
 ```bash
 python3 scripts/smoke.py --blackbox-binary /path/to/blackbox_exporter
 .local/netmonorc probe -config .local/blackbox-smoke.yaml -agent branch -zone office -allow-cidrs 127.0.0.1/32 -blackbox-binary /path/to/blackbox_exporter
@@ -57,15 +60,15 @@ python3 scripts/smoke.py --blackbox-binary /path/to/blackbox_exporter
 `507a77ff411822fd6b543e8b8d9e00e1cc49408df465588cd746753bf05046e2`.
 Джерело: GitHub release `prometheus/blackbox_exporter`, tag `v0.27.0`.
 
-Обидва runner-и приймають лише явні IP-literal URL з дозволених CIDR;
+HTTP runner-и приймають лише явні IP-literal URL з дозволених CIDR;
 DNS-цілі, redirects, proxy та вимкнення перевірки TLS недоступні.
-Це обмежена безпечна інтеграція HTTP, а не завершена мережева політика
+Це обмежена інтеграція з IP-literal targets, а не завершена мережева політика
 для всіх протоколів. Startup exporter враховується в часі CLI-команди;
 продуктивність майбутнього постійного Agent цим запуском не вимірюється.
 
 ## Межі поточної реалізації
 
-- Один Monitor з inline target, HTTP checks та inline weighted assessment.
+- Один Monitor з inline target, HTTP/TCP/DNS/ICMP checks та inline weighted assessment.
 - `native-http` та `blackbox`/`auto`, GET/HEAD, IP-literal URL, перевірка TLS,
   обмеження body/headers/timeout, явний CIDR allowlist, без redirects.
 - Required checks, H/Q, TTL для кожної перевірки, maxSkew,
@@ -76,7 +79,7 @@ DNS-цілі, redirects, proxy та вимкнення перевірки TLS н
 
 Розподілений запуск підтримує фіксовані джерела, mTLS, послідовне регулярне
 виконання й PostgreSQL. Наразі немає динамічного Placement/Scheduler,
-TCP/DNS/ICMP, CEL/extraction, діагностики, алертів і вебпанелі.
+CEL/extraction, діагностики, алертів і вебпанелі.
 CLI не автентифікує агентів: NDJSON придатний для контрольованого стенда,
 а не для приймання недовірених мережевих результатів. Мережеві результати
 приймає окремий gRPC Controller з перевіркою mTLS principal та assignment.

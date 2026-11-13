@@ -14,8 +14,8 @@ func TestExporterErrorIsNotTargetFailure(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(500) }))
 	defer s.Close()
 	e := Exporter{endpoint: s.URL}
-	c := monitor.Check{ID: "http", URL: "http://127.0.0.1:18080/", Timeout: time.Second}
-	o, err := e.HTTP(context.Background(), monitor.Plan{}, c, monitor.Slot{}, []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")})
+	c := monitor.Check{Type: "http", ID: "http", URL: "http://127.0.0.1:18080/", Timeout: time.Second}
+	o, err := e.Run(context.Background(), monitor.Plan{}, c, monitor.Slot{}, []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")})
 	if err != nil || o.Execution != "execution_failed" || o.Outcome != "unknown" {
 		t.Fatalf("%+v %v", o, err)
 	}
@@ -33,7 +33,7 @@ func TestMetricOutcomes(t *testing.T) {
 		{"probe_success 1\nprobe_success 0\n", false, false},
 		{"# HELP probe_success description\n", false, false},
 	} {
-		success, _, e := parseMetrics(tc.body)
+		success, _, e := parseMetrics(tc.body, "http")
 		if (e == nil) != tc.valid || (e == nil && success != tc.success) {
 			t.Fatalf("%q: %v %v", tc.body, success, e)
 		}

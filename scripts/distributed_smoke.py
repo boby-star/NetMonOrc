@@ -1,5 +1,7 @@
 """Real PostgreSQL + Controller + two mTLS Agent processes. Own resources only."""
 import json
+import argparse
+from network_fixtures import DNSFixture
 import os
 from pathlib import Path
 import secrets
@@ -17,6 +19,13 @@ IMAGE = 'postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97b
 work = ROOT/'.local'/('distributed-' + secrets.token_hex(4))
 work.mkdir(parents=True, mode=0o700)
 container = 'netmonorc-smoke-' + secrets.token_hex(4)
+parser = argparse.ArgumentParser()
+parser.add_argument('--network', action='store_true')
+parser.add_argument('--blackbox-binary')
+args = parser.parse_args()
+if args.network and not args.blackbox_binary:
+    parser.error('--network requires --blackbox-binary')
+dns = DNSFixture() if args.network else None
 processes = []
 files = []
 owned_container = False
@@ -95,7 +104,10 @@ try:
         sock.bind(('127.0.0.1', 0))
         rpc_port = sock.getsockname()[1]
     manifest = work/'monitor.yaml'
-    text = (ROOT/'examples/http.yaml').read_text().replace('18080', str(http.server_port))
+    example = 'network.yaml' if args.network else 'http.yaml'
+    text = (ROOT/'examples'/example).read_text().replace('18080', str(http.server_port))
+    if dns:
+        text = text.replace('1053', str(dns.port))
     text = text.replace('interval: 30s', 'interval: 10s').replace('maxAge: 90s', 'maxAge: 20s')
     manifest.write_text(text)
     pki = work/'pki'
@@ -118,7 +130,8 @@ try:
         return start('netmonorc-agent-run-'+name, '-controller', f'127.0.0.1:{rpc_port}',
                      '-data-dir', str(work/name), '-allow-cidrs', '127.0.0.1/32',
                      '-ca', str(pki/'ca.crt'), '-cert', str(pki/f'{name}.crt'),
-                     '-key', str(pki/f'{name}.key'))
+                     '-key', str(pki/f'{name}.key'),
+                     *(['-blackbox-binary', args.blackbox_binary] if args.network else []))
     branch, dc = start_agent('branch'), start_agent('dc')
     wait_for('two authenticated processes -> healthy', lambda: view().get('state') == 'healthy')
     old = json.loads(sql("SELECT payload FROM nmo_observations WHERE agent_id='branch' ORDER BY finished_at LIMIT 1"))
@@ -153,6 +166,8 @@ finally:
     for p in reversed(processes):
         stop(p)
     http.shutdown(); http.server_close(); thread.join()
+    if dns:
+        dns.close()
     if owned_container:
         command('docker', 'rm', '-fv', container)
     for f in files:

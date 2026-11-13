@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net/url"
 	"regexp"
 	"sort"
 	"time"
@@ -33,19 +32,12 @@ type Manifest struct {
 	} `yaml:"spec"`
 }
 type checkSpec struct {
-	ID       string `yaml:"id"`
-	Type     string `yaml:"type"`
-	Runner   string `yaml:"runner"`
-	Interval string `yaml:"interval"`
-	Timeout  string `yaml:"timeout"`
-	Config   struct {
-		URL             string `yaml:"url"`
-		Method          string `yaml:"method"`
-		ExpectedStatus  []int  `yaml:"expectedStatus"`
-		VerifyTLS       *bool  `yaml:"verifyTLS"`
-		FollowRedirects bool   `yaml:"followRedirects"`
-		MaxBodyBytes    *int64 `yaml:"maxBodyBytes"`
-	} `yaml:"config"`
+	ID       string    `yaml:"id"`
+	Type     string    `yaml:"type"`
+	Runner   string    `yaml:"runner"`
+	Interval string    `yaml:"interval"`
+	Timeout  string    `yaml:"timeout"`
+	Config   yaml.Node `yaml:"config"`
 }
 type assessmentSpec struct {
 	RequiredZones   []string `yaml:"requiredZones"`
@@ -158,44 +150,13 @@ func Compile(data []byte) (monitor.Plan, error) {
 			return p, fmt.Errorf("spec.checks[%d].id invalid or duplicated", i)
 		}
 		seen[c.ID] = true
-		if c.Runner == "" || c.Runner == "auto" {
-			c.Runner = "blackbox"
+		x, e := compileProbe(c, p.TargetAddress)
+		if e != nil {
+			return p, fmt.Errorf("spec.checks[%d] (%s): %w", i, c.ID, e)
 		}
-		if c.Type != "http" || (c.Runner != "native-http" && c.Runner != "blackbox") {
-			return p, fmt.Errorf("check %s: this slice supports http with native-http or blackbox runner", c.ID)
-		}
-		u, err := url.Parse(c.Config.URL)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
-			return p, fmt.Errorf("check %s: invalid HTTP URL", c.ID)
-		}
-		if c.Config.FollowRedirects || (c.Config.VerifyTLS != nil && !*c.Config.VerifyTLS) {
-			return p, fmt.Errorf("redirects and disabled TLS verification are not supported")
-		}
-		x := monitor.Check{Runner: c.Runner, ID: c.ID, URL: u.String(), Method: c.Config.Method, ExpectedStatus: c.Config.ExpectedStatus, MaxBodyBytes: 16384, Weight: 1}
-		if x.Method == "" {
-			x.Method = "GET"
-		}
-		if x.Method != "GET" && x.Method != "HEAD" {
-			return p, fmt.Errorf("invalid HTTP method")
-		}
-		if x.ExpectedStatus == nil {
-			x.ExpectedStatus = []int{200}
-		}
-		if len(x.ExpectedStatus) == 0 {
-			return p, fmt.Errorf("expectedStatus cannot be empty")
-		}
-		for _, code := range x.ExpectedStatus {
-			if code < 100 || code > 599 {
-				return p, fmt.Errorf("invalid expected status")
-			}
-		}
-		sort.Ints(x.ExpectedStatus)
-		if c.Config.MaxBodyBytes != nil {
-			x.MaxBodyBytes = *c.Config.MaxBodyBytes
-		}
-		if x.MaxBodyBytes < 1 || x.MaxBodyBytes > 65536 {
-			return p, fmt.Errorf("maxBodyBytes must be 1..65536")
-		}
+		x.ID = c.ID
+		x.Weight = 1
+
 		if x.Interval, e = duration(c.Interval, 30*time.Second); e != nil {
 			return p, e
 		}

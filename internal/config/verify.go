@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/url"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -45,21 +44,13 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 			return fmt.Errorf("invalid check identity or runner")
 		}
 		seen[c.ID] = true
-		if c.Timeout < 100*time.Millisecond || c.Timeout > 60*time.Second || c.Interval < 10*time.Second || c.Interval > 24*time.Hour || c.Timeout >= c.Interval || c.MaxAge < c.Interval || c.MaxBodyBytes < 1 || c.MaxBodyBytes > 65536 {
+		if c.Timeout < 100*time.Millisecond || c.Timeout > 60*time.Second || c.Interval < 10*time.Second || c.Interval > 24*time.Hour || c.Timeout >= c.Interval || c.MaxAge < c.Interval {
 			return fmt.Errorf("invalid check limits")
 		}
-		u, e := url.Parse(c.URL)
-		if e != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (c.Method != "GET" && c.Method != "HEAD") {
-			return fmt.Errorf("invalid HTTP plan")
+		if e := validateProbe(c); e != nil {
+			return e
 		}
-		if len(c.ExpectedStatus) == 0 || len(c.ExpectedStatus) > 500 {
-			return fmt.Errorf("invalid HTTP statuses")
-		}
-		for _, n := range c.ExpectedStatus {
-			if n < 100 || n > 599 {
-				return fmt.Errorf("invalid status")
-			}
-		}
+
 		if math.IsNaN(c.Weight) || math.IsInf(c.Weight, 0) || c.Weight < 0 || c.Weight > 1 {
 			return fmt.Errorf("invalid assessment weight")
 		}

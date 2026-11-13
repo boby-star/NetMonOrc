@@ -101,7 +101,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		capabilities[c] = true
 	}
 	for _, c := range s.Plan.Checks {
-		if !capabilities[c.Runner] {
+		if !capabilities[c.Runner] || !capabilities[c.Type] {
 			return status.Error(codes.FailedPrecondition, "runner capability unavailable")
 		}
 	}

@@ -3,6 +3,10 @@ package monitor
 import "time"
 
 type Check struct {
+	Type           string
+	TCP            *TCPConfig
+	DNS            *DNSConfig
+	ICMP           *ICMPConfig
 	Runner         string
 	ID             string
 	URL            string
@@ -66,4 +70,25 @@ type Assessment struct {
 	At       time.Time        `json:"at"`
 	State    string           `json:"state"`
 	Zones    []ZoneAssessment `json:"zones"`
+}
+
+// Protocol-specific parameters are separate from common orchestration fields.
+type TCPConfig struct {
+	Port                int
+	PreferredIPProtocol string
+	IPProtocolFallback  bool
+}
+type DNSConfig struct {
+	Resolver            string
+	QueryName           string
+	RecordType          string
+	Transport           string
+	ExpectedRcodes      []string
+	ExpectedRecordRegex string
+}
+type ICMPConfig struct {
+	PreferredIPProtocol string
+	IPProtocolFallback  bool
+	PayloadSize         int
+	DontFragment        bool
 }

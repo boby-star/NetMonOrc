@@ -82,6 +82,10 @@ func allowedTarget(raw string, allowed []netip.Prefix) error {
 	if e != nil {
 		return fmt.Errorf("first slice requires IP-literal probe URLs")
 	}
+	return allowedAddress(ip, allowed)
+}
+
+func allowedAddress(ip netip.Addr, allowed []netip.Prefix) error {
 	ip = ip.Unmap()
 	permitted := false
 	for _, n := range allowed {
