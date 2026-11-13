@@ -382,7 +382,9 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 			st.active.Add(1)
 			if c.Runner == "blackbox" {
 				if exporter == nil {
-					exporter, e = probe.StartExporter(child, blackbox, a.plan)
+					// The cached exporter outlives individual probe contexts.
+					// Lease validity is checked again before using it below.
+					exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
 				}
 				if e == nil && !leaseValid(a) {
 					e = fmt.Errorf("lease expired during exporter startup")

@@ -7,8 +7,8 @@ Linux Agent перевіряє дві часові межі перед нови�
 assignment з тим самим expiresAt і запасом clock uncertainty 5s.
 Неможливість отримати CLOCK_BOOTTIME закриває дозвіл на запуск.
 
-Після startup exporter lease перевіряється повторно; startup регулярного
-exporter обмежений контекстом assignment. На інших ОС цей Agent-профіль
+Після startup exporter lease перевіряється повторно; startup має власний timeout 5s; регулярний exporter живе в контексті
+процесу Agent, щоб завершення одного probe не зупиняло спільний exporter. На інших ОС цей Agent-профіль
 відхиляє assignment: portable fallback, що пропускає suspend, не застосовано.
 Saved assignment ніколи не відновлюється після рестарту процесу/ОС.
 
