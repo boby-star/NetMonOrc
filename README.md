@@ -4,6 +4,10 @@
 Робочий зріз — локальний ланцюг YAML → native HTTP / Blackbox → Observation → Assessment.
 Повної відповідності попередньому v1alpha1 поки немає.
 
+**Новий розподілений зріз:** окремі Controller/Agent, gRPC/mTLS,
+lease, локальна черга та PostgreSQL. Запуск і межі реалізації:
+[docs/architecture/distributed-slice.md](docs/architecture/distributed-slice.md).
+
 ## Запуск першого зрізу
 
 Потрібні Go ≥1.25 і Python 3 для демонстраційного HTTP-сервера.
@@ -70,10 +74,12 @@ DNS-цілі, redirects, proxy та вимкнення перевірки TLS н
 - Непідтримувані YAML-поля та можливості відхиляються.
 - Це локальні CLI-операції, без нового альтернативного HTTP API.
 
-Наразі немає мережевого Controller/Agent, mTLS, Scheduler, TCP/DNS/ICMP,
-PostgreSQL, CEL/extraction, діагностики, алертів і вебпанелі.
+Розподілений запуск підтримує фіксовані джерела, mTLS, послідовне регулярне
+виконання й PostgreSQL. Наразі немає динамічного Placement/Scheduler,
+TCP/DNS/ICMP, CEL/extraction, діагностики, алертів і вебпанелі.
 CLI не автентифікує агентів: NDJSON придатний для контрольованого стенда,
-а не для приймання недовірених мережевих результатів.
+а не для приймання недовірених мережевих результатів. Мережеві результати
+приймає окремий gRPC Controller з перевіркою mTLS principal та assignment.
 
 ## Розробка
 

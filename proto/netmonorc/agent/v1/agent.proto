@@ -1,0 +1,62 @@
+syntax = "proto3";
+package netmonorc.agent.v1;
+option go_package = "github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1;agentv1";
+
+// Initial research subset of TZ section 9. No public REST routes are added.
+service AgentService {
+  rpc Connect(stream AgentFrame) returns (stream ControllerFrame);
+}
+message AgentFrame {
+  string protocol_version = 1;
+  string agent_id = 2;
+  string message_id = 3;
+  int64 sent_at_unix_milli = 4;
+  oneof payload {
+    AgentHello hello = 10;
+    ConfigApplied config_applied = 11;
+    ObservationBatch observation_batch = 12;
+  }
+}
+message ControllerFrame {
+  string protocol_version = 1;
+  string agent_id = 2;
+  string message_id = 3;
+  int64 sent_at_unix_milli = 4;
+  oneof payload {
+    HelloAccepted hello_accepted = 10;
+    ConfigAssignment assignment = 11;
+    ObservationAck observation_ack = 12;
+  }
+}
+message AgentHello { string agent_version = 1; repeated string capabilities = 2; }
+message HelloAccepted { int64 session_generation = 1; }
+message ConfigAssignment {
+  string assignment_id = 1;
+  bytes compiled_plan = 2; // Canonical, versioned research IR, not user YAML.
+  string revision = 3;
+  string checksum = 4;
+  int64 expires_at_unix_milli = 5;
+  string zone = 6; // Controller-owned roster; never self-reported by Agent.
+}
+message ConfigApplied { string assignment_id = 1; string revision = 2; }
+message Observation {
+  string id = 1;
+  string monitor = 2;
+  string revision = 3;
+  string check = 4;
+  string agent = 5;
+  string zone = 6;
+  string started_at = 7;
+  string finished_at = 8;
+  string execution = 9;
+  string outcome = 10;
+  string reason = 11;
+  int32 status_code = 12;
+}
+message ObservationBatch { repeated Observation observations = 1; }
+message ObservationReceipt {
+  string observation_id = 1;
+  enum Status { UNSPECIFIED = 0; ACCEPTED = 1; DUPLICATE = 2; }
+  Status status = 2;
+}
+message ObservationAck { repeated ObservationReceipt receipts = 1; }

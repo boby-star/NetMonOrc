@@ -28,10 +28,30 @@ TTL/revision/maxSkew, дублікати, новішу execution failure,
 Додатково перевірено реальний Blackbox HTTP 200/503, надмірну відповідь,
 заборону redirects, malformed metrics і HTTP-помилку самого exporter.
 
+## Розподілений зріз — реалізовано
+
+Окремі `netmonorc-controller` та `netmonorc-agent`, Protobuf/gRPC Connect
+із mTLS 1.3 і наперед підготовленими сертифікатами, фіксований roster,
+assignment checksum/revision/lease, регулярне послідовне виконання,
+локальна durable черга на 1000 записів, reconnect і ACK після commit.
+PostgreSQL зберігає спостереження, assignment bindings, session generations
+та поточні оцінки. Controller перераховує TTL щосекунди.
+
+Перевірено на реальних процесах і PostgreSQL: unknown без доказів,
+healthy після результатів двох Agent, відмова чужого CA, offline buffering,
+restart, replay/deduplication, HTTP failure/recovery та Agent loss → unknown.
+Окремий PostgreSQL-тест виконався з реальною БД й перевірив generation
+fencing і конфлікт ID. Race-перевірки пакетів agent/secure/transport пройшли.
+
+Повного protocol §9, enrollment/rotation/revocation, динамічного placement
+та same-boot resume немає. Розподілений smoke — один хост і native-http;
+реальний Blackbox перевірено окремим локальним smoke.
+Докладно: `docs/architecture/distributed-slice.md`.
+
 ## Ще не реалізовано
 
-1. Окремі Controller/Agent, mTLS із підготовленими сертифікатами,
-   регулярне виконання, bounded delivery, збереження PostgreSQL.
+1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
+   керування сертифікатами та готовий Compose deployment всіх компонентів.
 2. Blackbox TCP/DNS/ICMP, DNS-цілі та ширша мережева політика exporter.
 3. Профілі, CEL та extraction, необхідна частина DSL для сценаріїв записки.
 4. Static, Fixed та Adaptive, бюджети й підтвердження.

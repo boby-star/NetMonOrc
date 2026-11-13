@@ -211,6 +211,9 @@ func Compile(data []byte) (monitor.Plan, error) {
 		maxInterval = max(maxInterval, x.Interval)
 		p.Checks = append(p.Checks, x)
 	}
+	if len(p.Checks) > 100 {
+		return p, fmt.Errorf("research slice supports at most 100 checks per Monitor")
+	}
 	if len(p.Checks) == 0 {
 		return p, fmt.Errorf("checks cannot be empty")
 	}
