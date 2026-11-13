@@ -18,6 +18,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/report"
 	"github.com/boby-star/NetMonOrc/internal/secure"
 	"github.com/boby-star/NetMonOrc/internal/storage"
 	"github.com/boby-star/NetMonOrc/internal/transport"
@@ -42,6 +43,7 @@ func run() error {
 	output := flag.String("assessment-file", ".local/assessment.json", "local assessment snapshot")
 	profilePath := flag.String("diagnostic-profile", "", "referenced DiagnosticProfile file; no diagnostics without enabled binding")
 	reportPath := flag.String("diagnostic-file", ".local/diagnostic.json", "latest persisted diagnostic report")
+	webReport := flag.String("report-file", "", "optional private HTML report; no HTTP listener")
 	flag.Parse()
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
@@ -138,7 +140,7 @@ func run() error {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
 		for {
-			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic); e != nil {
+			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport); e != nil {
 				errors <- e
 				return
 			}
@@ -165,7 +167,7 @@ func run() error {
 	}
 	return result
 }
-func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator) error {
+func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string) error {
 	c, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
 	now := time.Now().UTC()
@@ -191,7 +193,20 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 		if e = store.ControllerAlive(c); e != nil {
 			return e
 		}
-		return diagnostic.Tick(ctx, a, observations)
+		if e = diagnostic.Tick(ctx, a, observations); e != nil {
+			return e
+		}
+	}
+	if reportPath != "" {
+		d, err := store.LatestDiagnostic(c, p.Name)
+		if err != nil {
+			return err
+		}
+		html, err := report.Render(a, d)
+		if err != nil {
+			return err
+		}
+		return durable.AtomicWrite(reportPath, html)
 	}
 	return nil
 }

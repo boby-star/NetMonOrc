@@ -139,7 +139,8 @@ try:
     controller_args = ['-config', str(manifest), '-listen', f'127.0.0.1:{rpc_port}',
                        '-database-file', str(dsn), '-slots', 'branch=office,dc=server',
                        '-ca', str(pki/'ca.crt'), '-cert', str(pki/'controller.crt'),
-                       '-key', str(pki/'controller.key'), '-assessment-file', str(work/'assessment.json')]
+                       '-key', str(pki/'controller.key'), '-assessment-file', str(work/'assessment.json'),
+                       '-report-file',str(work/'report.html')]
     if args.diagnostics:
         controller_args += ['-diagnostic-profile',str(profile),'-diagnostic-file',str(work/'diagnostic.json')]
     controller = start('netmonorc-controller', *controller_args)
@@ -161,6 +162,8 @@ try:
                      *(['-blackbox-binary', args.blackbox_binary] if args.blackbox_binary else []))
     branch, dc = start_agent('branch'), start_agent('dc')
     wait_for('two authenticated processes -> healthy', lambda: view().get('state') == 'healthy')
+    wait_for('private HTML report reflects live assessment',lambda: (work/'report.html').exists() and 'Працює' in (work/'report.html').read_text())
+    assert (work/'report.html').stat().st_mode & 0o077==0
     old = json.loads(sql("SELECT payload FROM nmo_observations WHERE agent_id='branch' ORDER BY finished_at LIMIT 1"))
     stop(controller)
     wait_for('observations buffered while Controller is offline',

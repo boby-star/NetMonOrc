@@ -203,18 +203,9 @@ func validateDiagnosticObservation(ctx context.Context, tx pgx.Tx, o monitor.Obs
 
 // DiagnosticReport retains the difference between reserved budget and known
 // planner outcomes. After a crash, physical completion may be unknown.
-type DiagnosticReport struct {
-	ID             string             `json:"id"`
-	Monitor        string             `json:"monitor"`
-	Revision       string             `json:"revision"`
-	ReservedChecks int                `json:"reservedChecks"`
-	StartedAt      time.Time          `json:"startedAt"`
-	FinishedAt     *time.Time         `json:"finishedAt,omitempty"`
-	Result         diagnostics.Result `json:"result"`
-}
 
-func (s *Store) LatestDiagnostic(ctx context.Context, monitorName string) (*DiagnosticReport, error) {
-	var r DiagnosticReport
+func (s *Store) LatestDiagnostic(ctx context.Context, monitorName string) (*diagnostics.Report, error) {
+	var r diagnostics.Report
 	var b []byte
 	var state, reason, mode string
 	e := s.pool.QueryRow(ctx, `SELECT id,monitor,revision,used_checks,started_at,finished_at,state,reason,mode,report FROM nmo_diagnostic_runs WHERE monitor=$1 ORDER BY started_at DESC,id DESC LIMIT 1`, monitorName).Scan(&r.ID, &r.Monitor, &r.Revision, &r.ReservedChecks, &r.StartedAt, &r.FinishedAt, &state, &reason, &mode, &b)

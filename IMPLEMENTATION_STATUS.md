@@ -129,6 +129,16 @@ coverage/TTL та PostgreSQL-тести ліміту й ізоляції diagnos
 виконання задач, crash/recovery, відновлення звіту й PostgreSQL-тести.
 Докладно: docs/architecture/diagnostic-runtime.md.
 
+## Перегляд результатів — приватний HTML-звіт
+
+Controller за `-report-file` записує самодостатній read-only HTML; окрема
+команда netmonorc-report формує такий файл із збережених JSON snapshots.
+Видно зональні state/H/Q, причини/докази, режим, Agent, Gain/Score, outcomes
+та reservations останньої діагностики. Попередня revision позначається;
+поточний Assessment не підміняється старим діагнозом. Browser показує вік
+оцінки й попереджає про застарілі дані. Файли приватні, додаткового HTTP API
+немає. Це не React Web UI й не система керування конфігураціями.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
@@ -139,7 +149,8 @@ coverage/TTL та PostgreSQL-тести ліміту й ізоляції diagnos
 4. Натурне порівняння Static/Fixed/Adaptive, confirmation/retry й повторні
    сеанси в одному епізоді з незмінним бюджетом. Fixed/Adaptive, triggers
    і durable reservations уже інтегровані.
-5. Простий webhook і перегляд результатів.
+5. Простий webhook; повна інтерактивна вебпанель не входить до мінімуму.
+   Перегляд результатів доступний через приватний HTML-звіт.
 6. Стенд із незалежним порушенням доступу в різних сегментах,
    порівняльні експерименти та експорт вимірювань.
 

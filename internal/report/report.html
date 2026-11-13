@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="refresh" content="5">
+<title>NetMonOrc · {{.Assessment.Monitor}}</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#20362a;background:#FDF5E6;font-size:16px;line-height:1.55}
+*{box-sizing:border-box}body{margin:0}header{background:#2E8B57;color:white;padding:22px max(24px,calc((100vw - 1120px)/2))}header strong{font-size:25px}header p{margin:3px 0;opacity:.9}main{max-width:1168px;margin:30px auto;padding:0 24px}h1{font-size:28px;margin:0}h2{font-size:20px;margin:0 0 16px}p{margin:8px 0}.card{background:#fffdf8;border:1px solid #d5dfd4;border-radius:12px;padding:24px;margin:22px 0;box-shadow:0 3px 12px #1b352608}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}.badge{display:inline-block;padding:5px 13px;border-radius:20px;font-weight:650}.good{background:#dbeee2;color:#175632}.bad{background:#fbe3e0;color:#922d20}.warn{background:#f7eac0;color:#70560d}.muted{background:#e9edec;color:#485b55}.sub{color:#637369;font-size:14px}.code{font-family:ui-monospace,monospace;overflow-wrap:anywhere;font-size:13px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left}td,th{padding:12px;border-bottom:1px solid #e1e6dd;vertical-align:top}th{font-size:13px;color:#546d5f;font-weight:650;white-space:nowrap}td small{display:block;margin-top:5px;color:#637369}ul{padding-left:20px}.alert{border-left:5px solid #a66d15;padding:12px 18px;background:#fcf0d3}.stats{display:flex;gap:32px;flex-wrap:wrap;margin:20px 0}.stats b{display:block;font-size:24px}footer{margin:28px 0;color:#637369;font-size:13px}details{margin-top:16px}summary{cursor:pointer}#stale[hidden]{display:none}@media(max-width:600px){main{padding:0 14px}.card{padding:16px}td,th{padding:8px}h1{font-size:23px}}
+</style>
+</head>
+<body data-assessed="{{stamp .Assessment.At}}">
+<header><strong>NetMonOrc</strong><p>Дослідницький прототип · комплексний моніторинг мережевих ресурсів</p></header>
+<main>
+<div class="top"><div><p class="sub">Поточна оцінка ресурсу</p><h1>{{.Assessment.Monitor}}</h1></div><span class="badge {{class .Assessment.State}}">{{state .Assessment.State}}</span></div>
+<p class="sub">Оцінено: <time>{{stamp .Assessment.At}}</time> · <span id="age">вік оцінки невідомий</span></p>
+<div id="stale" class="alert">Ця оцінка може бути застарілою. Перевірте роботу Controller і час оновлення файлу.</div>
+<section class="card"><h2>Стан у мережевих зонах</h2>
+<div class="scroll"><table><thead><tr><th>Зона</th><th>Стан</th><th>Успішність H</th><th>Покриття Q</th><th>Докази й причина</th></tr></thead><tbody>
+{{range .Assessment.Zones}}<tr><td><strong>{{.Zone}}</strong></td><td><span class="badge {{class .State}}">{{state .State}}</span></td><td>{{score .H}}</td><td>{{percent .Q}}<small>{{coverage .Coverage}}</small></td><td><span class="code">{{.Reason}}</span><small>{{len .Evidence}} придатних спостережень</small>{{if .RuleErrors}}<small>Помилки CEL: {{range .RuleErrors}}{{.}} {{end}}</small>{{end}}</td></tr>{{else}}<tr><td colspan="5">Зональних оцінок ще немає.</td></tr>{{end}}
+</tbody></table></div>
+<p class="sub">H показує зважену успішність наявних перевірок, Q — повноту доказів. Це не ймовірності. Втрата покриття сама по собі не доводить відмову сервісу.</p>
+<details><summary>Ревізія та ID доказів</summary><p class="code">{{.Assessment.Revision}}</p>{{range .Assessment.Zones}}<p>{{.Zone}}:</p><ul>{{range .Evidence}}<li class="code">{{.}}</li>{{else}}<li>Немає актуальних доказів</li>{{end}}</ul>{{end}}</details></section>
+<section class="card"><h2>Остання діагностична сесія</h2>
+{{if .Diagnostic}}{{with .Diagnostic}}
+<div class="top"><span class="badge {{class .Result.Status}}">{{state .Result.Status}}</span><span class="sub">{{.Result.Mode}} · {{stamp .StartedAt}}</span></div>
+<p class="code">{{.Result.Reason}}</p>
+<div class="stats"><div><b>{{.ReservedChecks}}</b><span class="sub">зарезервовано перевірок</span></div><div><b>{{len .Result.Decisions}}</b><span class="sub">відомих результатів планувальника</span></div><div><b>{{.Result.Cost}}</b><span class="sub">costUnits, не байти</span></div></div>
+{{if .Result.Hypotheses}}<p>Сумісні класи: {{range .Result.Hypotheses}}<span class="code">{{.}} </span>{{end}}</p>{{end}}
+<div class="scroll"><table><thead><tr><th>Дія</th><th>Agent</th><th>Gain / Score</th><th>Виконання</th><th>Результат probe</th></tr></thead><tbody>
+{{range .Result.Decisions}}<tr><td class="code">{{.ActionID}}</td><td>{{.AgentID}}</td><td>{{.Gain}} / {{printf "%.2f" .Score}}</td><td>{{.Outcome.Execution}}</td><td>{{.Outcome.Outcome}}</td></tr>{{else}}<tr><td colspan="5">Завершення фізичних probes не підтверджене. Резервування бюджету не означає успішне виконання.</td></tr>{{end}}</tbody></table></div>
+<details><summary>ID сесії та ревізія</summary><p class="code">{{.ID}}</p><p class="code">{{.Revision}}</p></details>
+{{end}}{{if .HistoricalDiagnostic}}<p class="alert">Сесія належить попередній ревізії. Її висновок не є поточною оцінкою ресурсу.</p>{{end}}
+<p class="sub">Сесія є історією діагностики. Поточний стан визначається регулярним Assessment вище. Висновок залежить від заданого каталогу гіпотез.</p>
+{{else}}<p>Діагностичні сесії ще не збережені.</p>{{end}}
+</section>
+<footer>Приватний звіт лише для читання. Файл оновлюється Controller; сторінка перечитується кожні 5 секунд. Згенеровано {{stamp .GeneratedAt}}.</footer>
+</main>
+<script>
+(function(){function age(){var t=Date.parse(document.body.dataset.assessed),s=(Date.now()-t)/1000;var valid=Number.isFinite(s)&&s>=-5&&s<=10;document.getElementById('stale').hidden=valid;document.getElementById('age').textContent=Number.isFinite(s)&&s>=0?'вік оцінки: '+Math.floor(s)+' с':'час оцінки потребує перевірки';}age();setInterval(age,1000);})();
+</script>
+</body></html>

@@ -100,3 +100,14 @@ type Engine struct {
 	Eligible      func(Action, Executor) bool
 	EstimateBytes func(Action, Executor) (int64, bool)
 }
+
+// Report separates durable budget reservations from known probe outcomes.
+type Report struct {
+	ID             string     `json:"id"`
+	Monitor        string     `json:"monitor"`
+	Revision       string     `json:"revision"`
+	ReservedChecks int        `json:"reservedChecks"`
+	StartedAt      time.Time  `json:"startedAt"`
+	FinishedAt     *time.Time `json:"finishedAt,omitempty"`
+	Result         Result     `json:"result"`
+}
