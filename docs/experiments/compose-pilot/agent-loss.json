@@ -1,0 +1,36 @@
+{
+  "assessment": {
+    "monitor": "research-web",
+    "revision": "5b1cd69d3c97d85b5df768e0506e3ef8997ba2395b594bfc22cfea700d859db3",
+    "at": "2026-11-13T12:27:15.279973338Z",
+    "state": "unknown",
+    "zones": [
+      {
+        "zone": "office",
+        "state": "unknown",
+        "coverage": "coverage_degraded",
+        "q": 0.6666666666666666,
+        "h": 1,
+        "evidence": [
+          "61bedec207d5594928105919351f300e",
+          "a8774c85481c36e3816659a795f5fb85"
+        ],
+        "reason": "insufficient_evidence"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "446b243d9ff4bd0a55d292ab50f7a905",
+          "d4481e6f5d8626369336f4567cbb0c49",
+          "1e993c05c849dd38470dc6366072125f"
+        ],
+        "reason": "sufficient_success"
+      }
+    ]
+  },
+  "diagnostic_runs_unchanged": true
+}

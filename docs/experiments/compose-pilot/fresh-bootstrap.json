@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "project": "nmo-fresh",
+  "assessment": {
+    "monitor": "research-web",
+    "revision": "3b21f7d9e6f0894cc2f1ec0c0572bb1e1aefb852c7c367b8277bf74ebb3be1b5",
+    "at": "2026-11-13T12:35:30.071652381Z",
+    "state": "healthy",
+    "zones": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "aa1425bd1a05bcab3fbc04c817a2dc81",
+          "ff3f4c295e400a72ec48a2403f06aa21",
+          "f82fcf5cebdf45ef72362d3dbcdb158f"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "53959bf877d9237b88b912648090179f",
+          "c5d8a731cb2df2c5fb34c5a98bfec3c1",
+          "51ca8c10c78468218e8b2119a5e1071f"
+        ],
+        "reason": "sufficient_success"
+      }
+    ]
+  }
+}

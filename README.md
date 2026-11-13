@@ -120,6 +120,7 @@ export GOCACHE=/workspace/.cache/netmonorc-go
 інцидент, PostgreSQL budget reservations та відновлення після crash.
 Static також доступний через прапорець дослідницького порівняння:
 `-diagnostic-comparison-static`. Усі три режими виконують реальні probes,
-але повторювані експерименти в незалежних сегментах ще попереду.
+є [пілот на двох сегментах із сирими даними й відомими помилками](docs/experiments/compose-pilot/README.md).
+Серії повторень та підтверджувальна діагностика ще попереду.
 
 Орієнтовна готовність і залишок мінімуму: [критерії оцінки](docs/planning/prototype-readiness.md).

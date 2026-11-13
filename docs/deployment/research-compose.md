@@ -87,7 +87,7 @@ python3 scripts/lab.py inject --scenario healthy
 ```
 
 HTTP повертає 503; DNS — NXDOMAIN; TCP listener 9090 закривається.
-Office-path змінює тільки маршрут VIP в офісному namespace; control/mTLS
+Office-path ставить prohibit route лише для VIP в офісному namespace; control/mTLS
 не розривається, серверна зона продовжує бачити ресурс. Очікується degraded
 для зональної відмови й down для підтвердженої загальної required-відмови.
 Ін'єкція multiple поєднує HTTP та DNS відмови для перевірки меж каталогу.
