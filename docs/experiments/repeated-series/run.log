@@ -1,0 +1,61 @@
+RUN 1 fixed office-path
+RESULT completed prediction=office-path-failure correct=True completed_probes=4
+RUN 1 fixed dns
+RESULT completed prediction=dns-failure correct=True completed_probes=4
+RUN 1 fixed http
+RESULT completed prediction=http-failure correct=True completed_probes=4
+RUN 1 fixed multiple
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 1 fixed tcp
+RESULT completed prediction=tcp-failure correct=True completed_probes=4
+RUN 1 static dns
+RESULT completed prediction=dns-failure correct=True completed_probes=6
+RUN 1 static tcp
+RESULT completed prediction=tcp-failure correct=True completed_probes=6
+RUN 1 static http
+RESULT completed prediction=http-failure correct=True completed_probes=6
+RUN 1 static multiple
+RESULT inconclusive prediction=None correct=True completed_probes=6
+RUN 1 static office-path
+RESULT completed prediction=office-path-failure correct=True completed_probes=6
+RUN 1 adaptive dns
+RESULT completed prediction=dns-failure correct=True completed_probes=4
+RUN 1 adaptive multiple
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 1 adaptive tcp
+RESULT completed prediction=tcp-failure correct=True completed_probes=4
+RUN 1 adaptive office-path
+RESULT completed prediction=office-path-failure correct=True completed_probes=4
+RUN 1 adaptive http
+RESULT completed prediction=http-failure correct=True completed_probes=4
+RUN 2 adaptive http
+RESULT completed prediction=http-failure correct=True completed_probes=4
+RUN 2 adaptive dns
+RESULT completed prediction=dns-failure correct=True completed_probes=4
+RUN 2 adaptive multiple
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 2 adaptive tcp
+RESULT completed prediction=tcp-failure correct=True completed_probes=4
+RUN 2 adaptive office-path
+RESULT completed prediction=office-path-failure correct=True completed_probes=4
+RUN 2 static multiple
+RESULT inconclusive prediction=None correct=True completed_probes=6
+RUN 2 static tcp
+RESULT completed prediction=tcp-failure correct=True completed_probes=6
+RUN 2 static http
+RESULT completed prediction=http-failure correct=True completed_probes=6
+RUN 2 static office-path
+RESULT completed prediction=office-path-failure correct=True completed_probes=6
+RUN 2 static dns
+RESULT completed prediction=dns-failure correct=True completed_probes=6
+RUN 2 fixed dns
+RESULT completed prediction=dns-failure correct=True completed_probes=4
+RUN 2 fixed http
+RESULT completed prediction=http-failure correct=True completed_probes=4
+RUN 2 fixed tcp
+RESULT completed prediction=tcp-failure correct=True completed_probes=4
+RUN 2 fixed multiple
+RESULT inconclusive prediction=None correct=True completed_probes=4
+RUN 2 fixed office-path
+RESULT completed prediction=office-path-failure correct=True completed_probes=4
+Saved 30 live trials to .local/repeated-series.json and .local/repeated-series.csv

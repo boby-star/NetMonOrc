@@ -1,7 +1,7 @@
 # Фактичний стан мінімального прототипу
 
 Це послідовність завершених етапів. Актуальні межі зведено наприкінці;
-орієнтовна готовність мінімуму — [близько 90%](docs/planning/prototype-readiness.md).
+орієнтовна готовність мінімуму — [близько 94%](docs/planning/prototype-readiness.md).
 
 ## Перший локальний етап — реалізовано
 
@@ -276,3 +276,11 @@ lab.py backup створює приватний pg_dump без перезапи�
 Restore окремої тимчасової БД перевірено реально; робоча БД не змінювалась.
 Порядок: docs/deployment/backup-recovery.md. Межі записки й приймання:
 docs/planning/prototype-acceptance.md.
+
+## Повторна натурна серія — завершена
+
+30 запусків (2 повтори × 5 сценаріїв × 3 режими), без harness errors.
+30 очікуваних states/results: 24 підтриманих класи, 6 multiple inconclusive.
+Adaptive/Fixed по 4 probes, Static 6; перевага Adaptive над Fixed не доведена.
+Raw evidence та автоматичний описовий звіт: docs/experiments/repeated-series.
+CI додано й actions pinned; факт успішного remote workflow не перевірявся.
