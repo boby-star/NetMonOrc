@@ -3,21 +3,23 @@ package monitor
 import "time"
 
 type Check struct {
-	Type           string
-	TCP            *TCPConfig
-	DNS            *DNSConfig
-	ICMP           *ICMPConfig
-	Runner         string
-	ID             string
-	URL            string
-	Method         string
-	ExpectedStatus []int
-	MaxBodyBytes   int64
-	Interval       time.Duration
-	Timeout        time.Duration
-	MaxAge         time.Duration
-	Weight         float64
-	Required       bool
+	BodyMatchesRegex string      `json:",omitempty"`
+	Extract          []Extractor `json:",omitempty"`
+	Type             string
+	TCP              *TCPConfig
+	DNS              *DNSConfig
+	ICMP             *ICMPConfig
+	Runner           string
+	ID               string
+	URL              string
+	Method           string
+	ExpectedStatus   []int
+	MaxBodyBytes     int64
+	Interval         time.Duration
+	Timeout          time.Duration
+	MaxAge           time.Duration
+	Weight           float64
+	Required         bool
 }
 
 type Plan struct {
@@ -41,18 +43,20 @@ type Slot struct {
 }
 
 type Observation struct {
-	ID         string    `json:"id"`
-	Monitor    string    `json:"monitor"`
-	Revision   string    `json:"revision"`
-	Check      string    `json:"check"`
-	Agent      string    `json:"agent"`
-	Zone       string    `json:"zone"`
-	StartedAt  time.Time `json:"startedAt"`
-	FinishedAt time.Time `json:"finishedAt"`
-	Execution  string    `json:"execution"`
-	Outcome    string    `json:"outcome"`
-	Reason     string    `json:"reason,omitempty"`
-	StatusCode int       `json:"statusCode,omitempty"`
+	Values           map[string]Scalar `json:"values,omitempty"`
+	ExtractionStatus map[string]string `json:"extractionStatus,omitempty"`
+	ID               string            `json:"id"`
+	Monitor          string            `json:"monitor"`
+	Revision         string            `json:"revision"`
+	Check            string            `json:"check"`
+	Agent            string            `json:"agent"`
+	Zone             string            `json:"zone"`
+	StartedAt        time.Time         `json:"startedAt"`
+	FinishedAt       time.Time         `json:"finishedAt"`
+	Execution        string            `json:"execution"`
+	Outcome          string            `json:"outcome"`
+	Reason           string            `json:"reason,omitempty"`
+	StatusCode       int               `json:"statusCode,omitempty"`
 }
 
 type ZoneAssessment struct {

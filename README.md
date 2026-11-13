@@ -79,7 +79,9 @@ DNS-цілі, redirects, proxy та вимкнення перевірки TLS н
 
 Розподілений запуск підтримує фіксовані джерела, mTLS, послідовне регулярне
 виконання й PostgreSQL. Наразі немає динамічного Placement/Scheduler,
-extraction, операційної діагностики, алертів і вебпанелі.
+операційної діагностики, алертів і вебпанелі.
+Regex extraction з типізованими значеннями підтримується для native HTTP:
+[семантика та приклад](docs/architecture/extraction.md).
 Inline CEL assessment rules підтримуються:
 [контекст, інваріанти та запуск](docs/architecture/assessment-cel.md).
 CLI не автентифікує агентів: NDJSON придатний для контрольованого стенда,

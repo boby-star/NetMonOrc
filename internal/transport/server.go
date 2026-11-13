@@ -101,7 +101,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		capabilities[c] = true
 	}
 	for _, c := range s.Plan.Checks {
-		if !capabilities[c.Runner] || !capabilities[c.Type] {
+		if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
 			return status.Error(codes.FailedPrecondition, "runner capability unavailable")
 		}
 	}

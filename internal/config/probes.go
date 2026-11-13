@@ -15,12 +15,13 @@ import (
 )
 
 type httpConfig struct {
-	URL             string `yaml:"url"`
-	Method          string `yaml:"method"`
-	ExpectedStatus  []int  `yaml:"expectedStatus"`
-	VerifyTLS       *bool  `yaml:"verifyTLS"`
-	FollowRedirects bool   `yaml:"followRedirects"`
-	MaxBodyBytes    *int64 `yaml:"maxBodyBytes"`
+	BodyMatchesRegex string `yaml:"bodyMatchesRegex"`
+	URL              string `yaml:"url"`
+	Method           string `yaml:"method"`
+	ExpectedStatus   []int  `yaml:"expectedStatus"`
+	VerifyTLS        *bool  `yaml:"verifyTLS"`
+	FollowRedirects  bool   `yaml:"followRedirects"`
+	MaxBodyBytes     *int64 `yaml:"maxBodyBytes"`
 }
 type tcpConfig struct {
 	Port                int    `yaml:"port"`
@@ -54,6 +55,9 @@ func compileProbe(s checkSpec, target string) (monitor.Check, error) {
 	runner := s.Runner
 	if runner == "" || runner == "auto" {
 		runner = "blackbox"
+		if len(s.Extract) > 0 {
+			runner = "native-http"
+		}
 	}
 	if runner != "blackbox" && (runner != "native-http" || s.Type != "http") {
 		return monitor.Check{}, fmt.Errorf("runner incompatible with check type")
@@ -63,6 +67,10 @@ func compileProbe(s checkSpec, target string) (monitor.Check, error) {
 		return c, e
 	}
 	c.Type = s.Type
+	c.Extract, e = compileExtract(s.Extract)
+	if e != nil {
+		return c, e
+	}
 	c.Runner = runner
 	if e = validateProbe(c); e != nil {
 		return c, e
@@ -93,6 +101,9 @@ func decodeClosed(n yaml.Node, v any) error {
 	return d.Decode(v)
 }
 func scalarTypes(n *yaml.Node, t reflect.Type) error {
+	if t == reflect.TypeOf(yaml.Node{}) {
+		return nil
+	}
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
@@ -149,6 +160,7 @@ func decodeHTTP(n yaml.Node) (monitor.Check, error) {
 	if h.FollowRedirects || (h.VerifyTLS != nil && !*h.VerifyTLS) {
 		return c, fmt.Errorf("redirects and disabled TLS verification are not supported")
 	}
+	c.BodyMatchesRegex = h.BodyMatchesRegex
 	c.URL = h.URL
 	c.Method = h.Method
 	if c.Method == "" {
@@ -230,11 +242,25 @@ func dnsName(name string) bool {
 }
 func endpoint(raw string) bool { a, e := netip.ParseAddrPort(raw); return e == nil && a.Port() != 0 }
 func validateProbe(c monitor.Check) error {
+	if len(c.Extract) > 0 && (c.Type != "http" || c.Runner != "native-http") {
+		return fmt.Errorf("extraction requires native-http")
+	}
+	if e := validateExtract(c.Extract); e != nil {
+		return e
+	}
 	if c.Type != "http" && c.Runner != "blackbox" {
 		return fmt.Errorf("non-HTTP checks require blackbox")
 	}
 	switch c.Type {
 	case "http":
+		if len(c.BodyMatchesRegex) > 2048 {
+			return fmt.Errorf("body regex too large")
+		}
+		if c.BodyMatchesRegex != "" {
+			if _, e := regexp.Compile(c.BodyMatchesRegex); e != nil {
+				return e
+			}
+		}
 		if c.TCP != nil || c.DNS != nil || c.ICMP != nil {
 			return fmt.Errorf("HTTP check has unrelated protocol fields")
 		}
@@ -290,7 +316,7 @@ func validateProbe(c monitor.Check) error {
 	default:
 		return fmt.Errorf("unsupported check type")
 	}
-	if c.Type != "http" && (c.URL != "" || c.Method != "" || c.MaxBodyBytes != 0 || len(c.ExpectedStatus) != 0) {
+	if c.Type != "http" && (c.BodyMatchesRegex != "" || c.URL != "" || c.Method != "" || c.MaxBodyBytes != 0 || len(c.ExpectedStatus) != 0) {
 		return fmt.Errorf("non-HTTP check has HTTP fields")
 	}
 	return nil

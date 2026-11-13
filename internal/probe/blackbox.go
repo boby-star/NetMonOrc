@@ -148,6 +148,10 @@ func (e *Exporter) Run(ctx context.Context, p monitor.Plan, c monitor.Check, s m
 				logs, metrics, debugErr = icmpDebug(metrics)
 			}
 			success, status, parseErr := parseMetrics(metrics, c.Type)
+			regexFailure, regexErr := booleanMetric(metrics, "probe_failed_due_to_regex")
+			if regexErr != nil {
+				parseErr = regexErr
+			}
 			if debugErr != nil {
 				parseErr = debugErr
 			}
@@ -165,7 +169,7 @@ func (e *Exporter) Run(ctx context.Context, p monitor.Plan, c monitor.Check, s m
 				// incomplete response handling into a confirmed service failure.
 				if !success && c.Type == "http" {
 					for _, expected := range c.ExpectedStatus {
-						if status == expected {
+						if status == expected && !(regexFailure && c.BodyMatchesRegex != "") {
 							o.Execution = "execution_failed"
 							o.Outcome = "unknown"
 							o.Reason = "incomplete_http_probe"
@@ -219,4 +223,21 @@ func parseMetrics(body, kind string) (bool, int, error) {
 		return false, 0, fmt.Errorf("missing probe_success")
 	}
 	return success, status, nil
+}
+
+func booleanMetric(body, name string) (bool, error) {
+	found := false
+	value := false
+	for _, line := range strings.Split(body, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != name {
+			continue
+		}
+		if found || len(fields) != 2 || (fields[1] != "0" && fields[1] != "1") {
+			return false, fmt.Errorf("invalid boolean metric")
+		}
+		found = true
+		value = fields[1] == "1"
+	}
+	return value, nil
 }

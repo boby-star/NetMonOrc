@@ -1,0 +1,38 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: research-extraction
+spec:
+  target: {address: 127.0.0.1}
+  checks:
+    - id: http
+      type: http
+      interval: 30s
+      timeout: 2s
+      config: {url: 'http://127.0.0.1:18080/'}
+      extract:
+        - {name: queue_depth, from: response.body, pattern: 'queue_depth=(?P<value>[0-9]+)', group: value, as: integer}
+        - {name: ready, from: response.body, pattern: 'ready=(?P<value>true|false)', group: value, as: boolean}
+        - {name: ratio, from: response.body, pattern: 'ratio=(?P<value>[0-9.]+)', group: value, as: float}
+        - {name: serial, from: response.body, pattern: 'serial=(?P<value>[0-9]+)', group: value, as: integer}
+  assessment:
+    requiredZones: [office, server]
+    freshness: {maxAge: 90s, maxSkew: 30s}
+    checks: [{id: http, weight: 1, required: true}]
+    rules:
+      - id: missing-field
+        priority: 300
+        when: '!has(checks["http"].values.ready) || !has(checks["http"].values.queue_depth)'
+        then: {state: unknown, reason: EXTRACTION_INCOMPLETE}
+      - id: not-ready
+        priority: 200
+        when: '!checks["http"].values.ready'
+        then: {state: down, reason: APPLICATION_NOT_READY}
+      - id: overloaded
+        priority: 150
+        when: 'checks["http"].values.queue_depth > 100'
+        then: {state: degraded, reason: QUEUE_HIGH}
+      - id: ready
+        priority: 100
+        when: 'checks["http"].values.ready && checks["http"].values.queue_depth <= 100'
+        then: {state: healthy, reason: APPLICATION_READY}

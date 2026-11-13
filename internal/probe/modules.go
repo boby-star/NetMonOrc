@@ -39,6 +39,9 @@ func blackboxModule(p monitor.Plan, c monitor.Check) (map[string]any, error) {
 	switch c.Type {
 	case "http":
 		m["http"] = map[string]any{"method": c.Method, "valid_status_codes": c.ExpectedStatus, "follow_redirects": false, "preferred_ip_protocol": protocol, "ip_protocol_fallback": false, "body_size_limit": strconv.FormatInt(c.MaxBodyBytes, 10) + "B", "tls_config": map[string]bool{"insecure_skip_verify": false}}
+		if c.BodyMatchesRegex != "" {
+			m["http"].(map[string]any)["fail_if_body_not_matches_regexp"] = []string{c.BodyMatchesRegex}
+		}
 	case "tcp":
 		m["tcp"] = map[string]any{"preferred_ip_protocol": c.TCP.PreferredIPProtocol, "ip_protocol_fallback": c.TCP.IPProtocolFallback}
 	case "icmp":

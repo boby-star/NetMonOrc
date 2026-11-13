@@ -10,16 +10,19 @@ import (
 
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/ext"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Views are an explicit CEL contract, separate from storage and wire DTOs.
 // Native tags keep DSL field names and reject recursive zone.state at compile.
 type CheckView struct {
-	Outcome         string           `cel:"outcome"`
-	ExecutionStatus string           `cel:"executionStatus"`
-	ReasonCode      string           `cel:"reasonCode"`
-	Metrics         map[string]int64 `cel:"metrics"`
-	AgeSeconds      float64          `cel:"ageSeconds"`
+	Values          map[string]*anypb.Any `cel:"values"`
+	Outcome         string                `cel:"outcome"`
+	ExecutionStatus string                `cel:"executionStatus"`
+	ReasonCode      string                `cel:"reasonCode"`
+	Metrics         map[string]int64      `cel:"metrics"`
+	AgeSeconds      float64               `cel:"ageSeconds"`
 }
 type ZoneView struct {
 	Name     string            `cel:"name"`
@@ -99,8 +102,25 @@ func (a *Assessor) applyRules(z *ZoneAssessment, latest map[string]Observation, 
 		if !ok {
 			continue
 		}
-		v := CheckView{Outcome: "unknown", ExecutionStatus: "failed", ReasonCode: o.Reason, AgeSeconds: now.Sub(o.FinishedAt).Seconds(), Metrics: map[string]int64{}}
+		v := CheckView{Outcome: "unknown", ExecutionStatus: "failed", ReasonCode: o.Reason, AgeSeconds: now.Sub(o.FinishedAt).Seconds(), Metrics: map[string]int64{}, Values: map[string]*anypb.Any{}}
 		if o.Execution == "completed" && (o.Outcome == "success" || o.Outcome == "failure") {
+			for name, value := range o.Values {
+				var wrapped *anypb.Any
+				var err error
+				switch value.Kind {
+				case "integer":
+					wrapped, err = anypb.New(wrapperspb.Int64(value.Integer))
+				case "float":
+					wrapped, err = anypb.New(wrapperspb.Double(value.Number))
+				case "boolean":
+					wrapped, err = anypb.New(wrapperspb.Bool(value.Boolean))
+				case "string":
+					wrapped, err = anypb.New(wrapperspb.String(value.Text))
+				}
+				if err == nil && wrapped != nil {
+					v.Values[name] = wrapped
+				}
+			}
 			v.Outcome = o.Outcome
 			v.ExecutionStatus = "completed"
 			if c.Type == "http" && o.StatusCode != 0 {

@@ -88,19 +88,34 @@ Inline assessment.rules з priority, bool type-check, контрольовани
 Правила входять до revision і виконуються Controller щосекунди.
 Required failure не скасовується правилами; evaluation errors не
 дозволяють healthy. Підтримується numeric integer metrics.httpStatus,
-missing metrics залишаються відсутніми. Extraction/values не реалізовані.
+missing metrics залишаються відсутніми. Типізовані extraction/values додані нижче.
 
 Unit-перевірки охоплюють priority, missing metrics, required overrides,
 недопустимі поля й типи. `scripts/distributed_smoke.py --cel` відтворює
 робочий mTLS/PostgreSQL ланцюг із resource down через CEL при probe success.
 Докладно: docs/architecture/assessment-cel.md.
 
+## Regex extraction — інтегровано
+
+HTTP response.body → regex capture → string/integer/float/boolean → Observation
+→ gRPC → spool/PostgreSQL → CEL values. Невідома capture не стає false/zero;
+extraction error відділений від execution і probe outcome. Auto runner
+обирає native-http; явний Blackbox з extraction відхиляється. Підтримано
+bodyMatchesRegex для обох HTTP runner-ів як окрему перевірку probe.
+
+Реальний distributed smoke `--extract` пройшов mTLS/PostgreSQL/replay,
+HTTP 200 + ready=false → down, missing ready → unknown при повному
+coverage, відновлення, Agent loss/TTL. Перевірено збереження int64 понад
+2^53, float 1.0/1e100 і false через PostgreSQL jsonb та Protobuf. Native й
+Blackbox smoke пройшли HTTP 200 з body mismatch → negative probe.
+Докладно: docs/architecture/extraction.md. Raw body не зберігається.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
    керування сертифікатами та готовий Compose deployment всіх компонентів.
 2. Hostname targets і повна firewall-політика exporter.
-3. CheckProfile/AssessmentPolicy refs, extraction і решта необхідних DSL
+3. CheckProfile/AssessmentPolicy refs і решта необхідних DSL
    можливостей; CEL assessment та CEL fixed conditions уже реалізовані.
 4. Інтеграція Static/Fixed/Adaptive з Controller/Agent, durable episode
    budgets, triggers, підтвердження та retries.

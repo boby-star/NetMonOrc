@@ -33,12 +33,13 @@ type Manifest struct {
 	} `yaml:"spec"`
 }
 type checkSpec struct {
-	ID       string    `yaml:"id"`
-	Type     string    `yaml:"type"`
-	Runner   string    `yaml:"runner"`
-	Interval string    `yaml:"interval"`
-	Timeout  string    `yaml:"timeout"`
-	Config   yaml.Node `yaml:"config"`
+	Extract  []extractSpec `yaml:"extract"`
+	ID       string        `yaml:"id"`
+	Type     string        `yaml:"type"`
+	Runner   string        `yaml:"runner"`
+	Interval string        `yaml:"interval"`
+	Timeout  string        `yaml:"timeout"`
+	Config   yaml.Node     `yaml:"config"`
 }
 type assessmentSpec struct {
 	Rules []struct {

@@ -52,6 +52,16 @@ message Observation {
   string outcome = 10;
   string reason = 11;
   int32 status_code = 12;
+  map<string, string> extraction_status = 13;
+  map<string, ScalarValue> values = 14;
+}
+message ScalarValue {
+  oneof value {
+    string string_value = 1;
+    sint64 integer_value = 2;
+    double float_value = 3;
+    bool boolean_value = 4;
+  }
 }
 message ObservationBatch { repeated Observation observations = 1; }
 message ObservationReceipt {

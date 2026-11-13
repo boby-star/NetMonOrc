@@ -15,12 +15,14 @@ Controller створює Assessor один раз при завантаженн
 - checks[id].outcome, executionStatus, reasonCode, ageSeconds;
 - checks[id].metrics.httpStatus — integer, лише за виконаного HTTP probe
   з відомим response status; відсутній статус не підставляється як нуль;
+- checks[id].values[name] — отриманий string/integer/float/boolean із regex extraction;
+  відсутнє значення не підставляється як false/zero;
 - zone.name, coverage, labels; target.address, type, networkZone,
   criticality, labels. Відсутні labels мають документований порожній default.
 
 Рекурсивний zone.state не входить до типу; monitor.state не доступний
 для AssessmentRule. Некоректні поля й небулеві вирази відхиляються.
-`checks[id].values`, extraction і додаткові metrics поки не реалізовані.
+Додаткові metrics, зокрема latencyMs, поки не реалізовані.
 Порожні або вигадані значення за них не надаються. Наприклад, відсутній
 latencyMs можна перевірити через `has(...)`; прямий доступ дає evaluation error.
 

@@ -67,6 +67,14 @@ try:
         result = json.loads(cli('probe', '-config', str(variant), '-agent', 'branch',
                                 '-zone', 'office', '-allow-cidrs', '127.0.0.1/32', *extra))
         assert result['outcome'] == expected, result
+    Handler.status = 200
+    variant = ROOT / '.local/body-regex-smoke.yaml'
+    variant.write_text(CONFIG.read_text().replace('expectedStatus: [200]', "expectedStatus: [200]\n        bodyMatchesRegex: '^unavailable$'"))
+    extra = ['-blackbox-binary', args.blackbox_binary] if args.blackbox_binary else []
+    result = json.loads(cli('probe', '-config', str(variant), '-agent', 'branch', '-zone', 'office',
+                            '-allow-cidrs', '127.0.0.1/32', *extra))
+    assert result['execution'] == 'completed' and result['outcome'] == 'failure' and result['statusCode'] == 200, result
+    print('PASS: HTTP 200 with mismatching body regex -> negative probe', flush=True)
     (ROOT / '.local/observations.ndjson').write_bytes(dc + failed)
     print('PASS: HTTP 200 -> healthy; missing office -> unknown; '
           'office HTTP 503 + server HTTP 200 -> degraded')

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -50,7 +51,8 @@ func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, 
 		}
 	} else {
 		o.StatusCode = response.StatusCode
-		n, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, c.MaxBodyBytes+1))
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, c.MaxBodyBytes+1))
+		n := int64(len(body))
 		if n > c.MaxBodyBytes {
 			readErr = fmt.Errorf("body limit exceeded")
 		}
@@ -60,6 +62,7 @@ func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, 
 			o.Outcome = "unknown"
 			o.Reason = "response_read_failed"
 		} else {
+			o.Values, o.ExtractionStatus = extract(body, c.Extract)
 			o.Reason = "unexpected_status"
 			for _, status := range c.ExpectedStatus {
 				if status == response.StatusCode {
@@ -67,6 +70,18 @@ func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, 
 					o.Reason = "expected_status"
 				}
 			}
+			if o.Outcome == "success" && c.BodyMatchesRegex != "" {
+				pattern, err := regexp.Compile(c.BodyMatchesRegex)
+				if err != nil {
+					o.Execution = "execution_failed"
+					o.Outcome = "unknown"
+					o.Reason = "invalid_body_regex"
+				} else if !pattern.Match(body) {
+					o.Outcome = "failure"
+					o.Reason = "http_body_mismatch"
+				}
+			}
+
 		}
 	}
 	o.FinishedAt = time.Now().UTC()

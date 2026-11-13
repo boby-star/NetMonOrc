@@ -67,7 +67,7 @@ func (x ObservationReceipt_Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ObservationReceipt_Status.Descriptor instead.
 func (ObservationReceipt_Status) EnumDescriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{8, 0}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{9, 0}
 }
 
 type AgentFrame struct {
@@ -563,21 +563,23 @@ func (x *ConfigApplied) GetRevision() string {
 }
 
 type Observation struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Monitor       string                 `protobuf:"bytes,2,opt,name=monitor,proto3" json:"monitor,omitempty"`
-	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
-	Check         string                 `protobuf:"bytes,4,opt,name=check,proto3" json:"check,omitempty"`
-	Agent         string                 `protobuf:"bytes,5,opt,name=agent,proto3" json:"agent,omitempty"`
-	Zone          string                 `protobuf:"bytes,6,opt,name=zone,proto3" json:"zone,omitempty"`
-	StartedAt     string                 `protobuf:"bytes,7,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	FinishedAt    string                 `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	Execution     string                 `protobuf:"bytes,9,opt,name=execution,proto3" json:"execution,omitempty"`
-	Outcome       string                 `protobuf:"bytes,10,opt,name=outcome,proto3" json:"outcome,omitempty"`
-	Reason        string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
-	StatusCode    int32                  `protobuf:"varint,12,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState  `protogen:"open.v1"`
+	Id               string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Monitor          string                  `protobuf:"bytes,2,opt,name=monitor,proto3" json:"monitor,omitempty"`
+	Revision         string                  `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Check            string                  `protobuf:"bytes,4,opt,name=check,proto3" json:"check,omitempty"`
+	Agent            string                  `protobuf:"bytes,5,opt,name=agent,proto3" json:"agent,omitempty"`
+	Zone             string                  `protobuf:"bytes,6,opt,name=zone,proto3" json:"zone,omitempty"`
+	StartedAt        string                  `protobuf:"bytes,7,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt       string                  `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	Execution        string                  `protobuf:"bytes,9,opt,name=execution,proto3" json:"execution,omitempty"`
+	Outcome          string                  `protobuf:"bytes,10,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Reason           string                  `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
+	StatusCode       int32                   `protobuf:"varint,12,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	ExtractionStatus map[string]string       `protobuf:"bytes,13,rep,name=extraction_status,json=extractionStatus,proto3" json:"extraction_status,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Values           map[string]*ScalarValue `protobuf:"bytes,14,rep,name=values,proto3" json:"values,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Observation) Reset() {
@@ -694,6 +696,134 @@ func (x *Observation) GetStatusCode() int32 {
 	return 0
 }
 
+func (x *Observation) GetExtractionStatus() map[string]string {
+	if x != nil {
+		return x.ExtractionStatus
+	}
+	return nil
+}
+
+func (x *Observation) GetValues() map[string]*ScalarValue {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+type ScalarValue struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Value:
+	//
+	//	*ScalarValue_StringValue
+	//	*ScalarValue_IntegerValue
+	//	*ScalarValue_FloatValue
+	//	*ScalarValue_BooleanValue
+	Value         isScalarValue_Value `protobuf_oneof:"value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScalarValue) Reset() {
+	*x = ScalarValue{}
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScalarValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScalarValue) ProtoMessage() {}
+
+func (x *ScalarValue) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScalarValue.ProtoReflect.Descriptor instead.
+func (*ScalarValue) Descriptor() ([]byte, []int) {
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ScalarValue) GetValue() isScalarValue_Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *ScalarValue) GetStringValue() string {
+	if x != nil {
+		if x, ok := x.Value.(*ScalarValue_StringValue); ok {
+			return x.StringValue
+		}
+	}
+	return ""
+}
+
+func (x *ScalarValue) GetIntegerValue() int64 {
+	if x != nil {
+		if x, ok := x.Value.(*ScalarValue_IntegerValue); ok {
+			return x.IntegerValue
+		}
+	}
+	return 0
+}
+
+func (x *ScalarValue) GetFloatValue() float64 {
+	if x != nil {
+		if x, ok := x.Value.(*ScalarValue_FloatValue); ok {
+			return x.FloatValue
+		}
+	}
+	return 0
+}
+
+func (x *ScalarValue) GetBooleanValue() bool {
+	if x != nil {
+		if x, ok := x.Value.(*ScalarValue_BooleanValue); ok {
+			return x.BooleanValue
+		}
+	}
+	return false
+}
+
+type isScalarValue_Value interface {
+	isScalarValue_Value()
+}
+
+type ScalarValue_StringValue struct {
+	StringValue string `protobuf:"bytes,1,opt,name=string_value,json=stringValue,proto3,oneof"`
+}
+
+type ScalarValue_IntegerValue struct {
+	IntegerValue int64 `protobuf:"zigzag64,2,opt,name=integer_value,json=integerValue,proto3,oneof"`
+}
+
+type ScalarValue_FloatValue struct {
+	FloatValue float64 `protobuf:"fixed64,3,opt,name=float_value,json=floatValue,proto3,oneof"`
+}
+
+type ScalarValue_BooleanValue struct {
+	BooleanValue bool `protobuf:"varint,4,opt,name=boolean_value,json=booleanValue,proto3,oneof"`
+}
+
+func (*ScalarValue_StringValue) isScalarValue_Value() {}
+
+func (*ScalarValue_IntegerValue) isScalarValue_Value() {}
+
+func (*ScalarValue_FloatValue) isScalarValue_Value() {}
+
+func (*ScalarValue_BooleanValue) isScalarValue_Value() {}
+
 type ObservationBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Observations  []*Observation         `protobuf:"bytes,1,rep,name=observations,proto3" json:"observations,omitempty"`
@@ -703,7 +833,7 @@ type ObservationBatch struct {
 
 func (x *ObservationBatch) Reset() {
 	*x = ObservationBatch{}
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -715,7 +845,7 @@ func (x *ObservationBatch) String() string {
 func (*ObservationBatch) ProtoMessage() {}
 
 func (x *ObservationBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -728,7 +858,7 @@ func (x *ObservationBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationBatch.ProtoReflect.Descriptor instead.
 func (*ObservationBatch) Descriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ObservationBatch) GetObservations() []*Observation {
@@ -748,7 +878,7 @@ type ObservationReceipt struct {
 
 func (x *ObservationReceipt) Reset() {
 	*x = ObservationReceipt{}
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -760,7 +890,7 @@ func (x *ObservationReceipt) String() string {
 func (*ObservationReceipt) ProtoMessage() {}
 
 func (x *ObservationReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -773,7 +903,7 @@ func (x *ObservationReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationReceipt.ProtoReflect.Descriptor instead.
 func (*ObservationReceipt) Descriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ObservationReceipt) GetObservationId() string {
@@ -799,7 +929,7 @@ type ObservationAck struct {
 
 func (x *ObservationAck) Reset() {
 	*x = ObservationAck{}
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +941,7 @@ func (x *ObservationAck) String() string {
 func (*ObservationAck) ProtoMessage() {}
 
 func (x *ObservationAck) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +954,7 @@ func (x *ObservationAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationAck.ProtoReflect.Descriptor instead.
 func (*ObservationAck) Descriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ObservationAck) GetReceipts() []*ObservationReceipt {
@@ -879,7 +1009,7 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\x04zone\x18\x06 \x01(\tR\x04zone\"P\n" +
 	"\rConfigApplied\x12#\n" +
 	"\rassignment_id\x18\x01 \x01(\tR\fassignmentId\x12\x1a\n" +
-	"\brevision\x18\x02 \x01(\tR\brevision\"\xc4\x02\n" +
+	"\brevision\x18\x02 \x01(\tR\brevision\"\x8e\x05\n" +
 	"\vObservation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\amonitor\x18\x02 \x01(\tR\amonitor\x12\x1a\n" +
@@ -896,7 +1026,22 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	" \x01(\tR\aoutcome\x12\x16\n" +
 	"\x06reason\x18\v \x01(\tR\x06reason\x12\x1f\n" +
 	"\vstatus_code\x18\f \x01(\x05R\n" +
-	"statusCode\"W\n" +
+	"statusCode\x12b\n" +
+	"\x11extraction_status\x18\r \x03(\v25.netmonorc.agent.v1.Observation.ExtractionStatusEntryR\x10extractionStatus\x12C\n" +
+	"\x06values\x18\x0e \x03(\v2+.netmonorc.agent.v1.Observation.ValuesEntryR\x06values\x1aC\n" +
+	"\x15ExtractionStatusEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aZ\n" +
+	"\vValuesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.netmonorc.agent.v1.ScalarValueR\x05value:\x028\x01\"\xac\x01\n" +
+	"\vScalarValue\x12#\n" +
+	"\fstring_value\x18\x01 \x01(\tH\x00R\vstringValue\x12%\n" +
+	"\rinteger_value\x18\x02 \x01(\x12H\x00R\fintegerValue\x12!\n" +
+	"\vfloat_value\x18\x03 \x01(\x01H\x00R\n" +
+	"floatValue\x12%\n" +
+	"\rboolean_value\x18\x04 \x01(\bH\x00R\fbooleanValueB\a\n" +
+	"\x05value\"W\n" +
 	"\x10ObservationBatch\x12C\n" +
 	"\fobservations\x18\x01 \x03(\v2\x1f.netmonorc.agent.v1.ObservationR\fobservations\"\xba\x01\n" +
 	"\x12ObservationReceipt\x12%\n" +
@@ -924,7 +1069,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_netmonorc_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(ObservationReceipt_Status)(0), // 0: netmonorc.agent.v1.ObservationReceipt.Status
 	(*AgentFrame)(nil),             // 1: netmonorc.agent.v1.AgentFrame
@@ -934,27 +1079,33 @@ var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(*ConfigAssignment)(nil),       // 5: netmonorc.agent.v1.ConfigAssignment
 	(*ConfigApplied)(nil),          // 6: netmonorc.agent.v1.ConfigApplied
 	(*Observation)(nil),            // 7: netmonorc.agent.v1.Observation
-	(*ObservationBatch)(nil),       // 8: netmonorc.agent.v1.ObservationBatch
-	(*ObservationReceipt)(nil),     // 9: netmonorc.agent.v1.ObservationReceipt
-	(*ObservationAck)(nil),         // 10: netmonorc.agent.v1.ObservationAck
+	(*ScalarValue)(nil),            // 8: netmonorc.agent.v1.ScalarValue
+	(*ObservationBatch)(nil),       // 9: netmonorc.agent.v1.ObservationBatch
+	(*ObservationReceipt)(nil),     // 10: netmonorc.agent.v1.ObservationReceipt
+	(*ObservationAck)(nil),         // 11: netmonorc.agent.v1.ObservationAck
+	nil,                            // 12: netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	nil,                            // 13: netmonorc.agent.v1.Observation.ValuesEntry
 }
 var file_proto_netmonorc_agent_v1_agent_proto_depIdxs = []int32{
 	3,  // 0: netmonorc.agent.v1.AgentFrame.hello:type_name -> netmonorc.agent.v1.AgentHello
 	6,  // 1: netmonorc.agent.v1.AgentFrame.config_applied:type_name -> netmonorc.agent.v1.ConfigApplied
-	8,  // 2: netmonorc.agent.v1.AgentFrame.observation_batch:type_name -> netmonorc.agent.v1.ObservationBatch
+	9,  // 2: netmonorc.agent.v1.AgentFrame.observation_batch:type_name -> netmonorc.agent.v1.ObservationBatch
 	4,  // 3: netmonorc.agent.v1.ControllerFrame.hello_accepted:type_name -> netmonorc.agent.v1.HelloAccepted
 	5,  // 4: netmonorc.agent.v1.ControllerFrame.assignment:type_name -> netmonorc.agent.v1.ConfigAssignment
-	10, // 5: netmonorc.agent.v1.ControllerFrame.observation_ack:type_name -> netmonorc.agent.v1.ObservationAck
-	7,  // 6: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
-	0,  // 7: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
-	9,  // 8: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
-	1,  // 9: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
-	2,  // 10: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	11, // 5: netmonorc.agent.v1.ControllerFrame.observation_ack:type_name -> netmonorc.agent.v1.ObservationAck
+	12, // 6: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	13, // 7: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
+	7,  // 8: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
+	0,  // 9: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
+	10, // 10: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
+	8,  // 11: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
+	1,  // 12: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
+	2,  // 13: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
+	13, // [13:14] is the sub-list for method output_type
+	12, // [12:13] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_proto_netmonorc_agent_v1_agent_proto_init() }
@@ -972,13 +1123,19 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 		(*ControllerFrame_Assignment)(nil),
 		(*ControllerFrame_ObservationAck)(nil),
 	}
+	file_proto_netmonorc_agent_v1_agent_proto_msgTypes[7].OneofWrappers = []any{
+		(*ScalarValue_StringValue)(nil),
+		(*ScalarValue_IntegerValue)(nil),
+		(*ScalarValue_FloatValue)(nil),
+		(*ScalarValue_BooleanValue)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_netmonorc_agent_v1_agent_proto_rawDesc), len(file_proto_netmonorc_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

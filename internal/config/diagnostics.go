@@ -35,10 +35,11 @@ type diagnosticDocument struct {
 		Actions []struct {
 			ID    string `yaml:"id"`
 			Check struct {
-				Type    string    `yaml:"type"`
-				Runner  string    `yaml:"runner"`
-				Timeout string    `yaml:"timeout"`
-				Config  yaml.Node `yaml:"config"`
+				Type    string        `yaml:"type"`
+				Runner  string        `yaml:"runner"`
+				Timeout string        `yaml:"timeout"`
+				Config  yaml.Node     `yaml:"config"`
+				Extract []extractSpec `yaml:"extract"`
 			} `yaml:"check"`
 			Expected  map[string]string `yaml:"expectedOutcomes"`
 			Cost      *float64          `yaml:"costUnits"`
@@ -122,7 +123,7 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 		if !idPattern.MatchString(a.ID) {
 			return p, fmt.Errorf("invalid diagnostic action ID")
 		}
-		c, e := compileProbe(checkSpec{Type: a.Check.Type, Runner: a.Check.Runner, Config: a.Check.Config}, "diagnostic-target")
+		c, e := compileProbe(checkSpec{Type: a.Check.Type, Runner: a.Check.Runner, Config: a.Check.Config, Extract: a.Check.Extract}, "diagnostic-target")
 		if e != nil {
 			return p, e
 		}

@@ -22,9 +22,10 @@ container = 'netmonorc-smoke-' + secrets.token_hex(4)
 parser = argparse.ArgumentParser()
 parser.add_argument('--network', action='store_true')
 parser.add_argument('--cel', action='store_true')
+parser.add_argument('--extract', action='store_true')
 parser.add_argument('--blackbox-binary')
 args = parser.parse_args()
-if args.network and args.cel:
+if sum([args.network,args.cel,args.extract])>1:
     parser.error('choose one fixture mode at a time')
 if args.network and not args.blackbox_binary:
     parser.error('--network requires --blackbox-binary')
@@ -74,10 +75,15 @@ def view():
 
 class Handler(BaseHTTPRequestHandler):
     status = 200
+    omit_ready = False
     def do_GET(self):
-        self.send_response(self.status)
+        self.send_response(200 if args.extract else self.status)
         self.end_headers()
-        self.wfile.write(b'health')
+        if args.extract:
+            ready = '' if self.omit_ready else (' ready=true' if self.status == 200 else ' ready=false')
+            self.wfile.write(('queue_depth=0 ratio=1.0 serial=9007199254740993'+ready).encode())
+        else:
+            self.wfile.write(b'health')
     def log_message(self, *args):
         pass
 
@@ -107,7 +113,7 @@ try:
         sock.bind(('127.0.0.1', 0))
         rpc_port = sock.getsockname()[1]
     manifest = work/'monitor.yaml'
-    example = 'network.yaml' if args.network else ('cel.yaml' if args.cel else 'http.yaml')
+    example = 'network.yaml' if args.network else ('extract.yaml' if args.extract else ('cel.yaml' if args.cel else 'http.yaml'))
     text = (ROOT/'examples'/example).read_text().replace('18080', str(http.server_port))
     if dns:
         text = text.replace('1053', str(dns.port))
@@ -154,13 +160,26 @@ try:
     print('PASS: replay did not create a duplicate database observation', flush=True)
     wait_for('assessment restored after reconnect', lambda: view().get('state') == 'healthy')
     Handler.status = 503
-    wait_for('confirmed HTTP failures -> down', lambda: view().get('state') == 'down', seconds=25)
+    wait_for('confirmed service failure -> down', lambda: view().get('state') == 'down', seconds=25)
     if args.cel:
         assert all(z['reason'] == 'HTTP_SERVER_ERROR' for z in view()['zones'])
         assert int(sql("SELECT count(*) FROM nmo_observations WHERE payload->>'statusCode'='503' AND payload->>'outcome'='success'")) >= 2
         print('PASS: CEL classifies accepted HTTP 503 observations as resource down', flush=True)
+    if args.extract:
+        assert all(z['reason'] == 'APPLICATION_NOT_READY' for z in view()['zones'])
+        stored = json.loads(sql("SELECT payload FROM nmo_observations WHERE payload->'values'->>'ready'='false' LIMIT 1"))
+        assert stored['statusCode'] == 200 and stored['outcome'] == 'success'
+        assert stored['values']['queue_depth'] == 0 and stored['values']['ready'] is False
+        assert stored['values']['serial'] == 9007199254740993 and isinstance(stored['values']['ratio'], float)
+        print('PASS: typed values survived PostgreSQL; HTTP 200 + ready=false -> resource down', flush=True)
     Handler.status = 200
     wait_for('service recovery -> healthy', lambda: view().get('state') == 'healthy', seconds=25)
+    if args.extract:
+        Handler.omit_ready = True
+        wait_for('missing extracted field -> unknown without fabricated false/zero', lambda: view().get('state') == 'unknown', seconds=25)
+        assert all(z['coverage'] == 'complete' for z in view()['zones'])
+        Handler.omit_ready = False
+        wait_for('extracted field restored -> healthy', lambda: view().get('state') == 'healthy', seconds=25)
     stop(branch)
     wait_for('Agent loss plus TTL -> unknown, not down', lambda: view().get('state') == 'unknown', seconds=25)
     test_env = os.environ.copy()
@@ -168,7 +187,7 @@ try:
     subprocess.run([shutil.which('go'), 'test', './internal/storage', '-run',
                     'TestPostgresDurabilityAndFencing', '-count=1', '-v'],
                    cwd=ROOT, env=test_env, check=True)
-    (work/'result.json').write_text(json.dumps({'status': 'passed', 'fixture': 'cel' if args.cel else ('network' if args.network else 'http'), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}))
+    (work/'result.json').write_text(json.dumps({'status': 'passed', 'fixture': 'extract' if args.extract else ('cel' if args.cel else ('network' if args.network else 'http')), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}))
     print('Evidence:', work, flush=True)
 finally:
     for p in reversed(processes):

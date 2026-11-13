@@ -16,7 +16,7 @@ var observationID = regexp.MustCompile(`^[0-9a-f]{32}$`)
 var checkID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 
 func Encode(o monitor.Observation) *pb.Observation {
-	return &pb.Observation{Id: o.ID, Monitor: o.Monitor, Revision: o.Revision, Check: o.Check, Agent: o.Agent, Zone: o.Zone, StartedAt: o.StartedAt.Format(time.RFC3339Nano), FinishedAt: o.FinishedAt.Format(time.RFC3339Nano), Execution: o.Execution, Outcome: o.Outcome, Reason: o.Reason, StatusCode: int32(o.StatusCode)}
+	return &pb.Observation{Values: encodeValues(o.Values), ExtractionStatus: o.ExtractionStatus, Id: o.ID, Monitor: o.Monitor, Revision: o.Revision, Check: o.Check, Agent: o.Agent, Zone: o.Zone, StartedAt: o.StartedAt.Format(time.RFC3339Nano), FinishedAt: o.FinishedAt.Format(time.RFC3339Nano), Execution: o.Execution, Outcome: o.Outcome, Reason: o.Reason, StatusCode: int32(o.StatusCode)}
 }
 
 func Decode(w *pb.Observation, principal, zone, monitorName string) (monitor.Observation, error) {
@@ -35,5 +35,9 @@ func Decode(w *pb.Observation, principal, zone, monitorName string) (monitor.Obs
 	if !valid || w.StatusCode < 0 || w.StatusCode > 599 {
 		return monitor.Observation{}, fmt.Errorf("invalid observation outcome")
 	}
-	return monitor.Observation{ID: w.Id, Monitor: w.Monitor, Revision: w.Revision, Check: w.Check, Agent: principal, Zone: zone, StartedAt: start.UTC(), FinishedAt: end.UTC(), Execution: w.Execution, Outcome: w.Outcome, Reason: w.Reason, StatusCode: int(w.StatusCode)}, nil
+	values, e := decodeValues(w)
+	if e != nil {
+		return monitor.Observation{}, e
+	}
+	return monitor.Observation{Values: values, ExtractionStatus: w.ExtractionStatus, ID: w.Id, Monitor: w.Monitor, Revision: w.Revision, Check: w.Check, Agent: principal, Zone: zone, StartedAt: start.UTC(), FinishedAt: end.UTC(), Execution: w.Execution, Outcome: w.Outcome, Reason: w.Reason, StatusCode: int(w.StatusCode)}, nil
 }
