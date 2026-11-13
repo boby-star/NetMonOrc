@@ -253,6 +253,7 @@ func run() error {
 }
 func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath string) error {
 	var alertState *alerting.State
+	var delivery *webhook.Summary
 	c, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
 	now := time.Now().UTC()
@@ -293,6 +294,11 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 			return err
 		}
 		alertState = &state
+		summary, err := store.WebhookSummary(c, notifications.Endpoint, notifications.Rule.Rule.Name, p.Name)
+		if err != nil {
+			return err
+		}
+		delivery = &summary
 		b, err := json.MarshalIndent(state, "", "  ")
 		if err != nil {
 			return err
@@ -306,7 +312,7 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 		if err != nil {
 			return err
 		}
-		html, err := report.RenderWithAlert(a, d, alertState)
+		html, err := report.RenderWithDelivery(a, d, alertState, delivery)
 		if err != nil {
 			return err
 		}

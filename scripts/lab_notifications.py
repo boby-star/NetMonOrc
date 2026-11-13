@@ -66,6 +66,11 @@ def run(lab):
     assert resolution['event_id']==pending['event_id'],'event id changed on retry'
     assert resolution['attempts']>=2 and resolution['status_code']==200,resolution
     assert int(lab.sql('SELECT count(*) FROM nmo_webhook_outbox'))==before+2,'unexpected queued replay'
+    def report_delivered():
+        raw=lab.snapshot('report.html')
+        html=raw.decode() if raw else ''
+        return resolution['event_id'] in html and 'Стан доставки: <strong>delivered</strong>' in html
+    lab.wait(report_delivered,'HTML reflects committed delivery, not just enqueue',seconds=10)
     # Receiver-side database proves logical dedup without recording secrets.
     code = "import sqlite3,json;d=sqlite3.connect('/data/receiver.sqlite');print(json.dumps({'events':d.execute('SELECT id,payload FROM events WHERE id IN (?,?)',json.loads(__import__('sys').stdin.read())).fetchall(),'attempts':d.execute('SELECT event_id,status FROM attempts ORDER BY seq').fetchall()}))"
     receiver = json.loads(lab.compose('exec','-T','webhook','python3','-c',code,input=json.dumps([first['event_id'],resolution['event_id']]).encode()))
@@ -74,7 +79,7 @@ def run(lab):
     return {'schema':1,'startedAt':started,'finishedAt':datetime.now(timezone.utc).isoformat(),
             'project':lab.project,'firing':first,'firingAttempts':first_attempts,
             'resolution':resolution,'resolutionAttempts':attempts(resolution['event_id']),
-            'receiver':receiver,'unknownHeldFiring':True,'restartKeptEventID':True,
+            'receiver':receiver,'unknownHeldFiring':True,'restartKeptEventID':True,'htmlDeliveryVerified':True,
             'finalAssessment':lab.assessment(),'finalAlert':alert()}
 
 if __name__=='__main__':

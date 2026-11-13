@@ -12,6 +12,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/webhook"
 )
 
 //go:embed report.html
@@ -23,6 +24,7 @@ type View struct {
 	GeneratedAt          time.Time
 	HistoricalDiagnostic bool
 	Alert                *alerting.State
+	Delivery             *webhook.Summary
 }
 
 func Render(a monitor.Assessment, d *diagnostics.Report) ([]byte, error) {
@@ -30,6 +32,13 @@ func Render(a monitor.Assessment, d *diagnostics.Report) ([]byte, error) {
 }
 
 func RenderWithAlert(a monitor.Assessment, d *diagnostics.Report, alert *alerting.State) ([]byte, error) {
+	return RenderWithDelivery(a, d, alert, nil)
+}
+
+func RenderWithDelivery(a monitor.Assessment, d *diagnostics.Report, alert *alerting.State, delivery *webhook.Summary) ([]byte, error) {
+	if delivery != nil && delivery.Monitor != a.Monitor {
+		return nil, fmt.Errorf("delivery summary belongs to another Monitor")
+	}
 	if a.Monitor == "" || a.At.IsZero() {
 		return nil, fmt.Errorf("assessment name/time required")
 	}
@@ -75,7 +84,7 @@ func RenderWithAlert(a monitor.Assessment, d *diagnostics.Report, alert *alertin
 	}
 	var out bytes.Buffer
 	historical := d != nil && d.Revision != a.Revision
-	e = t.Execute(&out, View{Assessment: a, Diagnostic: d, GeneratedAt: time.Now().UTC(), HistoricalDiagnostic: historical, Alert: alert})
+	e = t.Execute(&out, View{Assessment: a, Diagnostic: d, GeneratedAt: time.Now().UTC(), HistoricalDiagnostic: historical, Alert: alert, Delivery: delivery})
 	if e != nil {
 		return nil, e
 	}

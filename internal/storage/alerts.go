@@ -108,6 +108,37 @@ type Delivery struct {
 	Attempt   int
 }
 
+func (s *Store) WebhookSummary(ctx context.Context, endpoint webhook.Endpoint, rule, monitorName string) (webhook.Summary, error) {
+	var result webhook.Summary
+	var data []byte
+	// One SQL snapshot keeps counters and latest-event status consistent while
+	// the worker may commit another attempt. No payload body or URL is exposed.
+	err := s.pool.QueryRow(ctx, `WITH scoped AS (
+ SELECT o.event_id,o.state,o.attempts,o.status_code,e.created_at
+ FROM nmo_webhook_outbox o JOIN nmo_alert_events e ON e.id=o.event_id
+ WHERE o.endpoint_hash=$1 AND o.payload->>'alert_rule'=$2 AND o.payload->>'monitor'=$3
+ ) SELECT json_build_object(
+ 'pending',count(*) FILTER(WHERE state='pending'),
+ 'leased',count(*) FILTER(WHERE state='leased'),
+ 'delivered',count(*) FILTER(WHERE state='delivered'),
+ 'failed',count(*) FILTER(WHERE state='failed'),
+ 'cancelled',count(*) FILTER(WHERE state='cancelled'),
+ 'latest',(SELECT json_build_object('id',event_id,'state',state,'attempts',attempts,'statusCode',status_code)
+ FROM scoped ORDER BY created_at DESC,event_id DESC LIMIT 1)) FROM scoped`, endpoint.Hash(), rule, monitorName).Scan(&data)
+	if err != nil {
+		return result, err
+	}
+	if err = json.Unmarshal(data, &result); err != nil {
+		return result, err
+	}
+	result.Endpoint = endpoint.Name
+	result.Enabled = endpoint.Enabled
+	result.Rule = rule
+	result.Monitor = monitorName
+	result.At = time.Now().UTC()
+	return result, nil
+}
+
 func (s *Store) ClaimWebhook(ctx context.Context, endpoint webhook.Endpoint) (*Delivery, error) {
 	tx, e := s.pool.Begin(ctx)
 	if e != nil {

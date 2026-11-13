@@ -41,3 +41,9 @@ go build -o .local/netmonorc-report ./cmd/netmonorc-report
 pending і час останнього enqueue для firing/resolved. Enqueue не означає
 отримання webhook. Окремий CLI приймає `-alert .local/alert.json` разом
 із assessment; без цього параметра додаткового блоку немає.
+
+Controller також показує фактичний стан webhook outbox: чергу, leased,
+delivered, failed, cancelled, останній event ID, attempts і HTTP status.
+Це окремий read-only snapshot PostgreSQL лише поточного Monitor/rule/endpoint;
+постановка в чергу не стає delivered. netmonorc-report із локальних snapshots
+не має доступу до цієї проєкції; експортуйте готовий HTML Controller.

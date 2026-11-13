@@ -3,6 +3,7 @@ package report
 import (
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/webhook"
 	"strings"
 	"testing"
 	"time"
@@ -29,5 +30,21 @@ func TestReportEscapesEvidenceAndMarksHistoricalDiagnostic(t *testing.T) {
 	d.Monitor = "other"
 	if _, e = Render(a, d); e == nil {
 		t.Fatal("unrelated monitor diagnostic rendered")
+	}
+}
+
+func TestDeliveryReportDoesNotEquateEnqueueAndDelivery(t *testing.T) {
+	a := monitor.Assessment{Monitor: "service", At: time.Now(), State: "healthy"}
+	d := &webhook.Summary{Monitor: "service", Endpoint: "<untrusted>", Enabled: true, Pending: 1, Latest: &webhook.EventStatus{ID: "id", State: "pending"}}
+	b, err := RenderWithDelivery(a, nil, nil, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "<untrusted>") || !strings.Contains(string(b), "&lt;untrusted&gt;") || !strings.Contains(string(b), "HTTP-відповідь не зафіксована") {
+		t.Fatal("delivery unknown/escaping lost")
+	}
+	d.Monitor = "other"
+	if _, err = RenderWithDelivery(a, nil, nil, d); err == nil {
+		t.Fatal("foreign Monitor delivery rendered")
 	}
 }

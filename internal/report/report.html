@@ -29,6 +29,13 @@
 {{with .LastResolvedQueuedAt}}<p>Останнє повідомлення про відновлення поставлено в чергу: {{stamp .}}</p>{{end}}
 <p class="sub">Це стан правила. Постановка повідомлення в чергу не підтверджує отримання webhook. Невідомий стан ресурсу не закриває активне сповіщення.</p>
 </section>{{end}}
+{{with .Delivery}}<section class="card"><h2>Доставка сповіщень</h2>
+<p>Канал: <strong>{{.Endpoint}}</strong> · {{if .Enabled}}увімкнений{{else}}вимкнений{{end}} · правило {{.Rule}} · {{stamp .At}}</p>
+<div class="scroll"><table><thead><tr><th>У черзі</th><th>Спроба зарезервована</th><th>Доставлено</th><th>Не доставлено</th><th>Скасовано</th></tr></thead>
+<tbody><tr><td>{{.Pending}}</td><td>{{.Leased}}</td><td>{{.Delivered}}</td><td>{{.Failed}}</td><td>{{.Cancelled}}</td></tr></tbody></table></div>
+{{with .Latest}}<p>Остання подія: <span class="code">{{.ID}}</span></p><p>Стан доставки: <strong>{{.State}}</strong> · спроб: {{.Attempts}} · {{if .StatusCode}}остання HTTP-відповідь: {{.StatusCode}}{{else}}HTTP-відповідь не зафіксована{{end}}</p>{{else}}<p>Подій для доставки ще немає.</p>{{end}}
+<p class="sub">Дані лише цього правила, Monitor і поточної конфігурації каналу. Delivered означає отриману відповідь HTTP 2xx; leased — резервування спроби, а не підтверджений запит. Це знімок: його значення можуть змінитися після оновлення.</p>
+</section>{{end}}
 <section class="card"><h2>Остання діагностична сесія</h2>
 {{if .Diagnostic}}{{with .Diagnostic}}
 <div class="top"><span class="badge {{class .Result.Status}}">{{state .Result.Status}}</span><span class="sub">{{.Result.Mode}} · {{stamp .StartedAt}}</span></div>

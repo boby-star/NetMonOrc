@@ -103,3 +103,23 @@ python3 scripts/lab.py export --output .local/lab-report
 Agent, explicit healthy→resolved, рестарт із недоставленою подією й durable
 attempt audit. Результат одного прогону є інтеграційним свідченням, не
 статистичною гарантією доступності зовнішнього одержувача.
+
+## Перегляд фактичної доставки
+
+HTML, який записує Controller, додатково читає PostgreSQL outbox в одному
+SQL snapshot. Блок «Доставка сповіщень» показує pending/leased/delivered/
+failed/cancelled та останню подію, кількість зарезервованих спроб і останній
+HTTP status code. Нуль означає, що HTTP-відповідь не зафіксована; це не HTTP 0.
+Delivered означає відповідь 2xx, а не гарантію подальшої обробки receiver.
+Leased є резервуванням: crash до HTTP POST може залишити витрачену спробу.
+
+Лічильники обмежені поточними endpoint hash, AlertRule та Monitor. Це не
+глобальна статистика всіх попередніх каналів; заміна endpoint не переносить
+старі події до нового. Порожня вибірка показує відсутність подій. Disabled
+канал явно позначений. URL, token, raw payload/response у цей блок не входять.
+Дані є знімком на вказаний час і можуть застаріти разом з HTML-файлом.
+
+Read-only проєкція не змінює Alert/Assessment або delivery state й не додає
+HTTP API routes чи DSL-полів. Локальний netmonorc-report без доступу до БД
+продовжує формувати звіт без цього блока; актуальний блок експортується
+разом з HTML Controller через lab.py export.

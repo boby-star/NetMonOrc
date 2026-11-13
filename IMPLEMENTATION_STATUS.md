@@ -296,3 +296,16 @@ records. Race-перевірка пройшла. Це не 1000 фізично �
 очікуваний down та inconclusive без хибного визначеного класу. Дані:
 docs/experiments/compound-series. Матеріал для остаточної звірки записки:
 docs/thesis/implementation-alignment.md. Завантажений DOCX не змінено.
+
+## Фактичний стан доставки у звіті — інтегровано
+
+Controller показує scoped PostgreSQL snapshot pending/leased/delivered/
+failed/cancelled і останню подію з attempts/HTTP status. Немає подій —
+окреме повідомлення; disabled канал позначений. Enqueue/leased не означають
+отримання HTTP-відповіді. Старі endpoint revisions і чужі rules не змішуються.
+Додаткових HTTP routes/DSL fields немає, payload/URL/token не експонуються.
+
+Реальні PostgreSQL isolation tests і live HTTPS retry/restart пройшли;
+lab_notifications.py додатково дочекався delivered конкретного event ID
+у HTML. Unit/race перевірили rendering/escaping та чужий Monitor.
+Локальний offline report CLI без БД не показує цей додатковий блок.
