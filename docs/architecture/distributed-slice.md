@@ -130,4 +130,5 @@ protoc-gen-go-grpc 1.5.1:
 python -m grpc_tools.protoc -I . --go_out=. --go_opt=module=github.com/boby-star/NetMonOrc --go-grpc_out=. --go-grpc_opt=module=github.com/boby-star/NetMonOrc proto/netmonorc/agent/v1/agent.proto
 ```
 
-Go plugins мають бути в PATH. Зовнішні ТЗ, DSL та OpenAPI не змінені.
+Go plugins мають бути в PATH. Погоджений confirmation контракт доповнює
+DSL §11.6.1 та додаток ТЗ/DOCX; публічний HTTP OpenAPI не змінюється.

@@ -49,4 +49,4 @@ python3 scripts/distributed_smoke.py --cel
 Сценарій перевіряє правила через реальні Controller/Agent, mTLS,
 PostgreSQL, replay, HTTP failure/recovery та TTL. Прямі unit-тести
 перевіряють priority, missing metrics, required failure override та
-заборонені рекурсивні контексти. Нормативні файли не змінені.
+заборонені рекурсивні контексти. Сам цей CEL-зріз не змінює контракту правил оцінювання.

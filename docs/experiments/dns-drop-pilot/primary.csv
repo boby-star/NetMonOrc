@@ -1,0 +1,4 @@
+repetition,mode,scenario,expected_state,state,state_correct,status,prediction,diagnosis_correct,duration_ms,assessment_sample_after_control_ms,reserved_checks,probe_observations,completed_probes,execution_failures,reason
+1,adaptive,dns-drop,down,down,True,completed,dns-failure,True,23611,8434,4,4,4,0,confirmed_class
+1,static,dns-drop,down,down,True,completed,dns-failure,True,24551,8133,6,6,6,0,confirmed_class
+1,fixed,dns-drop,down,down,True,completed,dns-failure,True,23433,9594,4,4,4,0,supported_class

@@ -1,6 +1,7 @@
 # ADR 0002: час probe окремо від доставлення задачі
 
-Статус: реалізовано; окремий silent-DNS прогін перевіряє поведінку.
+Статус: реалізовано й перевірено.
+[Silent-DNS пілот](../experiments/dns-drop-pilot/README.md): три режими, один повтор.
 
 Попередній route-withdrawal пілот показав execution_failed замість
 завершеного негативного probe: Engine давав усій задачі check.timeout,

@@ -1,0 +1,841 @@
+{
+  "metadata": {
+    "source": "live-compose-fault-injection",
+    "started_at": "2026-11-13T14:21:48.693039+00:00",
+    "git_head": "5d123e30b7424660b4b51e1b01a02255577cf280",
+    "git_dirty": false,
+    "project": "nmo-integration",
+    "seed": 7,
+    "repetitions": 1,
+    "policy": "confirmed",
+    "clock": "shared host kernel; Engine duration uses monotonic clock",
+    "traffic_bytes_measured": false,
+    "modes": [
+      "static",
+      "fixed",
+      "adaptive"
+    ],
+    "scenarios": [
+      "dns-drop"
+    ],
+    "office_fault_control": "explicit prohibit route in office namespace",
+    "state_sampling": "fresh evidence from all planned check/source pairs; expected state is not a polling predicate",
+    "limitations": [
+      "small pilot is not statistical evidence",
+      "shared host resources",
+      "assessment sampled after fresh observations, without waiting for an expected state",
+      "completed_probes excludes unknown physical completion on execution failure"
+    ],
+    "controller_image_id": "sha256:c23393207a691c629978481ba5a7dda2f68c7718f214cb8d5517cd0d4f9be519",
+    "target_image_id": "sha256:5ee52b6d6749968209b443b31396041a58cdbddfaa28b5dd019019f274c59fde",
+    "finished_at": "2026-11-13T14:24:07.558616+00:00"
+  },
+  "summary": [
+    {
+      "mode": "static",
+      "scenario": "dns-drop",
+      "trials": 1,
+      "correct_diagnoses": 1,
+      "correct_states": 1,
+      "harness_errors": 0,
+      "inconclusive": 0,
+      "median_duration_ms": 24551,
+      "completed_probes": [
+        6
+      ]
+    },
+    {
+      "mode": "fixed",
+      "scenario": "dns-drop",
+      "trials": 1,
+      "correct_diagnoses": 1,
+      "correct_states": 1,
+      "harness_errors": 0,
+      "inconclusive": 0,
+      "median_duration_ms": 23433,
+      "completed_probes": [
+        4
+      ]
+    },
+    {
+      "mode": "adaptive",
+      "scenario": "dns-drop",
+      "trials": 1,
+      "correct_diagnoses": 1,
+      "correct_states": 1,
+      "harness_errors": 0,
+      "inconclusive": 0,
+      "median_duration_ms": 23611,
+      "completed_probes": [
+        4
+      ]
+    }
+  ],
+  "trials": [
+    {
+      "repetition": 1,
+      "mode": "adaptive",
+      "scenario": "dns-drop",
+      "ground_truth": "dns-failure",
+      "fault_control_started_at": "2026-11-13T14:21:59.226139+00:00",
+      "expected_state": "down",
+      "state": "down",
+      "state_correct": true,
+      "status": "completed",
+      "prediction": "dns-failure",
+      "diagnosis_correct": true,
+      "duration_ms": 23611,
+      "assessment_sample_after_control_ms": 8434,
+      "reserved_checks": 4,
+      "probe_observations": 4,
+      "completed_probes": 4,
+      "execution_failures": 0,
+      "reason": "confirmed_class",
+      "assessment": {
+        "monitor": "research-web",
+        "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+        "at": "2026-11-13T14:22:09.567139674Z",
+        "state": "down",
+        "zones": [
+          {
+            "zone": "office",
+            "state": "down",
+            "coverage": "complete",
+            "q": 1,
+            "h": 0.6666666666666666,
+            "evidence": [
+              "6639ddd51812b38bdd9f94086cc76c0c",
+              "7f188a46833e425632a50431349c6f81",
+              "97bf82119bfa483dec232a84ef5808dd"
+            ],
+            "reason": "required_failure"
+          },
+          {
+            "zone": "server",
+            "state": "down",
+            "coverage": "complete",
+            "q": 1,
+            "h": 0.6666666666666666,
+            "evidence": [
+              "0321f22ea091e980ab983de6a838c76c",
+              "de5dc75370d90ce05deffa8f0060c801",
+              "9dc78aa733272b9a2836366cda14f0d3"
+            ],
+            "reason": "required_failure"
+          }
+        ]
+      },
+      "diagnostic": {
+        "id": "c776e369885716e1dc1cdcbc325dc20b",
+        "monitor": "research-web",
+        "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+        "reservedChecks": 4,
+        "startedAt": "2026-11-13T14:22:09.571958Z",
+        "finishedAt": "2026-11-13T14:22:33.18808Z",
+        "result": {
+          "confirmation": {
+            "requiredActions": [
+              "d01-office-dns",
+              "d02-server-dns",
+              "d03-server-tcp",
+              "d04-server-http"
+            ],
+            "observedActions": [
+              "d01-office-dns",
+              "d02-server-dns",
+              "d03-server-tcp",
+              "d04-server-http"
+            ],
+            "observations": 4,
+            "distinctFailureDomains": 2,
+            "satisfied": true,
+            "countedEvidence": [
+              "attempt:1",
+              "attempt:2",
+              "attempt:3",
+              "attempt:4"
+            ]
+          },
+          "durationMs": 23611,
+          "mode": "adaptive",
+          "status": "completed",
+          "reason": "confirmed_class",
+          "hypotheses": [
+            "dns-failure"
+          ],
+          "attempts": 4,
+          "costUnits": 4,
+          "decisions": [
+            {
+              "phase": "primary",
+              "actionId": "d01-office-dns",
+              "agentId": "branch",
+              "hypothesesBefore": [
+                "dns-failure",
+                "http-failure",
+                "office-path-failure",
+                "tcp-failure"
+              ],
+              "gain": 4,
+              "score": 4,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "failure"
+              }
+            },
+            {
+              "phase": "primary",
+              "actionId": "d02-server-dns",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure",
+                "office-path-failure"
+              ],
+              "gain": 1,
+              "score": 1,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "failure"
+              }
+            },
+            {
+              "phase": "confirmation",
+              "actionId": "d03-server-tcp",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            },
+            {
+              "phase": "confirmation",
+              "actionId": "d04-server-http",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            }
+          ]
+        }
+      },
+      "tasks": [
+        {
+          "id": "e5ab29dd38a68f5ead46db26ee041175",
+          "agent": "branch",
+          "check": "d01-office-dns",
+          "state": "finished",
+          "observation": {
+            "id": "e5ab29dd38a68f5ead46db26ee041175",
+            "zone": "office",
+            "agent": "branch",
+            "check": "d01-office-dns",
+            "reason": "negative_probe",
+            "monitor": "research-web",
+            "outcome": "failure",
+            "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:22:09.599478782Z",
+            "finishedAt": "2026-11-13T14:22:19.611957876Z",
+            "diagnosticTaskID": "e5ab29dd38a68f5ead46db26ee041175"
+          }
+        },
+        {
+          "id": "63fb793c7af63bd020a171d963999748",
+          "agent": "dc",
+          "check": "d02-server-dns",
+          "state": "finished",
+          "observation": {
+            "id": "63fb793c7af63bd020a171d963999748",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d02-server-dns",
+            "reason": "negative_probe",
+            "monitor": "research-web",
+            "outcome": "failure",
+            "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:22:20.237039616Z",
+            "finishedAt": "2026-11-13T14:22:30.247137036Z",
+            "diagnosticTaskID": "63fb793c7af63bd020a171d963999748"
+          }
+        },
+        {
+          "id": "793d5559bbe8f87e4e2fffd2734534f3",
+          "agent": "dc",
+          "check": "d03-server-tcp",
+          "state": "finished",
+          "observation": {
+            "id": "793d5559bbe8f87e4e2fffd2734534f3",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d03-server-tcp",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:22:31.204977767Z",
+            "finishedAt": "2026-11-13T14:22:31.208666935Z",
+            "diagnosticTaskID": "793d5559bbe8f87e4e2fffd2734534f3"
+          }
+        },
+        {
+          "id": "201b5f4d739f557655bdf1334568120b",
+          "agent": "dc",
+          "check": "d04-server-http",
+          "state": "finished",
+          "observation": {
+            "id": "201b5f4d739f557655bdf1334568120b",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d04-server-http",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:22:32.212420438Z",
+            "finishedAt": "2026-11-13T14:22:32.218955025Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "201b5f4d739f557655bdf1334568120b"
+          }
+        }
+      ]
+    },
+    {
+      "repetition": 1,
+      "mode": "static",
+      "scenario": "dns-drop",
+      "ground_truth": "dns-failure",
+      "fault_control_started_at": "2026-11-13T14:22:47.501430+00:00",
+      "expected_state": "down",
+      "state": "down",
+      "state_correct": true,
+      "status": "completed",
+      "prediction": "dns-failure",
+      "diagnosis_correct": true,
+      "duration_ms": 24551,
+      "assessment_sample_after_control_ms": 8133,
+      "reserved_checks": 6,
+      "probe_observations": 6,
+      "completed_probes": 6,
+      "execution_failures": 0,
+      "reason": "confirmed_class",
+      "assessment": {
+        "monitor": "research-web",
+        "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+        "at": "2026-11-13T14:22:56.793964438Z",
+        "state": "down",
+        "zones": [
+          {
+            "zone": "office",
+            "state": "down",
+            "coverage": "complete",
+            "q": 1,
+            "h": 0.6666666666666666,
+            "evidence": [
+              "9f4907f3e3354045f2b31782fc82ac93",
+              "0f9ed499569f7428e3caae8313f803ea",
+              "c54262275987b7570ffea21b5b5fe03c"
+            ],
+            "reason": "required_failure"
+          },
+          {
+            "zone": "server",
+            "state": "down",
+            "coverage": "complete",
+            "q": 1,
+            "h": 0.6666666666666666,
+            "evidence": [
+              "1c357712fa6fd32bb9d16a748fb4c208",
+              "f666aeba42cf9fd0cb58cf3b81d0ed0b",
+              "3858d33286d5bbd5039c7b0315f14e8f"
+            ],
+            "reason": "required_failure"
+          }
+        ]
+      },
+      "diagnostic": {
+        "id": "c9d5b8b220be76e8ea8c0a5789978095",
+        "monitor": "research-web",
+        "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+        "reservedChecks": 6,
+        "startedAt": "2026-11-13T14:22:56.801222Z",
+        "finishedAt": "2026-11-13T14:23:21.356738Z",
+        "result": {
+          "confirmation": {
+            "requiredActions": [
+              "d01-office-dns",
+              "d02-server-dns",
+              "d03-server-tcp",
+              "d04-server-http"
+            ],
+            "observedActions": [
+              "d01-office-dns",
+              "d02-server-dns",
+              "d03-server-tcp",
+              "d04-server-http"
+            ],
+            "observations": 4,
+            "distinctFailureDomains": 2,
+            "satisfied": true,
+            "countedEvidence": [
+              "attempt:1",
+              "attempt:2",
+              "attempt:3",
+              "attempt:4"
+            ]
+          },
+          "durationMs": 24551,
+          "mode": "static",
+          "status": "completed",
+          "reason": "confirmed_class",
+          "hypotheses": [
+            "dns-failure"
+          ],
+          "attempts": 6,
+          "costUnits": 6,
+          "decisions": [
+            {
+              "phase": "primary",
+              "actionId": "d01-office-dns",
+              "agentId": "branch",
+              "hypothesesBefore": [
+                "dns-failure",
+                "http-failure",
+                "office-path-failure",
+                "tcp-failure"
+              ],
+              "gain": 4,
+              "score": 4,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "failure"
+              }
+            },
+            {
+              "phase": "primary",
+              "actionId": "d02-server-dns",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure",
+                "office-path-failure"
+              ],
+              "gain": 1,
+              "score": 1,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "failure"
+              }
+            },
+            {
+              "phase": "primary",
+              "actionId": "d03-server-tcp",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            },
+            {
+              "phase": "primary",
+              "actionId": "d04-server-http",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            },
+            {
+              "phase": "primary",
+              "actionId": "d05-office-http",
+              "agentId": "branch",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            },
+            {
+              "phase": "primary",
+              "actionId": "d06-office-tcp",
+              "agentId": "branch",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            }
+          ]
+        }
+      },
+      "tasks": [
+        {
+          "id": "8789b13b3031b5a341cb65bf03a2dcea",
+          "agent": "branch",
+          "check": "d01-office-dns",
+          "state": "finished",
+          "observation": {
+            "id": "8789b13b3031b5a341cb65bf03a2dcea",
+            "zone": "office",
+            "agent": "branch",
+            "check": "d01-office-dns",
+            "reason": "negative_probe",
+            "monitor": "research-web",
+            "outcome": "failure",
+            "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:22:56.8386698Z",
+            "finishedAt": "2026-11-13T14:23:06.849637514Z",
+            "diagnosticTaskID": "8789b13b3031b5a341cb65bf03a2dcea"
+          }
+        },
+        {
+          "id": "1f8c6d19c9425047b90a288f8c63d9f4",
+          "agent": "dc",
+          "check": "d02-server-dns",
+          "state": "finished",
+          "observation": {
+            "id": "1f8c6d19c9425047b90a288f8c63d9f4",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d02-server-dns",
+            "reason": "negative_probe",
+            "monitor": "research-web",
+            "outcome": "failure",
+            "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:07.369654285Z",
+            "finishedAt": "2026-11-13T14:23:17.383525238Z",
+            "diagnosticTaskID": "1f8c6d19c9425047b90a288f8c63d9f4"
+          }
+        },
+        {
+          "id": "2f4177afc19ed13e87357be3a9b618ba",
+          "agent": "dc",
+          "check": "d03-server-tcp",
+          "state": "finished",
+          "observation": {
+            "id": "2f4177afc19ed13e87357be3a9b618ba",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d03-server-tcp",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:18.341180267Z",
+            "finishedAt": "2026-11-13T14:23:18.34405825Z",
+            "diagnosticTaskID": "2f4177afc19ed13e87357be3a9b618ba"
+          }
+        },
+        {
+          "id": "82f075a695d1be791e9403e06444095e",
+          "agent": "dc",
+          "check": "d04-server-http",
+          "state": "finished",
+          "observation": {
+            "id": "82f075a695d1be791e9403e06444095e",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d04-server-http",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:19.350819517Z",
+            "finishedAt": "2026-11-13T14:23:19.355499367Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "82f075a695d1be791e9403e06444095e"
+          }
+        },
+        {
+          "id": "a36a39ff6a3a32d7ed7447d87a902cfb",
+          "agent": "branch",
+          "check": "d05-office-http",
+          "state": "finished",
+          "observation": {
+            "id": "a36a39ff6a3a32d7ed7447d87a902cfb",
+            "zone": "office",
+            "agent": "branch",
+            "check": "d05-office-http",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:20.339645895Z",
+            "finishedAt": "2026-11-13T14:23:20.344706737Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "a36a39ff6a3a32d7ed7447d87a902cfb"
+          }
+        },
+        {
+          "id": "872ae7bd463b353a90c3566a8fe91f0d",
+          "agent": "branch",
+          "check": "d06-office-tcp",
+          "state": "finished",
+          "observation": {
+            "id": "872ae7bd463b353a90c3566a8fe91f0d",
+            "zone": "office",
+            "agent": "branch",
+            "check": "d06-office-tcp",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "0115fabaffbffa53cf84797b5c935114554c37b58187758eb5b3e12350a83752",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:20.366572719Z",
+            "finishedAt": "2026-11-13T14:23:20.36854897Z",
+            "diagnosticTaskID": "872ae7bd463b353a90c3566a8fe91f0d"
+          }
+        }
+      ]
+    },
+    {
+      "repetition": 1,
+      "mode": "fixed",
+      "scenario": "dns-drop",
+      "ground_truth": "dns-failure",
+      "fault_control_started_at": "2026-11-13T14:23:34.483275+00:00",
+      "expected_state": "down",
+      "state": "down",
+      "state_correct": true,
+      "status": "completed",
+      "prediction": "dns-failure",
+      "diagnosis_correct": true,
+      "duration_ms": 23433,
+      "assessment_sample_after_control_ms": 9594,
+      "reserved_checks": 4,
+      "probe_observations": 4,
+      "completed_probes": 4,
+      "execution_failures": 0,
+      "reason": "supported_class",
+      "assessment": {
+        "monitor": "research-web",
+        "revision": "7dba8c66a876a2647f1fd8857d2237db87eabdf1ed119a6df24c2cc611b3f65d",
+        "at": "2026-11-13T14:23:44.824946082Z",
+        "state": "down",
+        "zones": [
+          {
+            "zone": "office",
+            "state": "down",
+            "coverage": "complete",
+            "q": 1,
+            "h": 0.6666666666666666,
+            "evidence": [
+              "bdf9926b2d6449b9f5a35fb5efaa3e98",
+              "c2b7adb0ba48d42cd0df55a7bc8bbe40",
+              "4925bbdc367d38d11441bc34f6eb72af"
+            ],
+            "reason": "required_failure"
+          },
+          {
+            "zone": "server",
+            "state": "down",
+            "coverage": "complete",
+            "q": 1,
+            "h": 0.6666666666666666,
+            "evidence": [
+              "d66055ebbf7df678a4012d9a7363cef7",
+              "601998aeccdb81d9a19a21b053a92a47",
+              "29d0132eabdb5539811e42199037c353"
+            ],
+            "reason": "required_failure"
+          }
+        ]
+      },
+      "diagnostic": {
+        "id": "e2305e641c1ae2913c7407d0d3d3a4bc",
+        "monitor": "research-web",
+        "revision": "7dba8c66a876a2647f1fd8857d2237db87eabdf1ed119a6df24c2cc611b3f65d",
+        "reservedChecks": 4,
+        "startedAt": "2026-11-13T14:23:43.829973Z",
+        "finishedAt": "2026-11-13T14:24:07.265782Z",
+        "result": {
+          "durationMs": 23433,
+          "mode": "fixed",
+          "status": "completed",
+          "reason": "supported_class",
+          "hypotheses": [
+            "dns-failure"
+          ],
+          "attempts": 4,
+          "costUnits": 4,
+          "decisions": [
+            {
+              "actionId": "d01-office-dns",
+              "agentId": "branch",
+              "hypothesesBefore": [
+                "dns-failure",
+                "http-failure",
+                "office-path-failure",
+                "tcp-failure"
+              ],
+              "gain": 4,
+              "score": 4,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "failure"
+              }
+            },
+            {
+              "actionId": "d02-server-dns",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure",
+                "office-path-failure"
+              ],
+              "gain": 1,
+              "score": 1,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "failure"
+              }
+            },
+            {
+              "actionId": "d03-server-tcp",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            },
+            {
+              "actionId": "d04-server-http",
+              "agentId": "dc",
+              "hypothesesBefore": [
+                "dns-failure"
+              ],
+              "gain": 0,
+              "score": 0,
+              "result": {
+                "Execution": "completed",
+                "Outcome": "success"
+              }
+            }
+          ]
+        }
+      },
+      "tasks": [
+        {
+          "id": "19a73f2296a0339f639715a71d190aa7",
+          "agent": "branch",
+          "check": "d01-office-dns",
+          "state": "finished",
+          "observation": {
+            "id": "19a73f2296a0339f639715a71d190aa7",
+            "zone": "office",
+            "agent": "branch",
+            "check": "d01-office-dns",
+            "reason": "negative_probe",
+            "monitor": "research-web",
+            "outcome": "failure",
+            "revision": "7dba8c66a876a2647f1fd8857d2237db87eabdf1ed119a6df24c2cc611b3f65d",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:43.851493875Z",
+            "finishedAt": "2026-11-13T14:23:53.864550282Z",
+            "diagnosticTaskID": "19a73f2296a0339f639715a71d190aa7"
+          }
+        },
+        {
+          "id": "86ef6b185760eea3d66d02ed068e5c96",
+          "agent": "dc",
+          "check": "d02-server-dns",
+          "state": "finished",
+          "observation": {
+            "id": "86ef6b185760eea3d66d02ed068e5c96",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d02-server-dns",
+            "reason": "negative_probe",
+            "monitor": "research-web",
+            "outcome": "failure",
+            "revision": "7dba8c66a876a2647f1fd8857d2237db87eabdf1ed119a6df24c2cc611b3f65d",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:23:54.353919317Z",
+            "finishedAt": "2026-11-13T14:24:04.367932923Z",
+            "diagnosticTaskID": "86ef6b185760eea3d66d02ed068e5c96"
+          }
+        },
+        {
+          "id": "a8b7885cea3255a41b9a6d48455c7585",
+          "agent": "dc",
+          "check": "d03-server-tcp",
+          "state": "finished",
+          "observation": {
+            "id": "a8b7885cea3255a41b9a6d48455c7585",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d03-server-tcp",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "7dba8c66a876a2647f1fd8857d2237db87eabdf1ed119a6df24c2cc611b3f65d",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:24:05.282582634Z",
+            "finishedAt": "2026-11-13T14:24:05.284477596Z",
+            "diagnosticTaskID": "a8b7885cea3255a41b9a6d48455c7585"
+          }
+        },
+        {
+          "id": "aec9198be2fe9a528682fda7f21ee858",
+          "agent": "dc",
+          "check": "d04-server-http",
+          "state": "finished",
+          "observation": {
+            "id": "aec9198be2fe9a528682fda7f21ee858",
+            "zone": "server",
+            "agent": "dc",
+            "check": "d04-server-http",
+            "reason": "positive_probe",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "7dba8c66a876a2647f1fd8857d2237db87eabdf1ed119a6df24c2cc611b3f65d",
+            "execution": "completed",
+            "startedAt": "2026-11-13T14:24:06.321186881Z",
+            "finishedAt": "2026-11-13T14:24:06.332791223Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "aec9198be2fe9a528682fda7f21ee858"
+          }
+        }
+      ]
+    }
+  ]
+}

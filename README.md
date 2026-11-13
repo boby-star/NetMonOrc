@@ -121,6 +121,8 @@ export GOCACHE=/workspace/.cache/netmonorc-go
 Static також доступний через прапорець дослідницького порівняння:
 `-diagnostic-comparison-static`. Усі три режими виконують реальні probes,
 є [пілот на двох сегментах із сирими даними й відомими помилками](docs/experiments/compose-pilot/README.md).
-Серії повторень та підтверджувальна діагностика ще попереду.
+[Явне підтвердження](docs/experiments/confirmation-pilot/README.md) виправляє
+відомий HTTP+DNS false class; [DNS-drop](docs/experiments/dns-drop-pilot/README.md)
+перевіряє повний timeout. Серії повторень і простий webhook ще попереду.
 
 Орієнтовна готовність і залишок мінімуму: [критерії оцінки](docs/planning/prototype-readiness.md).

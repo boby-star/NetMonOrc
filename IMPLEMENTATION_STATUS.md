@@ -1,7 +1,7 @@
 # Фактичний стан мінімального прототипу
 
 Це послідовність завершених етапів. Актуальні межі зведено наприкінці;
-орієнтовна готовність мінімуму — [близько 80%](docs/planning/prototype-readiness.md).
+орієнтовна готовність мінімуму — [близько 85%](docs/planning/prototype-readiness.md).
 
 ## Перший локальний етап — реалізовано
 
@@ -71,7 +71,7 @@ Gain/Cost selector, hypothesis filtering, actor eligibility/placement,
 budget ledger, відсутність повторів Adaptive actions, Fixed DAG/CEL,
 Static comparison mode, baseline equivalence matcher та пояснення рішень.
 DiagnosticProfile parser використовує наявні kind/fields; підтримує
-bounded subset і явно відхиляє неготові confirmation/retry/replicas>1.
+bounded subset; confirmation додано нижче, retry/replicas>1 ще відхиляються.
 
 Виконано синтетичний replay 15 runs у JSON/CSV з однаковими каталогами
 та бюджетами. Це не мережевий експеримент. Контрприклад для early-stop
@@ -80,7 +80,7 @@ bounded subset і явно відхиляє неготові confirmation/retry/
 baseline freshness/equivalence, placement, повторні Fixed steps і CEL.
 
 Runtime Fixed/Adaptive підключено наступним етапом нижче. Публічного
-запуску, confirmation/retry та натурного порівняння трьох режимів немає.
+запуску й technical retry немає; confirmation та натурні пілоти додані нижче.
 
 ## CEL Assessment — реалізовано в робочому ланцюгу
 
@@ -196,6 +196,18 @@ HTTP+DNS → inconclusive після двох primary і двох confirmation p
 семплах; HTTP+DNS → inconclusive в усіх режимах. Набір: docs/experiments/confirmation-pilot/README.md.
 Це один повтор, не статистичний доказ універсальної точності.
 
+## Час probe та доставлення задачі — розділено
+
+20s orchestration allowance враховується всередині незмінного global
+budget; check.timeout у driver не збільшується. Перед task поновлюється
+30s lease, Agent перевіряє достатність safe time на повний probe/startup.
+Live one-shot профіль явно обмежено 100ms..15s. Мінімум 6s більше не потрібний.
+
+Окремий live DNS-drop пілот пройшов у трьох режимах: дві 10s перевірки DNS
+завершились completed/failure, без execution_failed; отримано правильний
+state/class. ADR 0002 і docs/experiments/dns-drop-pilot містять межі й дані.
+Це не гарантія всіх мережевих таймаутів або підтримка OS suspend.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, повний agent protocol і керування сертифікатами.
@@ -203,13 +215,14 @@ HTTP+DNS → inconclusive після двох primary і двох confirmation p
 2. Hostname targets і повна firewall-політика exporter.
 3. CheckProfile/AssessmentPolicy refs і решта необхідних DSL
    можливостей; CEL assessment та CEL fixed conditions уже реалізовані.
-4. Confirmation/retry, безпечна класифікація множинної несправності,
-   мовчазні мережеві таймаути та повторні сеанси зі спільним бюджетом.
-   Натурний пілот усіх трьох режимів уже є; помилки відкрито зафіксовані.
+4. Technical retry, повторні сеанси зі спільним бюджетом, неперевірені
+   unknown/multiple patterns, довгі tasks/suspend/backpressure. Явне
+   confirmation, відома HTTP+DNS несправність та DNS silent timeout уже перевірені.
 5. Простий webhook; повна інтерактивна вебпанель не входить до мінімуму.
    Перегляд результатів доступний через приватний HTML-звіт.
 6. Повторні серії експериментів і статистичний аналіз. Стенд із окремими
    сегментами, controlled faults та експорт уже реалізовані.
 
-Цей стан не є відновленням попереднього коду. Нормативні файли не змінені;
-непідтримувані можливості не позначаються завершеними.
+Цей стан не є відновленням попереднього коду. Погоджені confirmation поля
+й уточнення внесено до DSL, ТЗ та DOCX із ADR 0001; HTTP API не змінено.
+Непідтримувані можливості не позначаються завершеними.
