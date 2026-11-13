@@ -83,3 +83,25 @@ func VerifyDiagnosticCheck(c monitor.Check) error {
 	}
 	return validateProbe(c)
 }
+
+// WithStaticComparison selects the research baseline without adding a DSL enum.
+// Include the selection in the effective revision to keep experiments distinct.
+func WithStaticComparison(p monitor.Plan) (monitor.Plan, error) {
+	if p.Diagnostics == nil || !p.Diagnostics.Enabled || p.Diagnostics.ProfileHash == "" {
+		return p, fmt.Errorf("static comparison requires resolved enabled diagnostics")
+	}
+	b := *p.Diagnostics
+	b.ComparisonStatic = true
+	p.Diagnostics = &b
+	p.Revision = ""
+	data, e := json.Marshal(p)
+	if e != nil {
+		return p, e
+	}
+	if len(data) > (1<<20)-4096 {
+		return p, fmt.Errorf("compiled comparison plan exceeds frame budget")
+	}
+	hash := sha256.Sum256(data)
+	p.Revision = hex.EncodeToString(hash[:])
+	return p, nil
+}

@@ -170,8 +170,10 @@ func chooseExecutor(p Placement, agents []Executor, round int) Executor {
 
 // Run executes serially within maxParallel. Static is an experiment mode, not a
 // new YAML enum. All modes share catalog, eligibility and the same budget rules.
-func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Executor, ledger *Ledger, initial []Evidence, monitorState string) (Result, error) {
-	r := Result{Mode: mode, Status: "inconclusive", Hypotheses: append([]string(nil), p.Hypotheses...), Decisions: []Decision{}}
+func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Executor, ledger *Ledger, initial []Evidence, monitorState string) (r Result, err error) {
+	started := time.Now()
+	defer func() { elapsed := time.Since(started).Milliseconds(); r.DurationMillis = &elapsed }()
+	r = Result{Mode: mode, Status: "inconclusive", Hypotheses: append([]string(nil), p.Hypotheses...), Decisions: []Decision{}}
 	if err := Validate(p); err != nil {
 		return r, err
 	}

@@ -25,6 +25,9 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 		return fmt.Errorf("invalid plan revision or size")
 	}
 	if d := p.Diagnostics; d != nil {
+		if d.ComparisonStatic && !d.Enabled {
+			return fmt.Errorf("static comparison requires enabled diagnostics")
+		}
 		if d.Enabled && (d.ProfileRef == "" || len(d.ProfileHash) != 64) {
 			return fmt.Errorf("unresolved diagnostic binding")
 		}

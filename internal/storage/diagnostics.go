@@ -75,7 +75,11 @@ func (s *Store) StartDiagnostic(ctx context.Context, p monitor.Plan, profile dia
 	if episode == "" || run == "" {
 		return "", fmt.Errorf("random identity unavailable")
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, profile.Mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration))
+	mode := profile.Mode
+	if p.Diagnostics.ComparisonStatic {
+		mode = "static"
+	}
+	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration))
 	if e != nil {
 		return "", e
 	}

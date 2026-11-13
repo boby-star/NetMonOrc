@@ -26,7 +26,7 @@
 {{if .Diagnostic}}{{with .Diagnostic}}
 <div class="top"><span class="badge {{class .Result.Status}}">{{state .Result.Status}}</span><span class="sub">{{.Result.Mode}} · {{stamp .StartedAt}}</span></div>
 <p class="code">{{.Result.Reason}}</p>
-<div class="stats"><div><b>{{.ReservedChecks}}</b><span class="sub">зарезервовано перевірок</span></div><div><b>{{len .Result.Decisions}}</b><span class="sub">відомих результатів планувальника</span></div><div><b>{{.Result.Cost}}</b><span class="sub">costUnits, не байти</span></div></div>
+<div class="stats"><div><b>{{if .Result.DurationMillis}}{{.Result.DurationMillis}} мс{{else}}—{{end}}</b><span class="sub">час від запуску планувальника</span></div><div><b>{{.ReservedChecks}}</b><span class="sub">зарезервовано перевірок</span></div><div><b>{{len .Result.Decisions}}</b><span class="sub">відомих результатів планувальника</span></div><div><b>{{.Result.Cost}}</b><span class="sub">costUnits, не байти</span></div></div>
 {{if .Result.Hypotheses}}<p>Сумісні класи: {{range .Result.Hypotheses}}<span class="code">{{.}} </span>{{end}}</p>{{end}}
 <div class="scroll"><table><thead><tr><th>Дія</th><th>Agent</th><th>Gain / Score</th><th>Виконання</th><th>Результат probe</th></tr></thead><tbody>
 {{range .Result.Decisions}}<tr><td class="code">{{.ActionID}}</td><td>{{.AgentID}}</td><td>{{.Gain}} / {{printf "%.2f" .Score}}</td><td>{{.Outcome.Execution}}</td><td>{{.Outcome.Outcome}}</td></tr>{{else}}<tr><td colspan="5">Завершення фізичних probes не підтверджене. Резервування бюджету не означає успішне виконання.</td></tr>{{end}}</tbody></table></div>

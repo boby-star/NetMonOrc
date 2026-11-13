@@ -63,12 +63,13 @@ type Observation struct {
 
 // Diagnostic configuration is inert until its referenced profile is resolved.
 type DiagnosticBinding struct {
-	Enabled     bool
-	ProfileRef  string
-	ProfileHash string
-	OnStates    []string
-	When        string
-	Cooldown    time.Duration
+	ComparisonStatic bool `json:",omitempty"` // Internal experiment flag; never a YAML field.
+	Enabled          bool
+	ProfileRef       string
+	ProfileHash      string
+	OnStates         []string
+	When             string
+	Cooldown         time.Duration
 }
 
 type ZoneAssessment struct {

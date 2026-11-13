@@ -44,6 +44,7 @@ func run() error {
 	profilePath := flag.String("diagnostic-profile", "", "referenced DiagnosticProfile file; no diagnostics without enabled binding")
 	reportPath := flag.String("diagnostic-file", ".local/diagnostic.json", "latest persisted diagnostic report")
 	webReport := flag.String("report-file", "", "optional private HTML report; no HTTP listener")
+	staticComparison := flag.Bool("diagnostic-comparison-static", false, "research baseline: run every action from the same catalog; not a YAML mode")
 	flag.Parse()
 	b, e := os.ReadFile(*manifest)
 	if e != nil {
@@ -72,6 +73,12 @@ func run() error {
 		}
 	} else if *profilePath != "" {
 		return fmt.Errorf("diagnostics disabled; profile cannot trigger a run")
+	}
+	if *staticComparison {
+		p, e = config.WithStaticComparison(p)
+		if e != nil {
+			return e
+		}
 	}
 	assessor, e := monitor.NewAssessor(p)
 	if e != nil {

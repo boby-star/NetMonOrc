@@ -36,6 +36,19 @@ func TestResolvedDiagnosticDependencyChangesRevision(t *testing.T) {
 	if e = VerifyPlan(p, "office"); e == nil {
 		t.Fatal("unresolved Agent plan accepted")
 	}
+	baseline, e := WithStaticComparison(resolved)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if baseline.Revision == resolved.Revision || !baseline.Diagnostics.ComparisonStatic {
+		t.Fatal("comparison mode did not change effective revision")
+	}
+	if e = VerifyPlan(baseline, "office"); e != nil {
+		t.Fatal(e)
+	}
+	if resolved.Diagnostics.ComparisonStatic {
+		t.Fatal("comparison mutated original binding")
+	}
 	profile.Actions[0].Cost = 2
 	changed, e := ResolveDiagnostics(p, profile)
 	if e != nil {

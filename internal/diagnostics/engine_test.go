@@ -56,6 +56,9 @@ func TestCompareModes(t *testing.T) {
 					return d.Outcome{Execution: "completed", Outcome: tc.outcomes[a.ID]}, nil
 				})}
 				r, e := engine.Run(context.Background(), p, mode, agents(), &d.Ledger{}, nil, "down")
+				if r.DurationMillis == nil || *r.DurationMillis < 0 {
+					t.Fatal("monotonic run duration missing")
+				}
 				if e != nil || r.Status != "completed" || len(r.Hypotheses) != 1 || r.Hypotheses[0] != tc.truth || r.Attempts != tc.counts[i] {
 					t.Fatalf("%s: %+v %v", mode, r, e)
 				}

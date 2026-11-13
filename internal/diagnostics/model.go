@@ -69,14 +69,15 @@ type Decision struct {
 	Outcome          Outcome  `json:"result"`
 }
 type Result struct {
-	Mode         string     `json:"mode"`
-	Status       string     `json:"status"`
-	Reason       string     `json:"reason"`
-	Hypotheses   []string   `json:"hypotheses"`
-	Attempts     int        `json:"attempts"`
-	Cost         float64    `json:"costUnits"`
-	Decisions    []Decision `json:"decisions"`
-	SkippedSteps []string   `json:"skippedSteps,omitempty"`
+	DurationMillis *int64     `json:"durationMs,omitempty"`
+	Mode           string     `json:"mode"`
+	Status         string     `json:"status"`
+	Reason         string     `json:"reason"`
+	Hypotheses     []string   `json:"hypotheses"`
+	Attempts       int        `json:"attempts"`
+	Cost           float64    `json:"costUnits"`
+	Decisions      []Decision `json:"decisions"`
+	SkippedSteps   []string   `json:"skippedSteps,omitempty"`
 }
 
 // The coordinator must reuse the same ledger for an incident episode. This

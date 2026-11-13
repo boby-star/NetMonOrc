@@ -7,7 +7,8 @@
 `CompileDiagnostics` читає закриту підмножину нормативного DiagnosticProfile.
 Для Fixed/Adaptive додано автоматичний мережевий запуск через Controller
 і Agent: [операційний контур](diagnostic-runtime.md). Публічного start API
-немає. Static у цьому документі залишається синтетичним replay.
+немає. Static додатково підключено через окремий comparison flag Controller.
+Наведена нижче таблиця залишається результатом синтетичного replay.
 
 - Adaptive: кількість пар сумісних гіпотез із неперетинними очікуваними
   результатами / costUnits. Формула відповідає ТЗ §4.9.
@@ -17,7 +18,7 @@
   Невідома місткість не вгадується: Capacity<=0 не допускається до виконання.
 - Fixed: DAG із перевіркою циклів, dependsOn та CEL when. Контекст містить
   tasks і monitor.state; результат повинен бути bool. CEL має cost limit.
-- Static — лише режим дослідницького runner-а. Нового `mode: static`
+- Static — режим дослідницького порівняння у replay або Controller. Нового `mode: static`
   у YAML не додано.
 - Всі режими зараз послідовні, отже не перевищують maxParallel.
   Переваг за latency для паралельних baseline ця реалізація не доводить.

@@ -117,6 +117,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	if s.Plan.Diagnostics != nil && s.Plan.Diagnostics.Enabled && !capabilities["diagnostics:serial"] {
 		return status.Error(codes.FailedPrecondition, "diagnostic execution capability unavailable")
 	}
+	if s.Plan.Diagnostics != nil && s.Plan.Diagnostics.ComparisonStatic && !capabilities["diagnostics:static-comparison"] {
+		return status.Error(codes.FailedPrecondition, "static comparison IR capability unavailable")
+	}
 	dbctx, dbCancel := context.WithTimeout(ctx, 5*time.Second)
 	generation, e := s.Store.BeginSession(dbctx, id)
 	dbCancel()

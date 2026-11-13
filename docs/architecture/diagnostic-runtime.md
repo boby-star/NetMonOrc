@@ -1,6 +1,9 @@
 # Операційний контур діагностики дослідницького прототипу
 
 Controller викликає те саме чисте ядро Fixed/Adaptive після Assessment.
+Прапорець `-diagnostic-comparison-static` запускає Static baseline з того
+самого профілю, каталогу, Agent і бюджетів. Значення mode: static у YAML
+немає; вибір baseline входить до effective revision як внутрішній IR context.
 Стандартні probe drivers і дозволені мережеві цілі Agent залишаються спільними
 для регулярних перевірок і діагностики. Нових REST routes або YAML enums немає.
 Це обмежений дослідницький контур; повний agent protocol §9 не завершено.
@@ -78,6 +81,7 @@ go build -o .local/netmonorc-controller ./cmd/netmonorc-controller
 go build -o .local/netmonorc-agent ./cmd/netmonorc-agent
 python3 scripts/distributed_smoke.py --diagnostics fixed
 python3 scripts/distributed_smoke.py --diagnostics adaptive
+python3 scripts/distributed_smoke.py --diagnostics static
 python3 scripts/distributed_smoke.py --diagnostics adaptive --diagnostic-runner blackbox --blackbox-binary /path/to/blackbox_exporter
 ```
 
@@ -91,3 +95,17 @@ healthy/full coverage, replay, TTL і ізоляцію результатів у
 паралельний planner, byte estimator, повний placement/PKI та натурні мережеві
 експерименти. Без byte estimator maxEstimatedBytes для live профілю
 відхиляється. Closed-catalog early-stop limitation описано в diagnostic-core.md.
+
+## Вимірювання часу
+
+`result.durationMs` вимірюється монотонним годинником усередині Engine:
+від початку Run до повернення результату, включно з task dispatch, probes
+і очікуванням durable result. Затримка між появою відмови та trigger сюди
+не входить. Після аварії втрачене вимірювання не відновлюється як нуль:
+поле відсутнє, HTML показує «—». У replay це час синтетичного обчислення,
+а не мережевої діагностики. Diagnostic Blackbox запускається на кожний task;
+його startup входить у час. Ця витрата однакова для runner-а всіх режимів.
+
+Live smoke Static з Blackbox пройшов обидва tasks спільного каталогу,
+класифікацію service-failure, збереження budget і crash/recovery. Це лише
+інтеграційний сценарій, не контрольований статистичний benchmark.

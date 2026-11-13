@@ -20,6 +20,9 @@ func TestReportEscapesEvidenceAndMarksHistoricalDiagnostic(t *testing.T) {
 	if strings.Contains(s, hostile) || !strings.Contains(s, "&lt;script&gt;") {
 		t.Fatal("untrusted evidence reached HTML unescaped")
 	}
+	if !strings.Contains(s, "<b>—</b>") {
+		t.Fatal("unknown elapsed time displayed as measured zero")
+	}
 	if !strings.Contains(s, "попередній ревізії") || !strings.Contains(s, "не означає успішне виконання") {
 		t.Fatal("historical/unknown diagnostic could be mistaken for a current conclusion")
 	}

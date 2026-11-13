@@ -23,6 +23,7 @@ type Coordinator struct {
 	Store      *storage.Store
 	ReportPath string
 	trigger    diagnostics.Trigger
+	mode       string
 	mu         sync.Mutex
 	running    bool
 	workers    sync.WaitGroup
@@ -45,7 +46,11 @@ func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store
 	if e != nil {
 		return nil, e
 	}
-	return &Coordinator{Plan: p, Profile: profile, Server: s, Store: store, ReportPath: path, trigger: t, errors: make(chan error, 1)}, nil
+	mode := profile.Mode
+	if p.Diagnostics.ComparisonStatic {
+		mode = "static"
+	}
+	return &Coordinator{mode: mode, Plan: p, Profile: profile, Server: s, Store: store, ReportPath: path, trigger: t, errors: make(chan error, 1)}, nil
 }
 func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observations []monitor.Observation) error {
 	select {
@@ -103,7 +108,7 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 		engine := diagnostics.Engine{Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
 			return agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
 		}}
-		result, e := engine.Run(ctx, c.Profile, c.Profile.Mode, agents, &diagnostics.Ledger{StartedAt: started}, initial, a.State)
+		result, e := engine.Run(ctx, c.Profile, c.mode, agents, &diagnostics.Ledger{StartedAt: started}, initial, a.State)
 		if e != nil {
 			result.Status = "inconclusive"
 			result.Reason = "planner_error"

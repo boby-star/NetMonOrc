@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--network', action='store_true')
 parser.add_argument('--cel', action='store_true')
 parser.add_argument('--extract', action='store_true')
-parser.add_argument('--diagnostics', choices=['adaptive','fixed'])
+parser.add_argument('--diagnostics', choices=['adaptive','fixed','static'])
 parser.add_argument('--diagnostic-runner',choices=['native-http','blackbox'],default='native-http')
 parser.add_argument('--blackbox-binary')
 args = parser.parse_args()
@@ -133,7 +133,7 @@ try:
     if args.diagnostics:
         text += '\n  diagnostics:\n    enabled: true\n    profileRef: live-web\n    cooldown: 1s\n'
         profile = work/'diagnostic-profile.yaml'
-        profile.write_text((ROOT/'examples/diagnostics'/('live-'+args.diagnostics+'.yaml')).read_text().replace('18080',str(http.server_port)).replace("/', expectedStatus","/diagnostic', expectedStatus").replace("runner: native-http","runner: "+args.diagnostic_runner))
+        profile.write_text((ROOT/'examples/diagnostics'/('live-'+('adaptive' if args.diagnostics=='static' else args.diagnostics)+'.yaml')).read_text().replace('18080',str(http.server_port)).replace("/', expectedStatus","/diagnostic', expectedStatus").replace("runner: native-http","runner: "+args.diagnostic_runner))
     manifest.write_text(text)
     pki = work/'pki'
     controller_args = ['-config', str(manifest), '-listen', f'127.0.0.1:{rpc_port}',
@@ -143,6 +143,8 @@ try:
                        '-report-file',str(work/'report.html')]
     if args.diagnostics:
         controller_args += ['-diagnostic-profile',str(profile),'-diagnostic-file',str(work/'diagnostic.json')]
+        if args.diagnostics=='static':
+            controller_args += ['-diagnostic-comparison-static']
     controller = start('netmonorc-controller', *controller_args)
     wait_for('no observations -> unknown', lambda: view().get('state') == 'unknown')
     # A foreign trust root cannot authenticate this Controller.
@@ -201,6 +203,7 @@ try:
                 return None
         report = wait_for('real Agent diagnostics -> supported service-failure',
                           lambda: (r if (r:=diagnosis()) and r['result']['status']=='completed' else None),seconds=25)
+        assert report['result']['mode']==args.diagnostics,report
         assert report['result']['hypotheses']==['service-failure'], report
         expected = 1 if args.diagnostics=='adaptive' else 2
         assert report['result']['attempts']==expected, report

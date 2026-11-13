@@ -19,8 +19,9 @@ Controller і Agent — окремі Go-процеси. Controller залиша�
 - Сертифікати для цього мінімального профілю підготовлені наперед.
   Enrollment, автоматична ротація та API відкликання ще не реалізовані.
 - `.proto` містить початкову підмножину ТЗ §9: Connect, Hello,
-  ConfigAssignment/Applied, ObservationBatch/Ack. Heartbeat/load,
-  diagnostic frames і CertificateRenewal поки відсутні.
+  ConfigAssignment/Applied, ObservationBatch/Ack. Додано Heartbeat/load
+  та DiagnosticTask/TaskReceipt; результати задач ідуть ObservationBatch.
+  CertificateRenewal і решта повного agent protocol відсутні.
 - Підтримується одна версія `v1alpha1`; IR передається як JSON у bytes
   типізованого Protobuf envelope з checksum і effective revision.
 - Максимум frame — 1 MiB, batch — 32 спостереження, план — 100 checks.
@@ -115,8 +116,9 @@ python3 scripts/dev_pki.py .local/pki
 Другий Agent запускається з `dc.crt`, `dc.key` і окремим каталогом.
 HTTP-ціль із маніфесту має бути доступною. `--help` показує всі flags.
 `blackbox` працює тим самим driver-ом, що локальний CLI; шлях задається
-параметром `-blackbox-binary`. Full distributed smoke наразі використовує
-native-http, а реальний Blackbox окремо перевірено `scripts/smoke.py`.
+параметром `-blackbox-binary`. Distributed smoke підтримує native-http,
+мережеві checks через `--network` і діагностичні probes через
+`--diagnostics adaptive --diagnostic-runner blackbox`.
 
 ## Генерація контракту
 

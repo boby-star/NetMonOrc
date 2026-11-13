@@ -113,4 +113,8 @@ export GOCACHE=/workspace/.cache/netmonorc-go
 [docs/architecture/diagnostic-core.md](docs/architecture/diagnostic-core.md).
 Операційний запуск Fixed/Adaptive підтримує один консервативний сеанс на
 інцидент, PostgreSQL budget reservations та відновлення після crash.
-Static поки порівнюється через replay; натурне порівняння трьох режимів ще попереду.
+Static також доступний через прапорець дослідницького порівняння:
+`-diagnostic-comparison-static`. Усі три режими виконують реальні probes,
+але повторювані експерименти в незалежних сегментах ще попереду.
+
+Орієнтовна готовність і залишок мінімуму: [критерії оцінки](docs/planning/prototype-readiness.md).
