@@ -171,10 +171,26 @@ spec:
             b=self.snapshot(name)
             if b is not None:
                 p=destination/name;p.write_bytes(b);p.chmod(0o600)
+    def backup(self,destination):
+        self.require()
+        destination=Path(destination)
+        destination.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
+        # Exclusive private creation avoids exposing the dump before chmod,
+        # and never overwrites the user's earlier backup.
+        fd=os.open(destination,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+        try:
+            with os.fdopen(fd,'wb') as output:
+                subprocess.run(['docker','compose','-p',self.project,'-f',str(ROOT/'compose.yaml'),
+                                'exec','-T','postgres','pg_dump','-U','netmonorc','-d','netmonorc','-Fc'],
+                               cwd=ROOT,env=self.env,stdout=output,stderr=subprocess.PIPE,check=True)
+                output.flush();os.fsync(output.fileno())
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation',choices=['prepare','up','status','inject','export','down'])
+    parser.add_argument('operation',choices=['prepare','up','status','inject','export','backup','down'])
     parser.add_argument('--project',default='netmonorc-lab')
     parser.add_argument('--prefix',default='172.30')
     parser.add_argument('--mode',choices=['static','fixed','adaptive'],default='adaptive')
@@ -189,6 +205,7 @@ def main():
         if args.operation=='status':print(json.dumps({'mode':lab.mode(),'assessment':lab.assessment(),'diagnostic':lab.diagnostic()},indent=2))
         elif args.operation=='inject':lab.inject(args.scenario);print('Injected:',args.scenario)
         elif args.operation=='export':lab.export(args.output);print('Exported private snapshots to',args.output)
+        elif args.operation=='backup':lab.backup(args.output);print('Saved private PostgreSQL dump to',args.output)
         elif args.operation=='down':lab.compose('down');print('Stopped; named volumes and data preserved.')
 if __name__=='__main__':
     try:main()

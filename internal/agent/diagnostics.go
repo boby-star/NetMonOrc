@@ -19,7 +19,7 @@ import (
 
 func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, monitor.Check, time.Time, error) {
 	a := st.get()
-	if task == nil || !validID(task.TaskId) || !validID(task.SessionId) || task.AttemptNo < 1 || task.AttemptNo > 50 || len(task.CompiledCheck) > 64<<10 || a == nil || a.plan.Diagnostics == nil || !a.plan.Diagnostics.Enabled || task.Revision != a.plan.Revision || !time.Now().Before(a.deadline) {
+	if task == nil || !validID(task.TaskId) || !validID(task.SessionId) || task.AttemptNo < 1 || task.AttemptNo > 50 || len(task.CompiledCheck) > 64<<10 || a == nil || a.plan.Diagnostics == nil || !a.plan.Diagnostics.Enabled || task.Revision != a.plan.Revision || !leaseValid(a) {
 		return nil, monitor.Check{}, time.Time{}, fmt.Errorf("task not authorized by current assignment")
 	}
 	var c monitor.Check
@@ -46,7 +46,7 @@ func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, m
 	if c.Runner == "blackbox" {
 		needed += 5 * time.Second
 	}
-	if time.Until(deadline) < needed {
+	if !leaseValid(a) || time.Until(deadline) < needed {
 		return nil, c, time.Time{}, fmt.Errorf("insufficient safe time for configured probe and startup")
 	}
 	// Persist the receipt before any side effect. A lost result can be replayed
@@ -70,7 +70,7 @@ func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, m
 	if e = syncTaskDir(dir); e != nil {
 		return nil, c, time.Time{}, e
 	}
-	if time.Until(deadline) < needed {
+	if !leaseValid(a) || time.Until(deadline) < needed {
 		return nil, c, time.Time{}, fmt.Errorf("safe time expired while committing task receipt")
 	}
 	return a, c, deadline, nil
@@ -99,7 +99,11 @@ func executeTask(ctx context.Context, task *pb.DiagnosticTask, a *assignment, c 
 		exporter, e = probe.StartExporter(child, blackbox, p)
 		if e == nil {
 			defer exporter.Close()
-			o, e = exporter.Run(child, p, c, slot, allowed)
+			if !leaseValid(a) {
+				e = fmt.Errorf("lease expired during diagnostic startup")
+			} else {
+				o, e = exporter.Run(child, p, c, slot, allowed)
+			}
 		}
 	} else {
 		o, e = probe.HTTP(child, p, c, slot, allowed)

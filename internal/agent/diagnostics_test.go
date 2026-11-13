@@ -27,6 +27,11 @@ func TestDiagnosticAuthorizationReceiptAndDeadline(t *testing.T) {
 		t.Fatal(e)
 	}
 	a := &assignment{plan: p, zone: "office", deadline: time.Now().Add(25 * time.Second)}
+	boot, err := bootTime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.bootDeadline = boot + 25*time.Second
 	st := &state{current: a}
 	dir := t.TempDir()
 	task := &pb.DiagnosticTask{TaskId: "0123456789abcdef0123456789abcdef", SessionId: "1123456789abcdef0123456789abcdef", Revision: p.Revision, CompiledCheck: data, AttemptNo: 1, ExpiresAtUnixMilli: time.Now().Add(30 * time.Second).UnixMilli()}

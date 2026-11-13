@@ -148,3 +148,6 @@ Receiver SQLite зберігає attempt audit і дедуплікує event_id.
 webhook конфігурацію. Історія й пароль БД зберігаються. Export включає
 alert.json; HTML показує стан правила й час enqueue, а не гарантію доставки.
 Повна семантика та обмеження: [alert-delivery.md](../architecture/alert-delivery.md).
+
+Експорт бази та відновлення в окрему інсталяцію:
+[backup-recovery.md](backup-recovery.md). JSON/HTML export є звітом, а не копією БД.

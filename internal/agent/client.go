@@ -29,9 +29,10 @@ import (
 )
 
 type assignment struct {
-	plan     monitor.Plan
-	zone     string
-	deadline time.Time
+	plan         monitor.Plan
+	zone         string
+	deadline     time.Time
+	bootDeadline time.Duration
 }
 type state struct {
 	mu             sync.Mutex
@@ -293,6 +294,10 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 	}
 }
 func apply(a *pb.ConfigAssignment, st *state, dir string) error {
+	boot, err := bootTime()
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 	remaining := time.UnixMilli(a.ExpiresAtUnixMilli).Sub(now) - 5*time.Second
 	if remaining <= 0 || remaining > 30*time.Second {
@@ -323,7 +328,7 @@ func apply(a *pb.ConfigAssignment, st *state, dir string) error {
 	}
 	// time.Now().Add retains a monotonic deadline for the running process.
 	// Saved assignments are never resumed after process/OS restart.
-	st.set(&assignment{p, a.Zone, now.Add(remaining)})
+	st.set(&assignment{plan: p, zone: a.Zone, deadline: now.Add(remaining), bootDeadline: boot + remaining})
 	return nil
 }
 
@@ -345,7 +350,7 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 		case <-tick.C:
 		}
 		a := st.get()
-		if a == nil || !time.Now().Before(a.deadline) || spool.Full() {
+		if !leaseValid(a) || spool.Full() {
 			continue
 		}
 		if revision != a.plan.Revision {
@@ -360,7 +365,7 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 			if ctx.Err() != nil {
 				return nil
 			}
-			if spool.Full() || !time.Now().Before(a.deadline) {
+			if spool.Full() || !leaseValid(a) {
 				break
 			}
 			if time.Now().Before(next[c.ID]) {
@@ -377,7 +382,10 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 			st.active.Add(1)
 			if c.Runner == "blackbox" {
 				if exporter == nil {
-					exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
+					exporter, e = probe.StartExporter(child, blackbox, a.plan)
+				}
+				if e == nil && !leaseValid(a) {
+					e = fmt.Errorf("lease expired during exporter startup")
 				}
 				if e == nil {
 					o, e = exporter.Run(child, a.plan, c, slot, allowed)

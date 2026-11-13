@@ -263,3 +263,16 @@ startup failure → новий task з attemptNo=2 → completed/failure, пра
 Цей стан не є відновленням попереднього коду. Погоджені confirmation поля
 й уточнення внесено до DSL, ТЗ та DOCX із ADR 0001; HTTP API не змінено.
 Непідтримувані можливості не позначаються завершеними.
+
+## Експлуатаційне завершення: Linux lease і backup
+
+Agent перевіряє process monotonic deadline та CLOCK_BOOTTIME перед новими
+запусками й після startup exporter. Недоступний BOOTTIME закриває дозвіл;
+restart завжди потребує нового assignment. Перевірено модель suspend clock
+і реальний normal/reconnect/replay/TTL smoke. Фактичного suspend ОС не було.
+Докладно: docs/architecture/suspend-aware-lease.md.
+
+lab.py backup створює приватний pg_dump без перезапису старого файла.
+Restore окремої тимчасової БД перевірено реально; робоча БД не змінювалась.
+Порядок: docs/deployment/backup-recovery.md. Межі записки й приймання:
+docs/planning/prototype-acceptance.md.
