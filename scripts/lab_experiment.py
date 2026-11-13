@@ -88,6 +88,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project',default='netmonorc-lab')
     parser.add_argument('--prefix',default='172.30')
+    parser.add_argument('--policy',choices=['legacy','confirmed'],default='confirmed')
     parser.add_argument('--repetitions',type=int,default=1)
     parser.add_argument('--seed',type=int,default=7)
     parser.add_argument('--modes',default=','.join(MODES))
@@ -103,13 +104,14 @@ def main():
     lab=Lab(args.project,args.prefix);lab.require()
     if lab.mode() is None:parser.error('start the prepared stand before running experiments')
     # Validate compiled equivalence, including defaults, through the Go compiler.
+    suffix='-confirmed' if args.policy=='confirmed' else ''
     lab.compose('exec','-T','controller','/usr/local/bin/netmonorc-experiment',
-                '-adaptive','/run/netmonorc/adaptive.yaml','-fixed','/run/netmonorc/fixed.yaml','-validate-only')
+                '-adaptive','/run/netmonorc/adaptive'+suffix+'.yaml','-fixed','/run/netmonorc/fixed'+suffix+'.yaml','-validate-only')
     head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=Path(__file__).resolve().parents[1]).decode().strip()
     dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=Path(__file__).resolve().parents[1]))
     metadata={'source':'live-compose-fault-injection','started_at':datetime.now(timezone.utc).isoformat(),
               'git_head':head,'git_dirty':dirty,'project':args.project,'seed':args.seed,
-              'repetitions':args.repetitions,'clock':'shared host kernel; Engine duration uses monotonic clock',
+              'repetitions':args.repetitions,'policy':args.policy,'clock':'shared host kernel; Engine duration uses monotonic clock',
               'traffic_bytes_measured':False,'modes':modes,'scenarios':scenarios,'office_fault_control':'explicit prohibit route in office namespace',
               'state_sampling':'fresh evidence from all planned check/source pairs; expected state is not a polling predicate',
               'limitations':['small pilot is not statistical evidence','shared host resources',
@@ -123,7 +125,7 @@ def main():
         for repetition in range(1,args.repetitions+1):
             order=modes.copy();rng.shuffle(order)
             for mode in order:
-                lab.healthy();lab.up(mode)
+                lab.healthy();lab.up(mode,args.policy)
                 faults=scenarios.copy();rng.shuffle(faults)
                 for scenario in faults:
                     print(f'RUN {repetition} {mode} {scenario}',flush=True)

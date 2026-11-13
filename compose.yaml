@@ -98,7 +98,7 @@ services:
       - -assessment-file=/data/assessment.json
       - -diagnostic-file=/data/diagnostic.json
       - -report-file=/data/report.html
-      - -diagnostic-profile=/run/netmonorc/${NMO_PROFILE:-adaptive}.yaml
+      - -diagnostic-profile=/run/netmonorc/${NMO_PROFILE:-adaptive-confirmed}.yaml
       - -diagnostic-comparison-static=${NMO_STATIC:-false}
     depends_on: {postgres: {condition: service_healthy}}
     volumes: [controller-config:/run/netmonorc:ro, controller-data:/data]

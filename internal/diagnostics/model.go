@@ -38,13 +38,21 @@ type Step struct {
 	When       func(context.Context, map[string]Outcome, string) (bool, error) `json:"-"`
 	Expression string                                                          `json:",omitempty"`
 }
+type Confirmation struct {
+	ActionRefs                []string
+	MinObservations           int
+	MinDistinctFailureDomains int
+	MinSpacing                time.Duration
+}
 type Profile struct {
-	Name       string
-	Mode       string
-	Budget     Budget
-	Hypotheses []string
-	Actions    []Action
-	Steps      []Step
+	Confirmation        *Confirmation `json:",omitempty"`
+	ContinueAfterUnique bool          `json:",omitempty"`
+	Name                string
+	Mode                string
+	Budget              Budget
+	Hypotheses          []string
+	Actions             []Action
+	Steps               []Step
 }
 type Executor struct {
 	ID            string
@@ -56,11 +64,14 @@ type Executor struct {
 	Supported     map[string]bool
 }
 type Evidence struct {
-	ActionID string
-	AgentID  string
-	Outcome  Outcome
+	ObservationID string
+	ValidUntil    time.Time
+	ActionID      string
+	AgentID       string
+	Outcome       Outcome
 }
 type Decision struct {
+	Phase            string   `json:"phase,omitempty"`
 	ActionID         string   `json:"actionId"`
 	AgentID          string   `json:"agentId"`
 	HypothesesBefore []string `json:"hypothesesBefore"`
@@ -69,15 +80,17 @@ type Decision struct {
 	Outcome          Outcome  `json:"result"`
 }
 type Result struct {
-	DurationMillis *int64     `json:"durationMs,omitempty"`
-	Mode           string     `json:"mode"`
-	Status         string     `json:"status"`
-	Reason         string     `json:"reason"`
-	Hypotheses     []string   `json:"hypotheses"`
-	Attempts       int        `json:"attempts"`
-	Cost           float64    `json:"costUnits"`
-	Decisions      []Decision `json:"decisions"`
-	SkippedSteps   []string   `json:"skippedSteps,omitempty"`
+	Confirmation   *ConfirmationResult `json:"confirmation,omitempty"`
+	BlockedSteps   []string            `json:"blockedSteps,omitempty"`
+	DurationMillis *int64              `json:"durationMs,omitempty"`
+	Mode           string              `json:"mode"`
+	Status         string              `json:"status"`
+	Reason         string              `json:"reason"`
+	Hypotheses     []string            `json:"hypotheses"`
+	Attempts       int                 `json:"attempts"`
+	Cost           float64             `json:"costUnits"`
+	Decisions      []Decision          `json:"decisions"`
+	SkippedSteps   []string            `json:"skippedSteps,omitempty"`
 }
 
 // The coordinator must reuse the same ledger for an incident episode. This

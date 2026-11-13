@@ -178,6 +178,22 @@ route-withdrawal прогін з обмеженим sampler також збер�
 Agent loss на стенді дав office unknown/server healthy без diagnostic loop;
 reconnect відновив healthy. Дані: docs/experiments/compose-pilot/README.md.
 
+## Явне підтвердження — ядро й інтеграція реалізовані
+
+Adaptive confirmation використовує всі actionRefs, count різних доказів,
+Controller failure domains та causal minSpacing перед новим запуском.
+Budget і TTL не обходяться; duplicated baseline ID не подвоюється.
+Технічна невдача не повторюється як confirmation retry. Fixed із unknown
+активованого кроку не видає completed. Нові default confirmed профілі
+залишають original legacy конфігурації для відтворення попередніх даних.
+
+Пройдено критичні Go/race перевірки faults, budget, domains, spacing/cancel,
+expiry, duplicate baseline aliases та concurrent episode fencing. Погоджені
+поля й консервативна семантика задокументовані у DSL/TЗ/DOCX та ADR 0001.
+Реальний Adaptive smoke через mTLS/PostgreSQL/Blackbox підтвердив:
+HTTP+DNS → inconclusive після двох primary і двох confirmation probes.
+Повна серія для трьох режимів і всіх п'яти сценаріїв ще перевіряється.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, повний agent protocol і керування сертифікатами.

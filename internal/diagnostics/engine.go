@@ -75,6 +75,9 @@ func Validate(p Profile) error {
 			return fmt.Errorf("fixed placement requires agentRefs")
 		}
 	}
+	if err := validateConfirmation(p, actions); err != nil {
+		return err
+	}
 	if p.Mode == "fixed" {
 		if len(p.Steps) == 0 || len(p.Steps) > 100 {
 			return fmt.Errorf("fixed steps required")
@@ -197,6 +200,10 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		seenAgents[a.ID] = true
 	}
 	ledger.mu.Lock()
+	if ledger.running {
+		ledger.mu.Unlock()
+		return r, fmt.Errorf("episode already has an active diagnostic session")
+	}
 	if ledger.UsedChecks < 0 || ledger.EstimatedBytes < 0 || ledger.StartedAt.After(time.Now()) {
 		ledger.mu.Unlock()
 		return r, fmt.Errorf("invalid episode ledger")
@@ -204,10 +211,6 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	if ledger.policy != nil && *ledger.policy != p.Budget {
 		ledger.mu.Unlock()
 		return r, fmt.Errorf("episode budget policy cannot be replaced")
-	}
-	if ledger.running {
-		ledger.mu.Unlock()
-		return r, fmt.Errorf("episode already has an active diagnostic session")
 	}
 	ledger.running = true
 	if ledger.policy == nil {
@@ -224,6 +227,22 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	child, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	sort.Strings(r.Hypotheses)
+	tracker := confirmationTracker{policy: p.Confirmation}
+	if p.Confirmation != nil {
+		defer func() {
+			h := ""
+			if len(r.Hypotheses) == 1 {
+				h = r.Hypotheses[0]
+			}
+			r.Confirmation, _, _, _ = tracker.state(h, p.Actions, time.Now())
+			if r.Status == "completed" && !r.Confirmation.Satisfied {
+				r.Status = "inconclusive"
+				r.Reason = "confirmation_incomplete"
+			}
+		}()
+	}
+	unusablePairs := map[string]bool{}
+	fixedIncomplete := false
 	support := map[string]bool{}
 	accept := func(a Action, o Outcome) {
 		if o.Execution != "completed" || pattern(o.Outcome) == 0 || o.Outcome == "either" || len(a.Expected) != len(p.Hypotheses) {
@@ -240,7 +259,22 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		}
 		r.Hypotheses = remaining
 	}
+	var usedExpiries []time.Time
+	defer func() {
+		if r.Status == "completed" {
+			for _, expiry := range usedExpiries {
+				if !time.Now().Before(expiry) {
+					r.Status = "inconclusive"
+					r.Reason = "initial_evidence_expired"
+					break
+				}
+			}
+		}
+	}()
 	for _, proof := range initial {
+		if !proof.ValidUntil.IsZero() && !time.Now().Before(proof.ValidUntil) {
+			continue
+		}
 		for _, a := range p.Actions {
 			if a.ID != proof.ActionID {
 				continue
@@ -248,6 +282,12 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			for _, agent := range agents {
 				if agent.ID == proof.AgentID && placementMatch(a.Placement, agent) {
 					accept(a, proof.Outcome)
+					if !proof.ValidUntil.IsZero() && proof.Outcome.Execution == "completed" && len(a.Expected) == len(p.Hypotheses) {
+						usedExpiries = append(usedExpiries, proof.ValidUntil)
+					}
+					if proof.ObservationID != "" {
+						tracker.add("observation:"+proof.ObservationID, a, agent, proof.Outcome, started, proof.ValidUntil)
+					}
 				}
 			}
 		}
@@ -257,9 +297,15 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		if len(r.Hypotheses) == 0 && len(p.Hypotheses) > 0 {
 			r.Reason = "evidence_conflict"
 		}
-		if len(r.Hypotheses) == 1 && support[r.Hypotheses[0]] {
+		if len(r.Hypotheses) == 1 && support[r.Hypotheses[0]] && !(mode == "fixed" && fixedIncomplete) {
 			r.Status = "completed"
 			r.Reason = "supported_class"
+			if p.Confirmation != nil {
+				r.Reason = "confirmed_class"
+			}
+		}
+		if mode == "fixed" && fixedIncomplete && len(r.Hypotheses) > 0 {
+			r.Reason = "fixed_incomplete_evidence"
 		}
 		return r
 	}
@@ -286,8 +332,25 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				r.Reason = "evidence_conflict"
 				return r, nil
 			}
-			if len(r.Hypotheses) == 1 {
+			if len(r.Hypotheses) == 1 && p.Confirmation == nil {
 				return finish("insufficient_support"), nil
+			}
+		}
+
+		confirming := mode == "adaptive" && len(r.Hypotheses) == 1 && p.Confirmation != nil
+		var confirmation *ConfirmationResult
+		var covered, domains map[string]bool
+		var lastProof time.Time
+		if confirming {
+			confirmation, covered, domains, lastProof = tracker.state(r.Hypotheses[0], actions, time.Now())
+			if confirmation.Satisfied {
+				return finish("insufficient_support"), nil
+			}
+			for _, a := range actions {
+				if tracker.required(a.ID) && a.Expected[r.Hypotheses[0]] != "success" && a.Expected[r.Hypotheses[0]] != "failure" {
+					r.Reason = "confirmation_pattern_unavailable"
+					return r, nil
+				}
 			}
 		}
 
@@ -312,6 +375,10 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				if step.When != nil {
 					ok, err = step.When(child, tasks, monitorState)
 				}
+				if err != nil {
+					fixedIncomplete = true
+					r.BlockedSteps = append(r.BlockedSteps, step.ID)
+				}
 				if err != nil || !ok {
 					terminal[step.ID] = true
 					tasks[step.ID] = Outcome{"skipped", "unknown"}
@@ -334,11 +401,19 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 		} else {
 			for _, a := range actions {
-				if !visited[a.ID] {
+				if confirming {
+					if tracker.required(a.ID) && (len(covered) == len(p.Confirmation.ActionRefs) || !covered[a.ID]) {
+						candidates = append(candidates, a)
+					}
+				} else if !visited[a.ID] {
 					candidates = append(candidates, a)
 				}
 			}
 			if len(candidates) == 0 {
+				if confirming {
+					r.Reason = "confirmation_unavailable"
+					return r, nil
+				}
 				return finish("catalog_exhausted"), nil
 			}
 		}
@@ -362,6 +437,9 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				if !agent.Online || agent.Capacity <= agent.Active || agent.Capacity <= 0 || !agent.Supported[a.Check.Runner] || !agent.Supported[a.Check.Type] || !placementMatch(a.Placement, agent) || !e.Eligible(*a, agent) {
 					continue
 				}
+				if confirming && (unusablePairs[a.ID+"/"+agent.ID] || !tracker.useful(*a, agent, confirmation, covered, domains)) {
+					continue
+				}
 				if p.Budget.MaxEstimatedBytes > 0 {
 					if e.EstimateBytes == nil {
 						continue
@@ -379,7 +457,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 			gain := Gain(r.Hypotheses, a.Expected)
 			score := float64(gain) / a.Cost
-			if mode != "adaptive" {
+			if mode != "adaptive" || confirming {
 				score = 0
 			}
 			if selected == nil || score > best {
@@ -389,17 +467,34 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				selectedGain = gain
 				selectedBytes = estimates[executor.ID]
 			}
-			if mode != "adaptive" && selected != nil {
+			if (mode != "adaptive" || confirming) && selected != nil {
 				break
 			}
 		}
 		if selected == nil {
 			r.Reason = "no_admissible_action"
+			if confirming {
+				r.Reason = "confirmation_unavailable"
+			}
 			return r, nil
 		}
-		if mode == "adaptive" && best <= 0 {
+		if mode == "adaptive" && !confirming && best <= 0 {
 			r.Reason = "no_gain"
 			return r, nil
+		}
+		if confirming && !lastProof.IsZero() {
+			wait := time.Until(lastProof.Add(p.Confirmation.MinSpacing))
+			if wait > 0 {
+				timer := time.NewTimer(wait)
+				select {
+				case <-child.Done():
+					timer.Stop()
+					r.Reason = "deadline_or_cancelled"
+					return r, nil
+				case <-timer.C:
+				}
+				continue
+			}
 		}
 		before := append([]string(nil), r.Hypotheses...)
 		ledger.UsedChecks++
@@ -413,7 +508,21 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			outcome = Outcome{"execution_failed", "unknown"}
 		}
 		done()
-		r.Decisions = append(r.Decisions, Decision{selected.ID, executor.ID, before, selectedGain, float64(selectedGain) / selected.Cost, outcome})
+		phase := ""
+		if p.Confirmation != nil {
+			phase = "primary"
+			if confirming {
+				phase = "confirmation"
+			}
+		}
+		r.Decisions = append(r.Decisions, Decision{ActionID: selected.ID, AgentID: executor.ID, HypothesesBefore: before, Gain: selectedGain, Score: float64(selectedGain) / selected.Cost, Outcome: outcome, Phase: phase})
+		if outcome.Execution != "completed" || (outcome.Outcome != "success" && outcome.Outcome != "failure") {
+			unusablePairs[selected.ID+"/"+executor.ID] = true
+			if mode == "fixed" {
+				fixedIncomplete = true
+			}
+		}
+		tracker.add(fmt.Sprintf("attempt:%d", ledger.UsedChecks), *selected, executor, outcome, time.Now(), deadline)
 		accept(*selected, outcome)
 		visited[selected.ID] = true
 		if mode == "adaptive" {

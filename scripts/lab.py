@@ -26,7 +26,7 @@ SCENARIOS = {
 
 def manifests():
     return {name:(ROOT/'deployment'/'lab'/name).read_text()
-            for name in ['monitor.yaml','adaptive.yaml','fixed.yaml']}
+            for name in ['monitor.yaml','adaptive.yaml','fixed.yaml','adaptive-confirmed.yaml','fixed-confirmed.yaml']}
 
 class Lab:
     def __init__(self, project='netmonorc-lab', prefix='172.30'):
@@ -88,9 +88,9 @@ class Lab:
                 info.uid=info.gid=0 if name.split('/')[0] in ['postgres','fixture'] else 10001
                 tar.addfile(info,io.BytesIO(data))
         self.compose('run','--rm','--no-deps','-T','init',input=archive.getvalue())
-    def up(self,mode='adaptive'):
+    def up(self,mode='adaptive',policy='confirmed'):
         self.require()
-        profile='fixed' if mode=='fixed' else 'adaptive'
+        profile=('fixed' if mode=='fixed' else 'adaptive')+('-confirmed' if policy=='confirmed' else '')
         started=time.time()
         self.compose('up','-d','--wait','--wait-timeout','90',
                      env={'NMO_PROFILE':profile,'NMO_STATIC':str(mode=='static').lower()})
@@ -102,7 +102,7 @@ class Lab:
         if not raw:return None
         values=json.loads(subprocess.check_output(['docker','inspect',raw]))[0]['Config']['Cmd']
         if '-diagnostic-comparison-static=true' in values:return 'static'
-        return 'fixed' if any(v.endswith('/fixed.yaml') for v in values) else 'adaptive'
+        return 'fixed' if any(v.endswith('/fixed.yaml') or v.endswith('/fixed-confirmed.yaml') for v in values) else 'adaptive'
     def snapshot(self,name='assessment.json'):
         # docker cp works with local and remote daemons and needs no host mount.
         try:
@@ -154,11 +154,12 @@ def main():
     parser.add_argument('--project',default='netmonorc-lab')
     parser.add_argument('--prefix',default='172.30')
     parser.add_argument('--mode',choices=['static','fixed','adaptive'],default='adaptive')
+    parser.add_argument('--policy',choices=['legacy','confirmed'],default='confirmed')
     parser.add_argument('--scenario',choices=list(SCENARIOS),default='healthy')
     parser.add_argument('--output',default='.local/lab-report')
     args=parser.parse_args();lab=Lab(args.project,args.prefix)
     if args.operation=='prepare':lab.prepare();print('Private configuration volumes prepared; CA private key stays on the host.')
-    elif args.operation=='up':lab.up(args.mode);print('Stand started; no host ports published.')
+    elif args.operation=='up':lab.up(args.mode,args.policy);print('Stand started; no host ports published.')
     else:
         lab.require()
         if args.operation=='status':print(json.dumps({'mode':lab.mode(),'assessment':lab.assessment(),'diagnostic':lab.diagnostic()},indent=2))

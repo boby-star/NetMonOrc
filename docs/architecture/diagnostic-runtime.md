@@ -91,7 +91,7 @@ healthy/full coverage, replay, TTL і ізоляцію результатів у
 Це кілька процесів на одному хості. Висновків про якість локалізації між
 незалежними мережевими сегментами або перевагу над Static ці дані не дають.
 
-Не реалізовано public/manual start, TaskCancel, confirmation/retry, replicas,
+Не реалізовано public/manual start, TaskCancel, technical retry, replicas,
 паралельний planner, byte estimator, повний placement/PKI та натурні мережеві
 експерименти. Без byte estimator maxEstimatedBytes для live профілю
 відхиляється. Closed-catalog early-stop limitation описано в diagnostic-core.md.
@@ -109,3 +109,19 @@ healthy/full coverage, replay, TTL і ізоляцію результатів у
 Live smoke Static з Blackbox пройшов обидва tasks спільного каталогу,
 класифікацію service-failure, збереження budget і crash/recovery. Це лише
 інтеграційний сценарій, не контрольований статистичний benchmark.
+
+## Явне підтвердження
+
+Controller виконує adaptive.confirmation у тому самому task transport,
+spool та durable budget. Процедура використовує обов'язкові actionRefs,
+minObservations, minDistinctFailureDomains, minSpacing. У звіті є окрема
+phase confirmation та лічильники доказів/domain. Дані одного baseline
+observationID не подвоюються через кілька aliases. Невідомий domain не
+додає незалежного джерела; одна зона залишається одним path failure domain.
+
+У Fixed технічна невдача або невідома CEL-умова активованого кроку не
+дозволяє completed. Відомий when=false — штатний пропуск. Для live стенда
+є explicit four-step fixed-confirmed DAG; original branching profile
+залишається окремим legacy варіантом. Retry й відновлення багатосеансової
+історії confirmation після crash не реалізовані: run лишається inconclusive
+без повторного запуску й повернення reservations.

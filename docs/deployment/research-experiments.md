@@ -23,9 +23,10 @@ Controller сам оцінює ресурс і запускає діагност
 Планувальник не отримує ані назви сценарію, ані правильного класу.
 
 Перед порівнянням чистий Go compiler перевіряє однаковість нормалізованих
-action catalogs, hypotheses і budgets профілів. Fixed задає природну
-послідовність DNS → TCP → HTTP із розгалуженням за наслідком DNS; Static
-виконує весь каталог. Для всіх режимів той самий Agent task transport,
+action catalogs, hypotheses і budgets профілів. У default confirmed наборі Fixed перевіряє DNS з office, а DNS/TCP/HTTP
+із server обов'язковим DAG; Adaptive має явну confirmation для тих самих
+чотирьох actions. Static виконує весь каталог. Legacy набір зберігає
+попередні branching/early-stop правила. Для всіх режимів той самий Agent task transport,
 Blackbox і послідовне виконання. Нової YAML-версії чи mode немає.
 
 ## Що означають показники
@@ -64,7 +65,11 @@ python3 scripts/lab_experiment.py --repetitions 10 --seed 17 --output .local/rep
 Кожний режим починається з fresh healthy обох Agent. Для іншого project
 передайте ті самі --project/--prefix, що під час prepare/up.
 
-## Відкритий недолік методу
+Для відтворення старого профілю використайте `--policy legacy`; default
+`--policy confirmed` вмикає явне підтвердження. У metadata записується policy.
+Зменшення probes/latency не обіцяється: підтвердження має додаткову ціну.
+
+## Відкритий недолік legacy методу
 
 Closed-catalog early-stop може підтвердити DNS-class за одночасної DNS+HTTP
 відмови, не перевіривши HTTP. Це стосується й Fixed DAG, який після DNS

@@ -63,7 +63,11 @@ func MatchBaseline(plan monitor.Plan, p Profile, history []monitor.Observation, 
 			if !placementMatch(action.Placement, sources[o.Agent]) || !equivalent(action.Check, checks[o.Check]) {
 				continue
 			}
-			matches = append(matches, matched{Evidence{action.ID, o.Agent, Outcome{o.Execution, o.Outcome}}, o.FinishedAt})
+			age := checks[o.Check].MaxAge
+			if age == 0 {
+				age = plan.MaxAge
+			}
+			matches = append(matches, matched{Evidence{ActionID: action.ID, AgentID: o.Agent, Outcome: Outcome{o.Execution, o.Outcome}, ObservationID: o.ID, ValidUntil: o.FinishedAt.Add(age)}, o.FinishedAt})
 			if newest.IsZero() || o.FinishedAt.After(newest) {
 				newest = o.FinishedAt
 			}

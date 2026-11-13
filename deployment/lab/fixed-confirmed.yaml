@@ -1,0 +1,72 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata: {name: web-lab}
+spec:
+  mode: fixed
+  budget: {maxAdditionalChecks: 6, maxDuration: 90s, maxParallel: 1}
+  hypotheses:
+    - {id: http-failure}
+    - {id: dns-failure}
+    - {id: tcp-failure}
+    - {id: office-path-failure}
+  actions:
+    - id: d01-office-dns
+      check:
+        type: dns
+        runner: blackbox
+        timeout: 10s
+        config: {resolver: '198.18.0.80:1053', queryName: health.example}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {http-failure: success, dns-failure: failure, tcp-failure: success, office-path-failure: failure}
+    - id: d02-server-dns
+      check:
+        type: dns
+        runner: blackbox
+        timeout: 10s
+        config: {resolver: '198.18.0.80:1053', queryName: health.example}
+      placement: {agentRefs: [dc], zones: [server], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {http-failure: success, dns-failure: failure, tcp-failure: success, office-path-failure: success}
+    - id: d03-server-tcp
+      check:
+        type: tcp
+        runner: blackbox
+        timeout: 10s
+        config: {port: 9090}
+      placement: {agentRefs: [dc], zones: [server], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {http-failure: success, dns-failure: success, tcp-failure: failure, office-path-failure: success}
+    - id: d04-server-http
+      check:
+        type: http
+        runner: blackbox
+        timeout: 10s
+        config: {url: 'http://198.18.0.80:8080/', expectedStatus: [200]}
+      placement: {agentRefs: [dc], zones: [server], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {http-failure: failure, dns-failure: success, tcp-failure: success, office-path-failure: success}
+    - id: d05-office-http
+      check:
+        type: http
+        runner: blackbox
+        timeout: 10s
+        config: {url: 'http://198.18.0.80:8080/', expectedStatus: [200]}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {http-failure: failure, dns-failure: success, tcp-failure: success, office-path-failure: failure}
+    - id: d06-office-tcp
+      check:
+        type: tcp
+        runner: blackbox
+        timeout: 10s
+        config: {port: 9090}
+      placement: {agentRefs: [branch], zones: [office], strategy: fixed}
+      costUnits: 1
+      expectedOutcomes: {http-failure: success, dns-failure: success, tcp-failure: failure, office-path-failure: failure}
+  fixed:
+    steps:
+      - {id: s01, actionRef: d01-office-dns}
+      - {id: s02, actionRef: d02-server-dns, dependsOn: [s01]}
+      - {id: s03, actionRef: d03-server-tcp, dependsOn: [s02]}
+      - {id: s04, actionRef: d04-server-http, dependsOn: [s03]}

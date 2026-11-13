@@ -49,10 +49,11 @@ PostgreSQL і не повторює сесію того самого епізо�
 з costUnits: за такого обмеження потрібен окремий відомий estimator;
 за його відсутності кандидати не запускаються.
 
-Поки підтримуються replicas=1, stopWhenUnique=true та maxNoGainSteps=0.
-Confirmation/retry, stopWhenUnique=false, selectors і placementRef
-відхиляються як непідтримувані. Повторне підтвердження за часом і
-failure domains ще не реалізовано. Нормативні ТЗ/DSL не змінені.
+Підтримуються replicas=1 та maxNoGainSteps=0. Явні confirmation та
+stopWhenUnique=false реалізовано: [ADR 0001](../adr/0001-diagnostic-confirmation.md).
+Retry, selectors і placementRef залишаються непідтримуваними. Повтор
+потребує явно зазначеної confirmation action; технічні невдачі не
+перезапускаються через цей механізм. Нормативні ТЗ/DSL не змінені.
 Надзвичайні costUnits, які переповнюють finite float score/report,
 відхиляються явно, а не породжують Inf у JSON.
 

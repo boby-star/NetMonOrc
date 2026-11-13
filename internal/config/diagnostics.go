@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -64,6 +65,12 @@ type diagnosticDocument struct {
 			StopWhenUnique *bool  `yaml:"stopWhenUnique"`
 			MaxNoGainSteps int    `yaml:"maxNoGainSteps"`
 			TieBreak       string `yaml:"tieBreak"`
+			Confirmation   *struct {
+				ActionRefs                []string `yaml:"actionRefs"`
+				MinObservations           *int     `yaml:"minObservations"`
+				MinDistinctFailureDomains *int     `yaml:"minDistinctFailureDomains"`
+				MinSpacing                *string  `yaml:"minSpacing"`
+			} `yaml:"confirmation"`
 		} `yaml:"adaptive"`
 	} `yaml:"spec"`
 }
@@ -168,8 +175,21 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 		if v.Algorithm != "" && v.Algorithm != "distinguish-pairs-per-cost" {
 			return p, fmt.Errorf("unsupported adaptive algorithm")
 		}
-		if v.StopWhenUnique != nil && !*v.StopWhenUnique {
-			return p, fmt.Errorf("explicit confirmation policies are not implemented yet")
+		p.ContinueAfterUnique = v.StopWhenUnique != nil && !*v.StopWhenUnique
+		if c := v.Confirmation; c != nil {
+			if c.MinObservations == nil || c.MinDistinctFailureDomains == nil || c.MinSpacing == nil || *c.MinSpacing == "" {
+				return p, fmt.Errorf("confirmation requires actionRefs, minObservations, minDistinctFailureDomains and minSpacing")
+			}
+			if !durationPattern.MatchString(*c.MinSpacing) {
+				return p, fmt.Errorf("invalid confirmation minSpacing")
+			}
+			spacing, err := time.ParseDuration(*c.MinSpacing)
+			if err != nil {
+				return p, err
+			}
+			refs := append([]string(nil), c.ActionRefs...)
+			sort.Strings(refs)
+			p.Confirmation = &diagnostics.Confirmation{ActionRefs: refs, MinObservations: *c.MinObservations, MinDistinctFailureDomains: *c.MinDistinctFailureDomains, MinSpacing: spacing}
 		}
 		if v.MaxNoGainSteps != 0 {
 			return p, fmt.Errorf("this slice supports maxNoGainSteps=0 only")
