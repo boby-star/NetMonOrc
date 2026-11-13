@@ -1,0 +1,25 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: research-web
+spec:
+  target:
+    address: 127.0.0.1
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 30s
+      timeout: 2s
+      config:
+        url: http://127.0.0.1:18080/
+        expectedStatus: [200]
+  assessment:
+    requiredZones: [office, server]
+    freshness:
+      maxAge: 90s
+      maxSkew: 30s
+    checks:
+      - id: http
+        weight: 1
+        required: true

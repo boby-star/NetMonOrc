@@ -1,0 +1,266 @@
+// Package config compiles a deliberately restricted, closed subset of v1alpha1.
+package config
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"math"
+	"net/url"
+	"regexp"
+	"sort"
+	"time"
+
+	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"gopkg.in/yaml.v3"
+)
+
+type Manifest struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Spec struct {
+		Target struct {
+			Address string `yaml:"address"`
+		} `yaml:"target"`
+		Checks     []checkSpec    `yaml:"checks"`
+		Assessment assessmentSpec `yaml:"assessment"`
+	} `yaml:"spec"`
+}
+type checkSpec struct {
+	ID       string `yaml:"id"`
+	Type     string `yaml:"type"`
+	Runner   string `yaml:"runner"`
+	Interval string `yaml:"interval"`
+	Timeout  string `yaml:"timeout"`
+	Config   struct {
+		URL             string `yaml:"url"`
+		Method          string `yaml:"method"`
+		ExpectedStatus  []int  `yaml:"expectedStatus"`
+		VerifyTLS       *bool  `yaml:"verifyTLS"`
+		FollowRedirects bool   `yaml:"followRedirects"`
+		MaxBodyBytes    *int64 `yaml:"maxBodyBytes"`
+	} `yaml:"config"`
+}
+type assessmentSpec struct {
+	RequiredZones   []string `yaml:"requiredZones"`
+	ZoneAggregation string   `yaml:"zoneAggregation"`
+	MinCoverage     *float64 `yaml:"minCoverage"`
+	Freshness       struct {
+		MaxAge  string `yaml:"maxAge"`
+		MaxSkew string `yaml:"maxSkew"`
+	} `yaml:"freshness"`
+	Checks []struct {
+		ID       string   `yaml:"id"`
+		Weight   *float64 `yaml:"weight"`
+		Required bool     `yaml:"required"`
+	} `yaml:"checks"`
+	Weighted struct {
+		Enabled     *bool    `yaml:"enabled"`
+		HealthyMin  *float64 `yaml:"healthyMin"`
+		DegradedMin *float64 `yaml:"degradedMin"`
+	} `yaml:"weighted"`
+}
+
+var namePattern = regexp.MustCompile(`^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+var idPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+var durationPattern = regexp.MustCompile(`^[0-9]+(ms|s|m|h)$`)
+
+func duration(s string, fallback time.Duration) (time.Duration, error) {
+	if s == "" {
+		return fallback, nil
+	}
+	if !durationPattern.MatchString(s) {
+		return 0, fmt.Errorf("invalid duration %q", s)
+	}
+	d, e := time.ParseDuration(s)
+	if e != nil || d <= 0 {
+		return 0, fmt.Errorf("duration must be positive: %q", s)
+	}
+	return d, nil
+}
+func number(v *float64, fallback float64) (float64, error) {
+	if v == nil {
+		return fallback, nil
+	}
+	if math.IsNaN(*v) || math.IsInf(*v, 0) || *v < 0 || *v > 1 {
+		return 0, fmt.Errorf("weight/threshold must be finite and within 0..1")
+	}
+	return *v, nil
+}
+func Compile(data []byte) (monitor.Plan, error) {
+	p := monitor.Plan{}
+	if len(data) > 1<<20 {
+		return p, fmt.Errorf("manifest exceeds 1 MiB")
+	}
+	d := yaml.NewDecoder(bytes.NewReader(data))
+	d.KnownFields(true)
+	var m Manifest
+	if e := d.Decode(&m); e != nil {
+		return p, e
+	}
+	var extra any
+	if e := d.Decode(&extra); e != io.EOF {
+		return p, fmt.Errorf("this slice accepts exactly one Monitor document")
+	}
+	if m.APIVersion != "netmonorc.io/v1alpha1" || m.Kind != "Monitor" || !namePattern.MatchString(m.Metadata.Name) {
+		return p, fmt.Errorf("invalid apiVersion, kind or metadata.name")
+	}
+	if m.Spec.Target.Address == "" {
+		return p, fmt.Errorf("spec.target.address is required")
+	}
+	p.Name = m.Metadata.Name
+	p.TargetAddress = m.Spec.Target.Address
+	a := m.Spec.Assessment
+	if a.ZoneAggregation != "" && a.ZoneAggregation != "all-required" {
+		return p, fmt.Errorf("only all-required zoneAggregation is implemented")
+	}
+	if a.Weighted.Enabled != nil && !*a.Weighted.Enabled {
+		return p, fmt.Errorf("weighted.enabled=false is not implemented")
+	}
+	var e error
+	if p.MinCoverage, e = number(a.MinCoverage, 1); e != nil {
+		return p, e
+	}
+	if p.HealthyMin, e = number(a.Weighted.HealthyMin, .9); e != nil {
+		return p, e
+	}
+	if p.DegradedMin, e = number(a.Weighted.DegradedMin, .5); e != nil {
+		return p, e
+	}
+	if p.DegradedMin >= p.HealthyMin {
+		return p, fmt.Errorf("degradedMin must be below healthyMin")
+	}
+	if p.MaxSkew, e = duration(a.Freshness.MaxSkew, 30*time.Second); e != nil {
+		return p, e
+	}
+	seen := map[string]bool{}
+	for _, z := range a.RequiredZones {
+		if z == "" || seen[z] {
+			return p, fmt.Errorf("requiredZones must be nonempty and unique")
+		}
+		seen[z] = true
+		p.Zones = append(p.Zones, z)
+	}
+	if len(p.Zones) == 0 {
+		return p, fmt.Errorf("research slice requires explicit assessment.requiredZones")
+	}
+	sort.Strings(p.Zones)
+	seen = map[string]bool{}
+	var ttl, maxInterval time.Duration
+	for i, c := range m.Spec.Checks {
+		if !idPattern.MatchString(c.ID) || seen[c.ID] {
+			return p, fmt.Errorf("spec.checks[%d].id invalid or duplicated", i)
+		}
+		seen[c.ID] = true
+		if c.Type != "http" || c.Runner != "native-http" {
+			return p, fmt.Errorf("check %s: this slice supports only http with explicit native-http runner", c.ID)
+		}
+		u, err := url.Parse(c.Config.URL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
+			return p, fmt.Errorf("check %s: invalid HTTP URL", c.ID)
+		}
+		if c.Config.FollowRedirects || (c.Config.VerifyTLS != nil && !*c.Config.VerifyTLS) {
+			return p, fmt.Errorf("redirects and disabled TLS verification are not supported")
+		}
+		x := monitor.Check{ID: c.ID, URL: u.String(), Method: c.Config.Method, ExpectedStatus: c.Config.ExpectedStatus, MaxBodyBytes: 16384, Weight: 1}
+		if x.Method == "" {
+			x.Method = "GET"
+		}
+		if x.Method != "GET" && x.Method != "HEAD" {
+			return p, fmt.Errorf("invalid HTTP method")
+		}
+		if x.ExpectedStatus == nil {
+			x.ExpectedStatus = []int{200}
+		}
+		if len(x.ExpectedStatus) == 0 {
+			return p, fmt.Errorf("expectedStatus cannot be empty")
+		}
+		for _, code := range x.ExpectedStatus {
+			if code < 100 || code > 599 {
+				return p, fmt.Errorf("invalid expected status")
+			}
+		}
+		sort.Ints(x.ExpectedStatus)
+		if c.Config.MaxBodyBytes != nil {
+			x.MaxBodyBytes = *c.Config.MaxBodyBytes
+		}
+		if x.MaxBodyBytes < 1 || x.MaxBodyBytes > 65536 {
+			return p, fmt.Errorf("maxBodyBytes must be 1..65536")
+		}
+		if x.Interval, e = duration(c.Interval, 30*time.Second); e != nil {
+			return p, e
+		}
+		if x.Timeout, e = duration(c.Timeout, 5*time.Second); e != nil {
+			return p, e
+		}
+		if x.Interval < 10*time.Second || x.Interval > 24*time.Hour || x.Timeout < 100*time.Millisecond || x.Timeout > 60*time.Second || x.Timeout >= x.Interval {
+			return p, fmt.Errorf("check %s: invalid interval or timeout", c.ID)
+		}
+		age := max(3*x.Interval, x.Interval+2*x.Timeout)
+		x.MaxAge = age
+		ttl = max(ttl, age)
+		maxInterval = max(maxInterval, x.Interval)
+		p.Checks = append(p.Checks, x)
+	}
+	if len(p.Checks) == 0 {
+		return p, fmt.Errorf("checks cannot be empty")
+	}
+	if p.MaxAge, e = duration(a.Freshness.MaxAge, ttl); e != nil {
+		return p, e
+	}
+	if p.MaxAge < maxInterval {
+		return p, fmt.Errorf("maxAge must cover largest interval")
+	}
+	if a.Freshness.MaxAge != "" {
+		for i := range p.Checks {
+			p.Checks[i].MaxAge = p.MaxAge
+		}
+	}
+	if a.Checks != nil {
+		if len(a.Checks) != len(p.Checks) {
+			return p, fmt.Errorf("assessment.checks must cover every check")
+		}
+		seen = map[string]bool{}
+		for _, ac := range a.Checks {
+			if seen[ac.ID] {
+				return p, fmt.Errorf("duplicate assessment check")
+			}
+			seen[ac.ID] = true
+			found := false
+			for j := range p.Checks {
+				if p.Checks[j].ID == ac.ID {
+					found = true
+					p.Checks[j].Required = ac.Required
+					p.Checks[j].Weight, e = number(ac.Weight, 1)
+					if e != nil {
+						return p, e
+					}
+				}
+			}
+			if !found {
+				return p, fmt.Errorf("unknown assessment check %s", ac.ID)
+			}
+		}
+	}
+	var total float64
+	for _, c := range p.Checks {
+		total += c.Weight
+	}
+	if total == 0 {
+		return p, fmt.Errorf("assessment weights sum to zero")
+	}
+	for j := range p.Checks {
+		p.Checks[j].Weight /= total
+	}
+	sort.Slice(p.Checks, func(i, j int) bool { return p.Checks[i].ID < p.Checks[j].ID })
+	b, _ := json.Marshal(p)
+	hash := sha256.Sum256(b)
+	p.Revision = hex.EncodeToString(hash[:])
+	return p, nil
+}

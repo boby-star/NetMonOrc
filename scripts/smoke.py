@@ -1,0 +1,50 @@
+"""Exercise the built CLI against a real local HTTP server; no dependencies."""
+import json
+from pathlib import Path
+import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+ROOT = Path(__file__).resolve().parents[1]
+BIN = ROOT / '.local/netmonorc'
+
+class Handler(BaseHTTPRequestHandler):
+    status = 200
+
+    def do_GET(self):
+        self.send_response(self.status)
+        self.end_headers()
+        self.wfile.write(b'health')
+
+    def log_message(self, *args):
+        pass
+
+def cli(*args, input=None):
+    return subprocess.check_output([str(BIN), *args], cwd=ROOT, input=input)
+
+def probe(agent, zone):
+    return cli('probe', '-agent', agent, '-zone', zone,
+               '-allow-cidrs', '127.0.0.1/32')
+
+def assess(data):
+    return json.loads(cli('assess', '-slots', 'branch=office,dc=server', input=data))
+
+server = ThreadingHTTPServer(('127.0.0.1', 18080), Handler)
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+try:
+    office, dc = probe('branch', 'office'), probe('dc', 'server')
+    assert assess(office + dc)['state'] == 'healthy'
+    assert assess(dc)['state'] == 'unknown'
+    Handler.status = 503
+    failed = probe('branch', 'office')
+    result = assess(dc + failed)
+    assert result['state'] == 'degraded'
+    assert result['zones'][0]['state'] == 'down'
+    (ROOT / '.local/observations.ndjson').write_bytes(dc + failed)
+    print('PASS: HTTP 200 -> healthy; missing office -> unknown; '
+          'office HTTP 503 + server HTTP 200 -> degraded')
+finally:
+    server.shutdown()
+    server.server_close()
+    thread.join()
