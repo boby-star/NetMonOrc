@@ -219,7 +219,14 @@ func diagnosticCondition(expression string) (func(context.Context, map[string]di
 	return func(ctx context.Context, tasks map[string]diagnostics.Outcome, state string) (bool, error) {
 		input := map[string]map[string]string{}
 		for id, t := range tasks {
-			input[id] = map[string]string{"outcome": t.Outcome, "execution": t.Execution}
+			execution := t.Execution
+			if execution == "execution_failed" {
+				execution = "failed"
+			}
+			if execution == "skipped" {
+				execution = "not_executed"
+			}
+			input[id] = map[string]string{"outcome": t.Outcome, "executionStatus": execution}
 		}
 		out, _, e := program.ContextEval(ctx, map[string]any{"tasks": input, "monitor": map[string]string{"state": state}})
 		if e != nil {

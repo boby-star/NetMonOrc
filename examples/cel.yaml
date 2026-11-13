@@ -1,0 +1,31 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: research-cel
+spec:
+  target:
+    address: 127.0.0.1
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 30s
+      timeout: 2s
+      config:
+        url: http://127.0.0.1:18080/
+        # Both responses are observable probe outcomes. Assessment below
+        # separately classifies a server error as resource failure.
+        expectedStatus: [200, 503]
+  assessment:
+    requiredZones: [office, server]
+    freshness: {maxAge: 90s, maxSkew: 30s}
+    checks: [{id: http, weight: 1, required: true}]
+    rules:
+      - id: server-error
+        priority: 200
+        when: 'checks["http"].metrics.httpStatus >= 500'
+        then: {state: down, reason: HTTP_SERVER_ERROR}
+      - id: ready
+        priority: 100
+        when: 'checks["http"].metrics.httpStatus == 200'
+        then: {state: healthy, reason: HTTP_READY}

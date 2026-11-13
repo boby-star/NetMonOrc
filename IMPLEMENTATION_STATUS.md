@@ -81,12 +81,27 @@ coordinator, task dispatch/result protocol, автоматичних триге�
 публічного запуску. Confirmation/retry та невідома множинна несправність
 потребують наступного етапу. Це не завершена діагностика системи.
 
+## CEL Assessment — реалізовано в робочому ланцюгу
+
+Inline assessment.rules з priority, bool type-check, контрольованим
+контекстом checks/zone/target, cost/deadline та immutable compiled Assessor.
+Правила входять до revision і виконуються Controller щосекунди.
+Required failure не скасовується правилами; evaluation errors не
+дозволяють healthy. Підтримується numeric integer metrics.httpStatus,
+missing metrics залишаються відсутніми. Extraction/values не реалізовані.
+
+Unit-перевірки охоплюють priority, missing metrics, required overrides,
+недопустимі поля й типи. `scripts/distributed_smoke.py --cel` відтворює
+робочий mTLS/PostgreSQL ланцюг із resource down через CEL при probe success.
+Докладно: docs/architecture/assessment-cel.md.
+
 ## Ще не реалізовано
 
 1. Динамічне призначення, load/heartbeat, підтримка повного agent protocol,
    керування сертифікатами та готовий Compose deployment всіх компонентів.
 2. Hostname targets і повна firewall-політика exporter.
-3. Профілі, CEL та extraction, необхідна частина DSL для сценаріїв записки.
+3. CheckProfile/AssessmentPolicy refs, extraction і решта необхідних DSL
+   можливостей; CEL assessment та CEL fixed conditions уже реалізовані.
 4. Інтеграція Static/Fixed/Adaptive з Controller/Agent, durable episode
    budgets, triggers, підтвердження та retries.
 5. Простий webhook і перегляд результатів.

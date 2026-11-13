@@ -21,8 +21,11 @@ work.mkdir(parents=True, mode=0o700)
 container = 'netmonorc-smoke-' + secrets.token_hex(4)
 parser = argparse.ArgumentParser()
 parser.add_argument('--network', action='store_true')
+parser.add_argument('--cel', action='store_true')
 parser.add_argument('--blackbox-binary')
 args = parser.parse_args()
+if args.network and args.cel:
+    parser.error('choose one fixture mode at a time')
 if args.network and not args.blackbox_binary:
     parser.error('--network requires --blackbox-binary')
 dns = DNSFixture() if args.network else None
@@ -104,7 +107,7 @@ try:
         sock.bind(('127.0.0.1', 0))
         rpc_port = sock.getsockname()[1]
     manifest = work/'monitor.yaml'
-    example = 'network.yaml' if args.network else 'http.yaml'
+    example = 'network.yaml' if args.network else ('cel.yaml' if args.cel else 'http.yaml')
     text = (ROOT/'examples'/example).read_text().replace('18080', str(http.server_port))
     if dns:
         text = text.replace('1053', str(dns.port))
@@ -152,6 +155,10 @@ try:
     wait_for('assessment restored after reconnect', lambda: view().get('state') == 'healthy')
     Handler.status = 503
     wait_for('confirmed HTTP failures -> down', lambda: view().get('state') == 'down', seconds=25)
+    if args.cel:
+        assert all(z['reason'] == 'HTTP_SERVER_ERROR' for z in view()['zones'])
+        assert int(sql("SELECT count(*) FROM nmo_observations WHERE payload->>'statusCode'='503' AND payload->>'outcome'='success'")) >= 2
+        print('PASS: CEL classifies accepted HTTP 503 observations as resource down', flush=True)
     Handler.status = 200
     wait_for('service recovery -> healthy', lambda: view().get('state') == 'healthy', seconds=25)
     stop(branch)
@@ -161,6 +168,7 @@ try:
     subprocess.run([shutil.which('go'), 'test', './internal/storage', '-run',
                     'TestPostgresDurabilityAndFencing', '-count=1', '-v'],
                    cwd=ROOT, env=test_env, check=True)
+    (work/'result.json').write_text(json.dumps({'status': 'passed', 'fixture': 'cel' if args.cel else ('network' if args.network else 'http'), 'postgres_fencing_test': 'passed', 'replay': 'passed', 'ttl': 'passed'}))
     print('Evidence:', work, flush=True)
 finally:
     for p in reversed(processes):

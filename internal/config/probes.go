@@ -106,7 +106,7 @@ func scalarTypes(n *yaml.Node, t reflect.Type) error {
 				f := t.Field(j)
 				if strings.Split(f.Tag.Get("yaml"), ",")[0] == n.Content[i].Value {
 					if e := scalarTypes(n.Content[i+1], f.Type); e != nil {
-						return fmt.Errorf("config.%s: %w", n.Content[i].Value, e)
+						return fmt.Errorf("%s: %w", n.Content[i].Value, e)
 					}
 					break
 				}
@@ -128,6 +128,10 @@ func scalarTypes(n *yaml.Node, t reflect.Type) error {
 	case reflect.Bool:
 		if n.Tag != "!!bool" {
 			return fmt.Errorf("expected true/false")
+		}
+	case reflect.Float64:
+		if n.Tag != "!!int" && n.Tag != "!!float" {
+			return fmt.Errorf("expected number")
 		}
 	case reflect.Int, reflect.Int64:
 		if n.Tag != "!!int" {

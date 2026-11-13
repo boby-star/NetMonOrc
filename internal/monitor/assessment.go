@@ -9,6 +9,14 @@ import (
 // It accepts only the newest execution per slot: a newer execution failure
 // must not silently resurrect an older success.
 func Evaluate(p Plan, slots []Slot, history []Observation, now time.Time) (Assessment, error) {
+	assessor, e := NewAssessor(p)
+	if e != nil {
+		return Assessment{}, e
+	}
+	return assessor.Evaluate(slots, history, now)
+}
+func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time.Time) (Assessment, error) {
+	p := assessor.plan
 	a := Assessment{Monitor: p.Name, Revision: p.Revision, At: now, State: "unknown"}
 	byZone := map[string]string{}
 	agents := map[string]bool{}
@@ -111,6 +119,7 @@ func Evaluate(p Plan, slots []Slot, history []Observation, now time.Time) (Asses
 			z.State = "healthy"
 			z.Reason = "sufficient_success"
 		}
+		assessor.applyRules(&z, latest, now, coherent, requiredFailure, requiredMissing)
 		a.Zones = append(a.Zones, z)
 	}
 	counts := map[string]int{}

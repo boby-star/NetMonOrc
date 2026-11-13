@@ -59,5 +59,6 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 	if total <= 0 {
 		return fmt.Errorf("zero total weight")
 	}
-	return nil
+	_, e = monitor.NewAssessor(p)
+	return e
 }

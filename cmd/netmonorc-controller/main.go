@@ -47,6 +47,10 @@ func run() error {
 	if e != nil {
 		return e
 	}
+	assessor, e := monitor.NewAssessor(p)
+	if e != nil {
+		return e
+	}
 	var slots []monitor.Slot
 	for _, entry := range strings.Split(*roster, ",") {
 		id, z, ok := strings.Cut(entry, "=")
@@ -58,7 +62,7 @@ func run() error {
 	if len(slots) != len(p.Zones) {
 		return fmt.Errorf("one fixed Agent is required per configured zone")
 	}
-	if _, e = monitor.Evaluate(p, slots, nil, time.Now()); e != nil {
+	if _, e = assessor.Evaluate(slots, nil, time.Now()); e != nil {
 		return e
 	}
 	tls, e := secure.Config(*ca, *cert, *key, true, "")
@@ -91,7 +95,7 @@ func run() error {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
 		for {
-			if e := assess(ctx, store, p, slots, *output); e != nil {
+			if e := assess(ctx, store, p, assessor, slots, *output); e != nil {
 				errors <- e
 				return
 			}
@@ -118,7 +122,7 @@ func run() error {
 	}
 	return result
 }
-func assess(ctx context.Context, store *storage.Store, p monitor.Plan, slots []monitor.Slot, path string) error {
+func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string) error {
 	c, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
 	now := time.Now().UTC()
@@ -126,7 +130,7 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, slots []m
 	if e != nil {
 		return e
 	}
-	a, e := monitor.Evaluate(p, slots, observations, now)
+	a, e := assessor.Evaluate(slots, observations, now)
 	if e != nil {
 		return e
 	}

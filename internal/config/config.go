@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"regexp"
 	"sort"
 	"time"
@@ -40,6 +41,15 @@ type checkSpec struct {
 	Config   yaml.Node `yaml:"config"`
 }
 type assessmentSpec struct {
+	Rules []struct {
+		ID       string `yaml:"id"`
+		Priority *int   `yaml:"priority"`
+		When     string `yaml:"when"`
+		Then     struct {
+			State  string `yaml:"state"`
+			Reason string `yaml:"reason"`
+		} `yaml:"then"`
+	} `yaml:"rules"`
 	RequiredZones   []string `yaml:"requiredZones"`
 	ZoneAggregation string   `yaml:"zoneAggregation"`
 	MinCoverage     *float64 `yaml:"minCoverage"`
@@ -93,6 +103,16 @@ func Compile(data []byte) (monitor.Plan, error) {
 	d := yaml.NewDecoder(bytes.NewReader(data))
 	d.KnownFields(true)
 	var m Manifest
+	var tree yaml.Node
+	if e := yaml.Unmarshal(data, &tree); e != nil {
+		return p, e
+	}
+	if len(tree.Content) != 1 {
+		return p, fmt.Errorf("empty Monitor document")
+	}
+	if e := scalarTypes(tree.Content[0], reflect.TypeOf(m)); e != nil {
+		return p, e
+	}
 	if e := d.Decode(&m); e != nil {
 		return p, e
 	}
@@ -215,6 +235,22 @@ func Compile(data []byte) (monitor.Plan, error) {
 			}
 		}
 	}
+	for _, rule := range a.Rules {
+		priority := 100
+		if rule.Priority != nil {
+			priority = *rule.Priority
+		}
+		p.Rules = append(p.Rules, monitor.AssessmentRule{ID: rule.ID, Priority: priority, When: rule.When, State: rule.Then.State, Reason: rule.Then.Reason})
+	}
+	sort.Slice(p.Rules, func(i, j int) bool {
+		if p.Rules[i].Priority == p.Rules[j].Priority {
+			return p.Rules[i].ID < p.Rules[j].ID
+		}
+		return p.Rules[i].Priority > p.Rules[j].Priority
+	})
+	if _, e := monitor.NewAssessor(p); e != nil {
+		return p, e
+	}
 	var total float64
 	for _, c := range p.Checks {
 		total += c.Weight
@@ -226,7 +262,13 @@ func Compile(data []byte) (monitor.Plan, error) {
 		p.Checks[j].Weight /= total
 	}
 	sort.Slice(p.Checks, func(i, j int) bool { return p.Checks[i].ID < p.Checks[j].ID })
-	b, _ := json.Marshal(p)
+	b, e := json.Marshal(p)
+	if e != nil {
+		return p, e
+	}
+	if len(b) > (1<<20)-4096 {
+		return p, fmt.Errorf("compiled plan exceeds transport frame budget")
+	}
 	hash := sha256.Sum256(b)
 	p.Revision = hex.EncodeToString(hash[:])
 	return p, nil

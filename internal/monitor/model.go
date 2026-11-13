@@ -21,6 +21,7 @@ type Check struct {
 }
 
 type Plan struct {
+	Rules         []AssessmentRule
 	Name          string
 	TargetAddress string
 	Revision      string
@@ -55,13 +56,14 @@ type Observation struct {
 }
 
 type ZoneAssessment struct {
-	Zone     string   `json:"zone"`
-	State    string   `json:"state"`
-	Coverage string   `json:"coverage"`
-	Q        float64  `json:"q"`
-	H        *float64 `json:"h"`
-	Evidence []string `json:"evidence"`
-	Reason   string   `json:"reason"`
+	RuleErrors []string `json:"ruleErrors,omitempty"`
+	Zone       string   `json:"zone"`
+	State      string   `json:"state"`
+	Coverage   string   `json:"coverage"`
+	Q          float64  `json:"q"`
+	H          *float64 `json:"h"`
+	Evidence   []string `json:"evidence"`
+	Reason     string   `json:"reason"`
 }
 
 type Assessment struct {
@@ -91,4 +93,12 @@ type ICMPConfig struct {
 	IPProtocolFallback  bool
 	PayloadSize         int
 	DontFragment        bool
+}
+
+type AssessmentRule struct {
+	ID       string
+	Priority int
+	When     string
+	State    string
+	Reason   string
 }
