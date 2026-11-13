@@ -1,0 +1,10 @@
+{
+  "observations": 3103,
+  "diagnosticRuns": 60,
+  "alerts": 1,
+  "outbox": 18,
+  "status": "passed",
+  "dumpMode": "0600",
+  "restore": "separate temporary database; dropped after check",
+  "liveDatabaseUnchanged": true
+}
