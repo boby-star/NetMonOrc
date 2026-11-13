@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "startedAt": "2026-11-13T17:54:42.400652+00:00",
+  "finishedAt": "2026-11-13T17:55:36.176110+00:00",
+  "project": "nmo-integration",
+  "firing": {
+    "event_id": "56949598-ef9e-4a78-85ab-185cad9492ad",
+    "state": "delivered",
+    "attempts": 2,
+    "status_code": 200,
+    "payload": {
+      "zone": null,
+      "state": "down",
+      "monitor": "research-web",
+      "event_id": "56949598-ef9e-4a78-85ab-185cad9492ad",
+      "severity": "critical",
+      "alert_rule": "service-outage",
+      "event_type": "alert.firing",
+      "occurred_at": "2026-11-13T17:54:52.194235867Z",
+      "evidence_ids": [
+        "0b93071390023ef38df3c269f6479541",
+        "24e1477e3c99ecbb9774eabc07f4d600",
+        "46b9e0589478ffb085eb5c5ce7b84cbc",
+        "4d75e85193a2adeeca6954baab9b49bc",
+        "a53c977f299e1bec9d3752121078194d",
+        "cfd920847d11061ab99297b56df9daa7"
+      ],
+      "reason_codes": [
+        "required_failure"
+      ],
+      "schema_version": "1"
+    }
+  },
+  "firingAttempts": [
+    {
+      "attempt": 1,
+      "status_code": 503,
+      "finished": true
+    },
+    {
+      "attempt": 2,
+      "status_code": 200,
+      "finished": true
+    }
+  ],
+  "resolution": {
+    "event_id": "34bbddb9-b2ce-4f9e-adab-95cf5e83cb4f",
+    "state": "delivered",
+    "attempts": 2,
+    "status_code": 200,
+    "payload": {
+      "zone": null,
+      "state": "healthy",
+      "monitor": "research-web",
+      "event_id": "34bbddb9-b2ce-4f9e-adab-95cf5e83cb4f",
+      "severity": "critical",
+      "alert_rule": "service-outage",
+      "event_type": "alert.resolved",
+      "occurred_at": "2026-11-13T17:55:27.329199327Z",
+      "evidence_ids": [
+        "19e4427398f16f51b6974212288cc667",
+        "373ae76f9d1704ad5407c167e6f86c26",
+        "7d95b3446998160bad6ec0c4676f9a4a",
+        "cd99c4385ecf42eec33ab520672b6d05",
+        "e3717eeb280742a90fa96c509895559e",
+        "fa07586b8c4fea98df4a1bae3ddc1d6f"
+      ],
+      "reason_codes": [
+        "sufficient_success"
+      ],
+      "schema_version": "1"
+    }
+  },
+  "resolutionAttempts": [
+    {
+      "attempt": 1,
+      "status_code": 503,
+      "finished": true
+    },
+    {
+      "attempt": 2,
+      "status_code": 200,
+      "finished": true
+    }
+  ],
+  "receiver": {
+    "events": [
+      [
+        "34bbddb9-b2ce-4f9e-adab-95cf5e83cb4f",
+        "{\"alert_rule\":\"service-outage\",\"event_id\":\"34bbddb9-b2ce-4f9e-adab-95cf5e83cb4f\",\"event_type\":\"alert.resolved\",\"evidence_ids\":[\"19e4427398f16f51b6974212288cc667\",\"373ae76f9d1704ad5407c167e6f86c26\",\"7d95b3446998160bad6ec0c4676f9a4a\",\"cd99c4385ecf42eec33ab520672b6d05\",\"e3717eeb280742a90fa96c509895559e\",\"fa07586b8c4fea98df4a1bae3ddc1d6f\"],\"monitor\":\"research-web\",\"occurred_at\":\"2026-11-13T17:55:27.329199327Z\",\"reason_codes\":[\"sufficient_success\"],\"schema_version\":\"1\",\"severity\":\"critical\",\"state\":\"healthy\",\"zone\":null}"
+      ],
+      [
+        "56949598-ef9e-4a78-85ab-185cad9492ad",
+        "{\"alert_rule\":\"service-outage\",\"event_id\":\"56949598-ef9e-4a78-85ab-185cad9492ad\",\"event_type\":\"alert.firing\",\"evidence_ids\":[\"0b93071390023ef38df3c269f6479541\",\"24e1477e3c99ecbb9774eabc07f4d600\",\"46b9e0589478ffb085eb5c5ce7b84cbc\",\"4d75e85193a2adeeca6954baab9b49bc\",\"a53c977f299e1bec9d3752121078194d\",\"cfd920847d11061ab99297b56df9daa7\"],\"monitor\":\"research-web\",\"occurred_at\":\"2026-11-13T17:54:52.194235867Z\",\"reason_codes\":[\"required_failure\"],\"schema_version\":\"1\",\"severity\":\"critical\",\"state\":\"down\",\"zone\":null}"
+      ]
+    ],
+    "attempts": [
+      [
+        "89a8594e-bbd1-49c2-a69b-efbd052f8ef2",
+        503
+      ],
+      [
+        "89a8594e-bbd1-49c2-a69b-efbd052f8ef2",
+        200
+      ],
+      [
+        "8902c1da-cf45-4ddb-9619-e3702c273316",
+        503
+      ],
+      [
+        "8902c1da-cf45-4ddb-9619-e3702c273316",
+        200
+      ],
+      [
+        "56949598-ef9e-4a78-85ab-185cad9492ad",
+        503
+      ],
+      [
+        "56949598-ef9e-4a78-85ab-185cad9492ad",
+        200
+      ],
+      [
+        "34bbddb9-b2ce-4f9e-adab-95cf5e83cb4f",
+        503
+      ],
+      [
+        "34bbddb9-b2ce-4f9e-adab-95cf5e83cb4f",
+        200
+      ]
+    ]
+  },
+  "unknownHeldFiring": true,
+  "restartKeptEventID": true,
+  "finalAssessment": {
+    "monitor": "research-web",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "at": "2026-11-13T17:55:35.814930934Z",
+    "state": "healthy",
+    "zones": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "7d95b3446998160bad6ec0c4676f9a4a",
+          "fa07586b8c4fea98df4a1bae3ddc1d6f",
+          "19e4427398f16f51b6974212288cc667"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "e3717eeb280742a90fa96c509895559e",
+          "cd99c4385ecf42eec33ab520672b6d05",
+          "373ae76f9d1704ad5407c167e6f86c26"
+        ],
+        "reason": "sufficient_success"
+      }
+    ]
+  },
+  "finalAlert": {
+    "status": "resolved",
+    "ruleHash": "e6538534161920c3cdc7de03a19ecbd7431e2b1e34e97e704091971a2c2a1cd1",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "armed": true,
+    "lastEvaluatedAt": "2026-11-13T17:55:35.814930934Z",
+    "lastTransitionAt": "2026-11-13T17:55:27.329199327Z",
+    "lastFiringQueuedAt": "2026-11-13T17:54:52.194235867Z",
+    "lastResolvedQueuedAt": "2026-11-13T17:55:27.329199327Z"
+  }
+}

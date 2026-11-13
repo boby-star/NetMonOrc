@@ -1,0 +1,9 @@
+{
+  "source_commit": "9b420e788de67aa3a6532cd39eefd6792eefa8a4",
+  "source_tree_clean_at_start": true,
+  "application_image": "sha256:0be9253112c90bddc362b124826293e827091ff721cff88445295702c60bf7e2",
+  "fixture_image": "sha256:6934b4d450a75c682deb6a53d4db49989051c9fed8ea55ae1bc59cf7f8882211",
+  "command": "python3 scripts/lab_notifications.py --project nmo-integration --output .local/webhook-confirmed.json",
+  "repetitions": 1,
+  "notes": "Receiver attempt audit includes the previous working-tree pilot; firing/resolution records identify this run by event_id. Application and scripts were clean at start."
+}
