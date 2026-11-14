@@ -1,4 +1,4 @@
-// netmonorc provides local research operations, not a replacement HTTP API.
+// netmonorc provides research operations and authenticated Controller access.
 package main
 
 import (
@@ -27,7 +27,10 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: netmonorc validate|probe|assess [flags]")
+		return fmt.Errorf("usage: netmonorc login|logout|whoami|validate|probe|assess [flags]")
+	}
+	if args[0] == "login" || args[0] == "logout" || args[0] == "whoami" {
+		return authCommand(args)
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	manifest := f.String("config", "examples/http.yaml", "Monitor manifest")

@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано read-only GET /api/v1/monitors/{name}/assessment через HTTPS bootstrap bearer reader. Інші маршрути та повні sessions/PAT/RBAC ще заплановані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Решта маршрутів залишається планом до реалізації відповідних модулів.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -182,7 +182,7 @@ paths:
       tags:
       - Auth
       summary: Мої CLI-токени
-      description: Metadata без secret; підтримує пагінацію.
+      description: Metadata лише власних токенів, без secret. limit 1..200 (default 50), cursor — opaque останній ID; порядок ID DESC. Доступ через cookie або власний PAT.
       operationId: listApiTokens
       x-netmonorc-rbac: viewer
       parameters:
@@ -230,7 +230,14 @@ paths:
       tags:
       - Auth
       summary: Створити CLI-токен
-      description: Повертає bearer secret лише один раз, scopes не можуть перевищувати права principal.
+      description: >-
+        Видача лише через чинну browser cookie-сесію з X-CSRF-Token. PAT не може
+        створювати інший PAT. Повертає 256-бітний bearer secret лише один раз;
+        сервер зберігає SHA-256 hash. Scopes не перевищують актуальну роль.
+        Відсутні/null scopes означають resources:read; явний [] не надає доступу
+        до ресурсів. expiresAt null або відсутній означає без строку дії;
+        явний строк повинен бути в майбутньому. Name — 1..128 байтів UTF-8,
+        без крайніх пробілів і контрольних символів.
       operationId: issueApiToken
       x-netmonorc-rbac: viewer
       requestBody:
@@ -271,7 +278,7 @@ paths:
       tags:
       - Auth
       summary: Відкликати CLI-токен
-      description: ID з token metadata, без повторного розкриття secret.
+      description: Лише власний token ID, без повторного secret. Повторне відкликання дає 204; чужий або відсутній ID — 404. Cookie вимагає X-CSRF-Token; PAT може відкликати власний token або інші токени того самого власника.
       operationId: revokeApiToken
       x-netmonorc-rbac: viewer
       parameters:
@@ -1386,7 +1393,7 @@ paths:
         nextCursor прив'язаний до Monitor та фільтрів; при зміні фільтрів почніть
         без cursor. Нові записи після початку перегляду доступні через оновлення
         першої сторінки. Історичні ревізії не впливають на live assessment.
-        Поточна реалізація вимагає browser cookie з resources:read; bootstrap bearer
+        Поточна реалізація вимагає browser cookie або PAT з resources:read; bootstrap bearer
         дозволяє лише Assessment. receivedAt походить із БД; isReplay та failureDomain
         не повертаються, якщо їх не збережено — значення не вгадуються.
       operationId: listMonitorObservations
@@ -2490,13 +2497,19 @@ components:
             - system:admin
     ApiTokenCreate:
       type: object
+      additionalProperties: false
       required:
       - name
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 128
         scopes:
-          type: array
+          type: [array, 'null']
+          uniqueItems: true
+          maxItems: 9
+          description: Відсутнє або null — resources:read; явний порожній список — без доступу до ресурсів.
           items:
             type: string
         expiresAt:

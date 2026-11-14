@@ -39,6 +39,12 @@ func sameOrigin(r *http.Request) bool {
 }
 func authError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, auth.ErrInput):
+		failure(w, 422, "INVALID_ARGUMENT", "Invalid token request")
+	case errors.Is(err, auth.ErrForbidden):
+		failure(w, 403, "FORBIDDEN", "Requested permission unavailable")
+	case errors.Is(err, auth.ErrNotFound):
+		failure(w, 404, "NOT_FOUND", "Token not found")
 	case errors.Is(err, auth.ErrPassword):
 		failure(w, 422, "INVALID_PASSWORD", "Password requires 16..256 UTF-8 bytes")
 	case errors.Is(err, auth.ErrCredentials):
@@ -57,6 +63,10 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	if r.URL.Path == "/api/v1/auth/tokens" || strings.HasPrefix(r.URL.Path, "/api/v1/auth/tokens/") {
+		h.tokenRoutes(w, r)
+		return
+	}
 	if r.URL.RawQuery != "" {
 		failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")
 		return
@@ -103,7 +113,7 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: raw, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: view.ExpiresAt, MaxAge: int(auth.SessionTTL.Seconds())})
+		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: raw, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: *view.ExpiresAt, MaxAge: int(auth.SessionTTL.Seconds())})
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(view)
 	case "/api/v1/auth/me":
@@ -112,7 +122,7 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 			failure(w, 405, "METHOD_NOT_ALLOWED", "GET required")
 			return
 		}
-		view, err := h.auth.Me(ctx, cookieToken(r))
+		view, err := h.principal(ctx, r)
 		if err != nil {
 			authError(w, err)
 			return
@@ -120,6 +130,10 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(view)
 	case "/api/v1/auth/change-password":
+		if r.Header.Get("Authorization") != "" {
+			authError(w, auth.ErrCredentials)
+			return
+		}
 		if r.Method != "POST" {
 			w.Header().Set("Allow", "POST")
 			failure(w, 405, "METHOD_NOT_ALLOWED", "POST required")
@@ -164,10 +178,14 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 			authError(w, err)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: fresh, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: view.ExpiresAt, MaxAge: int(auth.SessionTTL.Seconds())})
+		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: fresh, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: *view.ExpiresAt, MaxAge: int(auth.SessionTTL.Seconds())})
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(view)
 	case "/api/v1/auth/logout":
+		if r.Header.Get("Authorization") != "" {
+			authError(w, auth.ErrCredentials)
+			return
+		}
 		if r.Method != "POST" {
 			w.Header().Set("Allow", "POST")
 			failure(w, 405, "METHOD_NOT_ALLOWED", "POST required")
@@ -197,34 +215,54 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 		failure(w, 404, "NOT_FOUND", "Auth endpoint not implemented")
 	}
 }
-func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) bool {
-	if header := r.Header.Get("Authorization"); header != "" {
-		scheme, value, present := strings.Cut(header, " ")
-		hash := auth.HashToken(value)
-		if h.tokenEnabled && present && strings.EqualFold(scheme, "Bearer") && subtle.ConstantTimeCompare(hash, h.tokenHash[:]) == 1 {
-			return true
-		}
-		w.Header().Set("WWW-Authenticate", `Bearer realm="NetMonOrc"`)
-		authError(w, auth.ErrCredentials)
-		return false
+func bearer(r *http.Request) (string, error) {
+	scheme, value, present := strings.Cut(r.Header.Get("Authorization"), " ")
+	if !present || !strings.EqualFold(scheme, "Bearer") || strings.ContainsAny(value, " \t\r\n") {
+		return "", auth.ErrCredentials
 	}
-	if h.auth != nil {
-		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
-		defer cancel()
-		view, err := h.auth.Me(ctx, cookieToken(r))
+	return value, nil
+}
+func (h *Handler) principal(ctx context.Context, r *http.Request) (auth.SessionView, error) {
+	if h.auth == nil {
+		return auth.SessionView{}, auth.ErrCredentials
+	}
+	if r.Header.Get("Authorization") != "" {
+		raw, err := bearer(r)
 		if err != nil {
-			authError(w, err)
-			return false
+			return auth.SessionView{}, err
 		}
-		for _, scope := range view.Scopes {
-			if scope == "resources:read" {
+		return h.auth.TokenPrincipal(ctx, raw)
+	}
+	return h.auth.Me(ctx, cookieToken(r))
+}
+func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) bool {
+	return h.authorizeRead(w, r, true)
+}
+func (h *Handler) authorizeRead(w http.ResponseWriter, r *http.Request, allowBootstrap bool) bool {
+	if r.Header.Get("Authorization") != "" && allowBootstrap && h.tokenEnabled {
+		raw, err := bearer(r)
+		if err == nil {
+			hash := auth.HashToken(raw)
+			if subtle.ConstantTimeCompare(hash, h.tokenHash[:]) == 1 {
 				return true
 			}
 		}
-		failure(w, 403, "FORBIDDEN", "resources:read required")
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	view, err := h.principal(ctx, r)
+	if err != nil {
+		if errors.Is(err, auth.ErrCredentials) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="NetMonOrc"`)
+		}
+		authError(w, err)
 		return false
 	}
-	w.Header().Set("WWW-Authenticate", `Bearer realm="NetMonOrc"`)
-	authError(w, auth.ErrCredentials)
+	for _, scope := range view.Scopes {
+		if scope == "resources:read" {
+			return true
+		}
+	}
+	failure(w, 403, "FORBIDDEN", "resources:read required")
 	return false
 }

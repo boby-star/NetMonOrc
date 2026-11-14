@@ -30,31 +30,36 @@ type User struct {
 	Disabled                         bool
 }
 type SessionView struct {
-	UserID    string    `json:"userId"`
-	Username  string    `json:"username"`
-	Role      string    `json:"role"`
-	ExpiresAt time.Time `json:"expiresAt"`
-	CSRFToken string    `json:"csrfToken"`
-	Scopes    []string  `json:"scopes"`
+	UserID    string     `json:"userId"`
+	Username  string     `json:"username"`
+	Role      string     `json:"role"`
+	ExpiresAt *time.Time `json:"expiresAt"`
+	CSRFToken string     `json:"csrfToken,omitempty"`
+	Scopes    []string   `json:"scopes"`
 }
 type Repository interface {
 	FindUser(context.Context, string) (User, bool, error)
 	FinishLogin(context.Context, User, bool, []byte, time.Time) (bool, error)
 	SessionUser(context.Context, []byte) (User, time.Time, bool, error)
 	RevokeSession(context.Context, []byte) error
+	IssueAPIToken(context.Context, string, []byte, APITokenCreate, []byte) (APITokenView, error)
+	ListAPITokens(context.Context, string, string, int) ([]APITokenView, error)
+	RevokeAPIToken(context.Context, string, string) (bool, error)
+	APITokenUser(context.Context, []byte) (User, []string, *time.Time, bool, error)
 	ChangePassword(context.Context, User, []byte, bool, string, []byte, time.Time) (bool, error)
 }
 type Service struct {
 	repo      Repository
 	loginSlot chan struct{}
 	readSlot  chan struct{}
+	tokenSlot chan struct{}
 	mu        sync.Mutex
 	window    time.Time
 	attempts  int
 }
 
 func New(repo Repository) *Service {
-	return &Service{repo: repo, loginSlot: make(chan struct{}, 1), readSlot: make(chan struct{}, 1)}
+	return &Service{repo: repo, loginSlot: make(chan struct{}, 1), readSlot: make(chan struct{}, 1), tokenSlot: make(chan struct{}, 1)}
 }
 func ValidUsername(s string) bool {
 	if !utf8.ValidString(s) || len(s) == 0 || len(s) > 64 || strings.TrimSpace(s) != s {
@@ -119,7 +124,7 @@ func Scopes(role string) []string {
 	return s
 }
 func view(u User, expiry time.Time, raw string) SessionView {
-	return SessionView{u.ID, u.Username, u.Role, expiry, CSRF(raw), Scopes(u.Role)}
+	return SessionView{u.ID, u.Username, u.Role, &expiry, CSRF(raw), Scopes(u.Role)}
 }
 func (s *Service) Login(ctx context.Context, username, password string) (SessionView, string, error) {
 	var empty SessionView

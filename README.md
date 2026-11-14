@@ -4,7 +4,9 @@
 
 За новим дорученням реалізація розширюється за [запискою і технічним планом](docs/specs/thesis-scope-2026-11-13.md).
 Реалізовано захищений Assessment REST, парольний вхід/вихід, durable
-cookie-сесії, зміну власного пароля та історію перевірок у React.
+cookie-сесії, зміну власного пароля, історію перевірок і керування PAT у React.
+CLI підтримує захищені login/whoami/local logout через особистий токен.
+[Персональні токени та CLI](docs/deployment/personal-api-tokens.md).
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
 [історія та пагінація](docs/architecture/observation-history.md),
 [перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки

@@ -1,5 +1,7 @@
 # Історія спостережень у REST та React (R3)
 
+У R4 додано також PAT із resources:read; [інструкція](../deployment/personal-api-tokens.md).
+
 GET `/api/v1/monitors/{name}/observations` читає фактичні рядки PostgreSQL.
 Це історія одного налаштованого Monitor, включно з історичними ревізіями та
 діагностичними probes. Вона не подає дані назад до Assessment Engine.

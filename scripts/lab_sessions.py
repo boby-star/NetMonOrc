@@ -14,13 +14,14 @@ import http.client,json,socket,ssl,sys
 from http.cookies import SimpleCookie
 c=json.load(sys.stdin);ctx=ssl.create_default_context(cadata=c['ca'])
 cookie=''
-def request(method,path,body=None,csrf='',origin='https://localhost'):
+def request(method,path,body=None,csrf='',origin='https://localhost',bearer=''):
     global cookie
     data=json.dumps(body).encode() if body is not None else b''
     headers={'Host':'localhost','Connection':'close','Content-Length':str(len(data))}
     if body is not None:headers['Content-Type']='application/json'
     if cookie:headers['Cookie']=cookie
     if csrf:headers['X-CSRF-Token']=csrf
+    if bearer:headers['Authorization']='Bearer '+bearer
     if origin:headers['Origin']=origin
     with socket.create_connection((c['address'],8443),timeout=8) as raw:
         with ctx.wrap_socket(raw,server_hostname='localhost') as sock:
@@ -59,13 +60,24 @@ if c['mode']=='login':
     code,body,setcookie=request('POST','/api/v1/auth/login',{'username':'admin','password':c['replacement']});assert code==200
     parsed=SimpleCookie();parsed.load(setcookie);cookie='netmonorc_session='+parsed['netmonorc_session'].value
     view=json.loads(body)
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read'],'expiresAt':None},csrf=view['csrfToken'])
+    assert code==201
+    api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
+    code,body,_=request('GET','/api/v1/auth/me',bearer=api['token']);assert code==200
+    assert json.loads(body)['expiresAt'] is None and 'csrfToken' not in json.loads(body)
+    code,_,_=request('GET','/api/v1/monitors/research-web/assessment',bearer=api['token']);assert code==200
+    code,_,_=request('GET','/api/v1/monitors/research-web/observations?limit=2',bearer=api['token']);assert code==200
     # Returned secrets go only to the parent operator process over a private
     # captured pipe, for the restart portion; never printed by the helper UI.
-    print(json.dumps({'cookie':cookie,'csrf':view['csrfToken'],'userId':view['userId']}))
+    print(json.dumps({'cookie':cookie,'csrf':view['csrfToken'],'userId':view['userId'],'apiToken':api['token'],'apiTokenId':api['id']}))
 else:
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/auth/me');assert code==200
     view=json.loads(body);assert view['userId']==c['userId'] and view['csrfToken']==c['csrf']
+    code,_,_=request('GET','/api/v1/auth/me',bearer=c['apiToken']);assert code==200
+    code,body,_=request('GET','/api/v1/auth/tokens');assert code==200 and c['apiToken'] not in body.decode()
+    code,_,_=request('DELETE','/api/v1/auth/tokens/'+c['apiTokenId'],csrf=c['csrf']);assert code==204
+    code,_,_=request('GET','/api/v1/auth/me',bearer=c['apiToken']);assert code==401
     code,_,_=request('POST','/api/v1/auth/logout');assert code==403
     code,_,_=request('GET','/api/v1/auth/me');assert code==200
     code,_,_=request('POST','/api/v1/auth/logout',csrf=c['csrf']);assert code==204
@@ -84,11 +96,16 @@ def verify(lab):
     lab.compose(*args,input=secrets.token_urlsafe(32).encode())
     common={'address':lab.prefix+'.40.4','ca':(lab.work/'pki/ca.crt').read_text()}
     first=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,'mode':'login','password':password,'replacement':secrets.token_urlsafe(32)}).encode()))
+    cli=('/usr/local/bin/netmonorc',)
+    lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
+    identity=json.loads(lab.compose('exec','-T','controller',*cli,'whoami','--context-file','/tmp/cli/context.json'))
+    assert identity['userId']==first['userId'] and identity['expiresAt'] is None
+    lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     password=''
     previous=lab.assessment()['at'];lab.compose('restart','controller')
     lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='healthy','fresh assessment after restart')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

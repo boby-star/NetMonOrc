@@ -108,12 +108,7 @@ func parseHistory(r *http.Request, name string) (monitor.HistoryQuery, string, e
 	return q, filter, nil
 }
 func (h *Handler) observations(w http.ResponseWriter, r *http.Request) {
-	// The legacy bootstrap reader is intentionally restricted to Assessment.
-	if r.Header.Get("Authorization") != "" || h.auth == nil {
-		failure(w, 401, "UNAUTHORIZED", "Browser session required")
-		return
-	}
-	if !h.authorize(w, r) {
+	if !h.authorizeRead(w, r, false) {
 		return
 	}
 	if r.Method != "GET" {

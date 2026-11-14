@@ -12,6 +12,7 @@ import {
 } from "./api";
 import "./style.css";
 import { History } from "./History";
+import { Tokens } from "./Tokens";
 const labels = {
   healthy: "Працює",
   degraded: "Погіршення",
@@ -302,6 +303,7 @@ function App() {
             </details>
           </section>
         )}
+        {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (
           <History
             key={session.userId + connection.monitor}

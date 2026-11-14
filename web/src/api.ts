@@ -181,3 +181,71 @@ export async function loadHistory(
     throw new Error("Некоректна відповідь історії.");
   return page;
 }
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  scopes: string[];
+  expiresAt: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+}
+export interface TokenPage {
+  items: ApiToken[];
+  nextCursor: string | null;
+}
+export interface IssuedToken extends ApiToken {
+  token: string;
+}
+export async function tokens(
+  cursor: string | null,
+  signal: AbortSignal,
+): Promise<TokenPage> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`/api/v1/auth/tokens?${params}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+  });
+  if (!response.ok)
+    throw new Error(`Не вдалося отримати токени (${response.status}).`);
+  return response.json() as Promise<TokenPage>;
+}
+export async function issueToken(
+  session: Session,
+  name: string,
+  scopes: string[],
+  expiresAt: string | null,
+): Promise<IssuedToken> {
+  const response = await fetch("/api/v1/auth/tokens", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": session.csrfToken,
+    },
+    body: JSON.stringify({ name, scopes, expiresAt }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok)
+    throw new Error(
+      `Видачу токена не підтверджено (${response.status}). Оновіть список перед повторною спробою.`,
+    );
+  return response.json() as Promise<IssuedToken>;
+}
+export async function revokeToken(session: Session, id: string): Promise<void> {
+  const response = await fetch(
+    `/api/v1/auth/tokens/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "X-CSRF-Token": session.csrfToken },
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (response.status !== 204)
+    throw new Error(
+      `Відкликання не підтверджено (${response.status}). Оновіть список.`,
+    );
+}

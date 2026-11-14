@@ -122,6 +122,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	if code, _, _ := request("GET", "/api/v1/monitors/service/assessment", nil, "", ""); code != 200 {
 		t.Fatal("cookie cannot read assessment", code)
 	}
+	testAPITokenUseCases(t, ctx, s, server, client, view)
 	// Equal database timestamps require ID tie-breaking, including sub-microsecond payload times.
 	finished := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
 	for _, id := range []string{"history-a", "history-b", "history-c"} {

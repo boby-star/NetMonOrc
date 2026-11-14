@@ -158,3 +158,20 @@ td {
   min-width: 8rem;
   max-width: 19rem;
 }
+.scope-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+fieldset {
+  border: 1px solid #c6d9c9;
+  border-radius: 6px;
+}
+.token-secret {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0.75rem;
+  background: #e9f0e8;
+}

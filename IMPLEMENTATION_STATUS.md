@@ -1,3 +1,21 @@
+# Персональні токени й CLI: R4
+
+Реалізовані POST/GET/DELETE /auth/tokens і bearer /auth/me. PostgreSQL
+зберігає тільки token hash, expiry/revoked_at та scopes. Видача через browser
+cookie+CSRF; owner isolation, перетин із поточною роллю та durable revocation.
+PAT з resources:read читає Assessment/history; bootstrap reader лишається
+обмеженим Assessment. React дозволяє видати, одноразово показати secret,
+переглянути сторінки metadata та відкликати токен.
+CLI login/whoami/local logout перевіряє TLS, забороняє redirect, читає PAT
+через прихований prompt/stdin, зберігає приватний атомарний контекст 0600.
+Перевірено критичні HTTPS/PG token use cases та CLI trust/private context;
+Go build/vet і React production build проходять. Окремий Compose-сценарій
+підтвердив реальні CLI login/whoami/logout та PAT після restart/revoke:
+[докази](docs/experiments/personal-api-tokens-r4). Інструкція:
+[personal-api-tokens.md](docs/deployment/personal-api-tokens.md).
+Повні users/resource CRUD, загальні CLI commands, placement/replicas та
+ResourceGroup ще не завершені. Наступні записи — історія попередніх етапів.
+
 # Історія перевірок у панелі: R3
 
 Додано GET `/api/v1/monitors/{name}/observations` і React-таблицю.
