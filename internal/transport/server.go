@@ -23,6 +23,7 @@ import (
 )
 
 type activeSession struct {
+	certExpiresAt     time.Time
 	generation        int64
 	cancel            context.CancelFunc
 	tasks             chan taskRequest
@@ -139,7 +140,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		old.cancel()
 	}
 	jobs := make(chan taskRequest, 1)
-	s.active[id] = activeSession{generation: generation, cancel: cancel, tasks: jobs, capabilities: capabilities}
+	s.active[id] = activeSession{generation: generation, cancel: cancel, tasks: jobs, capabilities: capabilities, certExpiresAt: auth.State.PeerCertificates[0].NotAfter}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()

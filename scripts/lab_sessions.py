@@ -73,6 +73,7 @@ if c['mode']=='login':
     code,_,_=request('GET','/api/v1/users');assert code==403
     code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-viewer-reader','scopes':['resources:read']},csrf=viewer_view['csrfToken']);assert code==201
     viewer_token=json.loads(body)['token']
+    code,_,_=request('GET','/api/v1/agents',bearer=viewer_token);assert code==403
     cookie=admin_cookie
     code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken']);assert code==428
     code,body,new_tag=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken'],if_match=user_tag,response_header='ETag');assert code==200 and json.loads(body)['disabled']
@@ -82,7 +83,7 @@ if c['mode']=='login':
     cookie=viewer_cookie
     code,_,_=request('GET','/api/v1/auth/me');assert code==401
     cookie=admin_cookie
-    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write'],'expiresAt':None},csrf=view['csrfToken'])
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read'],'expiresAt':None},csrf=view['csrfToken'])
     assert code==201
     api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
     code,body,_=request('GET','/api/v1/auth/me',bearer=api['token']);assert code==200
@@ -124,6 +125,13 @@ else:
     code,body,_=request('GET','/api/v1/auth/tokens');assert code==200 and c['apiToken'] not in body.decode()
     code,_,_=request('DELETE','/api/v1/auth/tokens/'+c['apiTokenId'],csrf=c['csrf']);assert code==204
     code,_,_=request('GET','/api/v1/auth/me',bearer=c['apiToken']);assert code==401
+    code,body,_=request('GET','/api/v1/agents');assert code==200
+    agent_page=json.loads(body);assert len(agent_page['items'])==2
+    assert all(a['onlineState']=='online' and a['appliedRevision'] and a['lastHeartbeat'] and a['certExpiresAt'] and a['maxConcurrentProbes']==2 and 0<=a['activeProbes']<=2 for a in agent_page['items'])
+    assert all('token' not in a and 'privateKey' not in a for a in agent_page['items'])
+    code,body,_=request('GET','/api/v1/agents?zone=office');assert code==200 and len(json.loads(body)['items'])==1
+    code,body,_=request('GET','/api/v1/agents/branch');assert code==200 and json.loads(body)['networkZone']=='office'
+    code,_,_=request('GET','/api/v1/agents/not-in-roster');assert code==404
     code,_,_=request('POST','/api/v1/auth/logout');assert code==403
     code,_,_=request('GET','/api/v1/auth/me');assert code==200
     code,_,_=request('POST','/api/v1/auth/logout',csrf=c['csrf']);assert code==204
@@ -191,9 +199,17 @@ def verify(lab):
     lab.inject('http')
     lab.wait(lambda:int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))>before,'new automatic diagnostic started after re-enable')
     lab.inject('healthy');lab.wait(lambda:lab.assessment().get('state')=='healthy','service recovered after re-enabled diagnostic')
+    def agent_status():
+        return json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','agents','branch'))
+    assert agent_status()['onlineState']=='online'
+    lab.compose('stop','branch')
+    lab.wait(lambda:agent_status()['onlineState']=='offline','Agent snapshot reports a disconnected stream')
+    lab.compose('start','branch')
+    lab.wait(lambda:agent_status()['onlineState']=='online','Agent snapshot follows fenced reconnect and heartbeat')
+    lab.wait(lambda:lab.assessment().get('state')=='healthy','regular monitoring restored after Agent reconnect')
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

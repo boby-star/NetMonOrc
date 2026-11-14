@@ -14,6 +14,7 @@ import "./style.css";
 import { History } from "./History";
 import { Tokens } from "./Tokens";
 import { Users } from "./Users";
+import { Agents } from "./Agents";
 import { Configuration } from "./Configuration";
 const labels = {
   healthy: "Працює",
@@ -327,6 +328,9 @@ function App() {
             session={session}
             monitor={connection.monitor}
           />
+        )}
+        {session?.scopes.includes("agents:read") && (
+          <Agents key={session.userId} />
         )}
         {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (

@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor CRUD/status/revisions та config validate/plan. Додано атомарний Monitor batch apply та durable operations з готовністю за ACK агентів. Інші kind та решта маршрутів ще не реалізовані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor CRUD/status/revisions та config validate/plan. Додано атомарний Monitor batch apply та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Інші kind та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -1045,7 +1045,7 @@ paths:
       tags:
       - Agents
       summary: Перелік агентів
-      description: Довірені labels, zone, cert expiry, runner health, applied revision.
+      description: Поточний зріз читає fixed roster і чинні mTLS-сесії; agents:read, limit/cursor за agentId ASC, zone/state. Невідомі telemetry — null; capabilities не означають runner health. labelSelector/metadata management ще не реалізовані.
       operationId: listAgents
       x-netmonorc-rbac: viewer
       parameters:
@@ -1090,7 +1090,7 @@ paths:
       tags:
       - Agents
       summary: Дані агента
-      description: Ніколи не повертає приватний ключ чи token.
+      description: Read-only snapshot з fixed roster; чинні heartbeat/applied revision/cert expiry та probe gauge. Ніколи не повертає приватний ключ чи token; невідомий ID — 404.
       operationId: getAgent
       x-netmonorc-rbac: viewer
       parameters:
@@ -2913,6 +2913,14 @@ components:
           format: date-time
         spoolPending:
           type: integer
+        maxConcurrentProbes:
+          type: [integer, 'null']
+          minimum: 1
+          description: Останнє значення capacity із валідованого heartbeat; null до отримання поточної telemetry.
+        activeProbes:
+          type: [integer, 'null']
+          minimum: 0
+          description: Поточний gauge на час останнього heartbeat, не cumulative counter.
     AgentPatch:
       type: object
       additionalProperties: false

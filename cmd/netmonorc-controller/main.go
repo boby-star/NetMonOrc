@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/agentstatus"
 	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/config"
@@ -279,6 +280,7 @@ func run() error {
 				}
 				handler.SetHistoryLoader(store.ReadObservations)
 				handler.SetResources(resourceService, p.Revision)
+				handler.SetAgents(func() []agentstatus.View { return agentServer.AgentStatuses(time.Now()) })
 				httpServer = httpapi.NewServer(*httpListen, handler)
 			}
 			errors := make(chan error, 4)

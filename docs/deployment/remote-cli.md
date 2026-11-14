@@ -1,7 +1,7 @@
 # CLI для конфігурацій та операцій (R8)
 
 Після `netmonorc login` CLI використовує збережений приватний PAT-контекст.
-Додані remote validate, plan, apply, apply --wait і get Monitor/operations.
+Додані remote validate, plan, apply, apply --wait і get Monitor/operations/agents.
 Вони працюють з тими самими HTTP endpoints, DTO та серверною валідацією, що
 React. Паролі/токени не передаються аргументами; TLS перевіряється завжди.
 
@@ -49,7 +49,7 @@ Idempotency на сервері діє 24h у межах user ID. Ті самі 
 Read commands потребують resources:read, plan/apply/remote validate — admin
 і resources:write; apply --wait потребує обох scopes. Є --context-file для
 окремого приватного контексту. З --limit/--cursor можна переглядати сторінки;
-state застосовується лише до operations. Ця stdlib flags-версія вимагає flags
+state застосовується до operations та agents. Ця stdlib flags-версія вимагає flags
 перед positional arguments у get. Output поки JSON; Cobra/named contexts,
 інші kind/команди та table/yaml output залишаються наступними етапами.
 

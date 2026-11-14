@@ -608,3 +608,40 @@ export async function operations(
   if (!response.ok) throw resourceError(response.status);
   return response.json() as Promise<OperationPage>;
 }
+
+export interface AgentView {
+  agentId: string;
+  name: string;
+  onlineState: "online" | "offline" | "degraded" | "revoked";
+  networkZone: string;
+  capabilities?: string[];
+  appliedRevision: string | null;
+  lastHeartbeat: string | null;
+  certExpiresAt: string | null;
+  maxConcurrentProbes: number | null;
+  activeProbes: number | null;
+}
+export interface AgentPage {
+  items: AgentView[];
+  nextCursor: string | null;
+}
+export async function agents(
+  zone: string,
+  state: string,
+  cursor: string | null,
+): Promise<AgentPage> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (zone) params.set("zone", zone);
+  if (state) params.set("state", state);
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`/api/v1/agents?${params}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok)
+    throw new Error(
+      `Не вдалося оновити агентів (${response.status}). Повторіть запит.`,
+    );
+  return response.json() as Promise<AgentPage>;
+}

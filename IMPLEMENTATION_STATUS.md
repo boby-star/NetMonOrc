@@ -1,3 +1,12 @@
+# Read-only Agent snapshots: R10
+
+GET agents/get-by-ID, React-таблиця та CLI get agents читають fixed roster
+і актуальні mTLS-сесії. agents:read, online/offline/degraded, zone,
+heartbeat/cert expiry/applied revision, nullable capacity/current probe gauge.
+Read model не підміняє стан сервісу станом агента та не імітує enrollment.
+Compose підтвердив scopes, API/CLI і справжній disconnect/reconnect.
+Документація: [agent-snapshots.md](docs/deployment/agent-snapshots.md).
+
 # Динамічне diagnostics.enabled: R9
 
 Catalog profile availability відділено від дозволу запуску. PUT/apply активного
