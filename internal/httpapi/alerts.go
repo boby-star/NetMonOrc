@@ -176,7 +176,7 @@ func (h *Handler) alertRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(parts) == 1 {
-		_ = json.NewEncoder(w).Encode(v)
+		alertResponse(w, v)
 		return
 	}
 	rows, err := h.alerts.AlertHistory(ctx, parts[0], q)

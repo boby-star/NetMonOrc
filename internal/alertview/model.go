@@ -60,3 +60,8 @@ type Reader interface {
 	AlertHistory(context.Context, string, Query) ([]History, error)
 	WebhookDeliveries(context.Context, Query) ([]Delivery, error)
 }
+
+// Acknowledge records operator receipt, independently of alert/monitor state.
+type Acknowledge struct {
+	Note string `json:"note,omitempty"`
+}

@@ -1,3 +1,15 @@
+# Підтвердження поточного циклу алерта: R15
+
+POST acknowledgement підключено до Controller/React/CLI; admin+alerts:manage,
+CSRF і повторна перевірка actor у transaction. GET Alert має strong ETag,
+If-Match обов’язковий для POST. Durable receipt/note окремі від FSM/outbox;
+повтор не змінює перший час, новий цикл скидає поточне acknowledgedAt.
+Документація: [alert-acknowledgement.md](docs/deployment/alert-acknowledgement.md).
+Критичні PG/HTTPS та Compose сценарії й обмеження описані в доказах етапу.
+Залишаються rule/webhook CRUD/test, UID-based registry lifecycle,
+multi-Monitor, placement/replicas та решта DSL registry.
+Нижче — історія попередніх етапів.
+
 # Перегляд алертів, переходів і delivery summaries: R14
 
 Додано GET alerts/list/get/history та webhook/deliveries, alerts:read,

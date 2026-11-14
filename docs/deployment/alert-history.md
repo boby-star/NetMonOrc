@@ -30,8 +30,8 @@ firing без збереженої причини має порожні reason/e
 Поточний runtime зберігає наявний name-based logical key rule/Monitor/scope.
 Повний UID-based lifecycle AlertRule/Monitor та zone-scoped alerts ще потребують
 окремого розширення registry й міграції. Цей етап не оголошує їх реалізованими.
-Acknowledgement, AlertRule CRUD і webhook test ще не підключені; acknowledgedAt
-поки null. Ці read routes не імітують успішних адміністративних операцій.
+[Acknowledgement додано в R15](alert-acknowledgement.md); AlertRule CRUD і
+webhook test залишаються відкритими. Read routes зберігають свою семантику.
 
 ## Pagination та історія
 

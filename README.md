@@ -19,6 +19,8 @@ Admin-панель підтримує [керування користувача
 через apply зі збереженням регулярного моніторингу.
 [Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
 React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
+[Підтвердження алертів](docs/deployment/alert-acknowledgement.md) доступне
+в API, React і CLI з захистом від застарілої версії та окремим receipt кожного циклу.
 [Алерти й доставка](docs/deployment/alert-history.md) доступні для перегляду
 через REST, React та CLI: докази, історія переходів і стан outbox.
 [Ручна діагностика](docs/deployment/diagnostic-control.md) має start/cancel,

@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS nmo_alerts(logical_key text PRIMARY KEY,payload jsonb
 ALTER TABLE nmo_alerts ADD COLUMN IF NOT EXISTS id text;
 ALTER TABLE nmo_alerts ADD COLUMN IF NOT EXISTS api_view jsonb;
 CREATE UNIQUE INDEX IF NOT EXISTS nmo_alerts_id ON nmo_alerts(id);
+CREATE TABLE IF NOT EXISTS nmo_alert_acknowledgements(alert_id text NOT NULL REFERENCES nmo_alerts(id),cycle_id text NOT NULL,acknowledged_at timestamptz NOT NULL,actor_id text NOT NULL,actor_name text NOT NULL,note text NOT NULL,PRIMARY KEY(alert_id,cycle_id));
 CREATE TABLE IF NOT EXISTS nmo_alert_events(id text PRIMARY KEY,logical_key text NOT NULL,transition jsonb NOT NULL,suppressed boolean NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS nmo_alert_events_history ON nmo_alert_events(logical_key,created_at DESC,id DESC);
 CREATE TABLE IF NOT EXISTS nmo_webhook_outbox(event_id text PRIMARY KEY REFERENCES nmo_alert_events(id),endpoint_hash text NOT NULL,payload jsonb NOT NULL,state text NOT NULL DEFAULT 'pending',attempts integer NOT NULL DEFAULT 0,next_after timestamptz NOT NULL,expires_at timestamptz NOT NULL,lease_token text NOT NULL DEFAULT '',lease_until timestamptz,status_code integer NOT NULL DEFAULT 0);

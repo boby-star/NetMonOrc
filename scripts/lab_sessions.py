@@ -77,6 +77,7 @@ if c['mode']=='login':
     code,_,_=request('GET','/api/v1/diagnostics',bearer=viewer_token);assert code==403
     code,_,_=request('GET','/api/v1/alerts',bearer=viewer_token);assert code==403
     code,_,_=request('GET','/api/v1/webhook/deliveries',bearer=viewer_token);assert code==403
+    code,_,_=request('POST','/api/v1/alerts/missing/acknowledge',{},bearer=viewer_token);assert code==403
     cookie=admin_cookie
     code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken']);assert code==428
     code,body,new_tag=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken'],if_match=user_tag,response_header='ETag');assert code==200 and json.loads(body)['disabled']
@@ -86,7 +87,7 @@ if c['mode']=='login':
     cookie=viewer_cookie
     code,_,_=request('GET','/api/v1/auth/me');assert code==401
     cookie=admin_cookie
-    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read','diagnostics:run','alerts:read'],'expiresAt':None},csrf=view['csrfToken'])
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read','diagnostics:run','alerts:read','alerts:manage'],'expiresAt':None},csrf=view['csrfToken'])
     assert code==201
     api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
     code,body,_=request('GET','/api/v1/auth/me',bearer=api['token']);assert code==200
@@ -122,6 +123,17 @@ elif c['mode']=='control-disabled':
     cookie=c['cookie']
     code,_,_=request('POST','/api/v1/monitors/research-web/diagnostics',{'profileRef':'web-lab','requestId':'disabled-manual'},csrf=c['csrf']);assert code==409
     print(json.dumps({'disabledRejected':True}))
+elif c['mode']=='ack-prepare':
+    cookie=c['cookie']
+    code,body,tag=request('GET','/api/v1/alerts/'+c['alertId'],response_header='ETag');assert code==200 and tag
+    assert json.loads(body)['state']=='firing'
+    code,_,_=request('POST','/api/v1/alerts/'+c['alertId']+'/acknowledge',{},if_match=tag);assert code==403
+    code,_,_=request('POST','/api/v1/alerts/'+c['alertId']+'/acknowledge',{},csrf=c['csrf']);assert code==428
+    print(json.dumps({'etag':tag}))
+elif c['mode']=='ack-stale':
+    cookie=c['cookie']
+    code,_,_=request('POST','/api/v1/alerts/'+c['alertId']+'/acknowledge',{},csrf=c['csrf'],if_match=c['etag']);assert code==412
+    print(json.dumps({'staleRejected':True}))
 elif c['mode']=='profile':
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/resources/DiagnosticProfile/web-lab');assert code==200
@@ -204,6 +216,23 @@ def verify(lab):
     lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
     stored=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','operations',changed['operationId']))
     assert stored['state']=='completed' and stored['id']==changed['operationId']
+    acknowledged_id=None
+    def firing_alert():
+        nonlocal acknowledged_id
+        rows=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','alerts'))['items']
+        if len(rows)==1 and rows[0]['state']=='firing':acknowledged_id=rows[0]['id'];return True
+        return False
+    lab.wait(firing_alert,'real active alert ready for operator acknowledgement')
+    prepared_ack=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'ack-prepare','alertId':acknowledged_id}).encode()))
+    before_outbox=int(lab.sql('SELECT count(*) FROM nmo_webhook_outbox'))
+    acknowledged=json.loads(lab.compose('exec','-T','controller',*cli,'alerts','acknowledge','--context-file','/tmp/cli/context.json','--note-file','-','--if-match',prepared_ack['etag'],acknowledged_id,input=b'Integration reviewed'))
+    assert acknowledged['state']=='firing' and acknowledged['acknowledgedAt'] and 'note' not in acknowledged
+    assert lab.assessment()['state']=='down' and int(lab.sql('SELECT count(*) FROM nmo_webhook_outbox'))==before_outbox
+    previous=lab.assessment()['at'];lab.compose('restart','controller')
+    lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='down','fresh down assessment after acknowledged restart')
+    lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
+    receipt=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','alerts',acknowledged_id))
+    assert receipt['acknowledgedAt']==acknowledged['acknowledgedAt'] and receipt['state']=='firing'
     restored=cli_configuration(changed['original'])
     lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==restored['revision'],'restored Monitor reconciled to healthy')
     lab.wait(lambda:operation_status(restored)['state']=='completed','restored apply confirmed by Agents')
@@ -223,6 +252,12 @@ def verify(lab):
     lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==enabled['revision'],'diagnostics re-enabled through apply')
     lab.inject('http')
     lab.wait(lambda:int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))>before,'new automatic diagnostic started after re-enable')
+    def unacknowledged_cycle():
+        alert=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','alerts',acknowledged_id))
+        return alert['state']=='firing' and alert['acknowledgedAt'] is None and alert['firedAt']!=acknowledged['firedAt']
+    lab.wait(unacknowledged_cycle,'new firing requires a new acknowledgement')
+    stale=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'ack-stale','alertId':acknowledged_id,'etag':prepared_ack['etag']}).encode()));assert stale['staleRejected']
+
     lab.inject('healthy');lab.wait(lambda:lab.assessment().get('state')=='healthy','service recovered after re-enabled diagnostic')
     # Profile-only apply must wait for the unchanged dependent Monitor manifest
     # to receive a new execution revision and actual Agent acknowledgements.
@@ -320,7 +355,7 @@ def verify(lab):
     assert int(lab.sql('SELECT count(*) FROM nmo_webhook_outbox'))==len(deliveries)
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'alertHistoryRESTAndCLI':True,'alertFiringResolvedLifecycleVisible':True,'webhookDeliveryRESTAndCLI':True,'deliveryViewOmitsSecrets':True,'alertReadScopeEnforced':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'alertAcknowledgementCLIAndAPI':True,'acknowledgementSurvivesRestart':True,'acknowledgementDoesNotResolveOrNotify':True,'newFiringClearsAcknowledgement':True,'staleAcknowledgementRejected':True,'acknowledgementScopeAndCSRF':True,'alertHistoryRESTAndCLI':True,'alertFiringResolvedLifecycleVisible':True,'webhookDeliveryRESTAndCLI':True,'deliveryViewOmitsSecrets':True,'alertReadScopeEnforced':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

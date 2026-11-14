@@ -866,7 +866,7 @@ Response `202`: `sessionId`, `status: created|running`, `location: /api/v1/diagn
 | `GET` | `/api/v1/alerts` | `viewer` | `—` | `200 PageAlerts` | Scope/zone, pending/firing/resolved, severity, pagination. |
 | `GET` | `/api/v1/alerts/{id}` | `viewer` | `—` | `200 Alert` | ReasonCodes, evidence, state lifecycle, ack metadata. |
 | `GET` | `/api/v1/alerts/{id}/history` | `viewer` | `—` | `200 Page` | Immutable transitions та events. |
-| `POST` | `/api/v1/alerts/{id}/acknowledge` | `admin` | `AcknowledgeRequest` | `200 Alert` | Операторське acknowledgement; не змінює справжній MonitorAssessment. |
+| `POST` | `/api/v1/alerts/{id}/acknowledge` | `admin` | `AcknowledgeRequest` | `200 Alert` | Receipt поточного firing; не змінює FSM/MonitorAssessment/outbox. If-Match із GET Alert обов’язковий (missing 428/stale 412); новий цикл скидає поточне acknowledgedAt. |
 | `GET` | `/api/v1/webhook/deliveries` | `viewer` | `—` | `200 PageWebhookDeliveries` | Без secret і чутливих HTTP body; тільки одна конфігурована destination. |
 | `POST` | `/api/v1/webhook/test` | `admin` | `WebhookTestRequest` | `202 Operation` | Надіслати test event через outbox, повернути Operation; не bypass SSRF. |
 | `GET` | `/api/v1/dashboard/summary` | `viewer` | `—` | `200 DashboardSummary` | Aggregated counts, coverage, recent diagnostics; не підміна детального API. |

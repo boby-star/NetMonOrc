@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { alerts, alertDetail, alertHistory, webhookDeliveries,
+import { acknowledgeAlert, type Session, alerts, alertDetail, alertHistory, webhookDeliveries,
   type AlertView, type AlertPage, type AlertHistoryPage, type DeliveryPage } from "./api";
 
-export function Alerts({ monitor }: { monitor: string }) {
+export function Alerts({ monitor, session }: { monitor: string; session: Session }) {
+  const [etag, setEtag] = useState("");
+  const [note, setNote] = useState("");
+  const canManage = session.role === "admin" && session.scopes.includes("alerts:manage");
   const [page, setPage] = useState<AlertPage | null>(null);
   const [selected, setSelected] = useState<AlertView | null>(null);
   const [history, setHistory] = useState<AlertHistoryPage | null>(null);
@@ -20,7 +23,7 @@ export function Alerts({ monitor }: { monitor: string }) {
     // Sequential requests share the Controller's bounded read admission.
     const detail = await alertDetail(id);
     const events = await alertHistory(id, cursor);
-    setSelected(detail); setHistory(events);
+    setSelected(detail.alert); setEtag(detail.etag); setNote(""); setHistory(events);
   }
   return <section>
     <h2>Алерти та доставка сповіщень</h2>
@@ -41,6 +44,17 @@ export function Alerts({ monitor }: { monitor: string }) {
     </>}
     {selected && <div>
       <h3>{selected.ruleRef} · {selected.state}</h3>
+      <p>Підтверджено оператором: {selected.acknowledgedAt ?? "ще не підтверджено"}</p>
+      {canManage && selected.state === "firing" && !selected.acknowledgedAt && <form onSubmit={e => {
+        e.preventDefault(); void act(async () => {
+          const result = await acknowledgeAlert(session, selected.id, etag, note);
+          setSelected(result.alert); setEtag(result.etag); setNote("");
+        });
+      }}>
+        <label>Примітка оператора (необов’язково)<textarea value={note} maxLength={1024} disabled={busy} onChange={e => setNote(e.target.value)} /></label>
+        <button disabled={busy || !etag}>Підтвердити отримання алерта</button>
+        <small>Підтвердження не вимикає правило, не усуває несправність і не зупиняє сповіщення.</small>
+      </form>}
       <p>Початок циклу: {selected.startedAt ?? "історичні дані відсутні"}<br/>Спрацював: {selected.firedAt ?? "немає запису"}<br/>Вирішений: {selected.resolvedAt ?? "немає запису"}</p>
       <p>Причини: {selected.reasonCodes.join(", ") || "немає збережених причин"}</p>
       <details><summary>Докази ({selected.evidenceIds.length})</summary><ul>{selected.evidenceIds.map(id => <li key={id}>{id}</li>)}</ul></details>

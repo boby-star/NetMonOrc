@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Додано читання діагностичних сесій і фізичних задач, ручний start/cancel із durable admission та idempotency. Додано читання alerts/history та webhook delivery summaries. Решта kind та решта маршрутів ще не реалізовані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Додано читання діагностичних сесій і фізичних задач, ручний start/cancel із durable admission та idempotency. Додано читання alerts/history та webhook delivery summaries, acknowledgement із If-Match. Решта kind та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -1901,7 +1901,7 @@ paths:
       tags:
       - Alerts
       summary: Деталі алерта
-      description: Поточний цикл logical alert, відомі timestamps і збережені reason/evidence. Firing зберігає докази спрацювання до фактичного переходу; новий unknown не підмінює їх. acknowledge endpoint ще не підключений; acknowledgedAt=null.
+      description: Поточний цикл logical alert, відомі timestamps і збережені reason/evidence. Firing зберігає докази спрацювання до фактичного переходу; новий unknown не підмінює їх. GET повертає strong ETag поточної representation; acknowledgedAt показує окреме підтвердження оператора.
       operationId: getAlert
       x-netmonorc-rbac: viewer
       parameters:
@@ -1909,6 +1909,10 @@ paths:
       responses:
         '200':
           description: Деталі алерта
+          headers:
+            ETag:
+              description: Strong opaque tag для representation Alert; потрібний для acknowledgement.
+              schema: {type: string}
           content:
             application/json:
               schema:
@@ -1977,11 +1981,19 @@ paths:
       tags:
       - Alerts
       summary: Підтвердити алерт
-      description: Операторське acknowledgement; не змінює справжній MonitorAssessment.
+      description: >-
+        Admin + alerts:manage; cookie requests require CSRF. Підтвердження лише
+        поточного firing; не змінює FSM, Assessment, suppression або outbox.
+        Обов’язковий If-Match з GET alert: missing 428, stale 412.
+        Перший receipt/note зберігається durable; повтор із поточним ETag
+        і тією самою note повертає перший receipt, інша note — 409.
+        Inactive або неузгоджена projection — 409. Новий цикл очищає поточне
+        acknowledgedAt; історичні receipts зберігаються окремо.
       operationId: acknowledgeAlert
       x-netmonorc-rbac: admin
       parameters:
       - *id003
+      - *id006
       security:
       - cookieAuth: []
       - bearerAuth: []
@@ -1994,6 +2006,10 @@ paths:
       responses:
         '200':
           description: Підтвердити алерт
+          headers:
+            ETag:
+              description: Strong opaque tag для representation Alert; потрібний для acknowledgement.
+              schema: {type: string}
           content:
             application/json:
               schema:
@@ -3238,10 +3254,12 @@ components:
         nextCursor: {type: [string, 'null']}
     AcknowledgeRequest:
       type: object
+      additionalProperties: false
       properties:
         note:
           type: string
           maxLength: 1024
+          description: Необов’язкова Unicode примітка без NUL; зберігається в ledger, не передається webhook і не включається в Alert DTO.
     WebhookTestRequest:
       type: object
       properties:

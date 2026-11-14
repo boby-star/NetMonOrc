@@ -743,7 +743,27 @@ export function alerts(monitor: string, state: string, cursor: string | null): P
   const q = new URLSearchParams({ monitor, limit: "20" }); if (state) q.set("state", state); if (cursor) q.set("cursor", cursor);
   return alertRead(`/api/v1/alerts?${q}`);
 }
-export function alertDetail(id: string): Promise<AlertView> { return alertRead(`/api/v1/alerts/${encodeURIComponent(id)}`); }
+export interface VersionedAlert { alert: AlertView; etag: string }
+async function alertVersion(response: Response): Promise<VersionedAlert> {
+  if (!response.ok) {
+    if (response.status === 412) throw new Error("Алерт змінився. Оновіть деталі перед підтвердженням.");
+    if (response.status === 409) throw new Error("Алерт більше не активний або вже підтверджений з іншою приміткою.");
+    throw new Error(`Операцію з алертом не підтверджено (${response.status}).`);
+  }
+  const etag = response.headers.get("ETag");
+  if (!etag) throw new Error("Відсутня версія алерта.");
+  return { alert: await response.json() as AlertView, etag };
+}
+export async function alertDetail(id: string): Promise<VersionedAlert> {
+  return alertVersion(await fetch(`/api/v1/alerts/${encodeURIComponent(id)}`, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) }));
+}
+export async function acknowledgeAlert(session: Session, id: string, etag: string, note: string): Promise<VersionedAlert> {
+  return alertVersion(await fetch(`/api/v1/alerts/${encodeURIComponent(id)}/acknowledge`, {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken, "If-Match": etag },
+    body: JSON.stringify({ note }), signal: AbortSignal.timeout(8000),
+  }));
+}
 export function alertHistory(id: string, cursor: string | null): Promise<AlertHistoryPage> {
   const q = new URLSearchParams({ limit: "20" }); if (cursor) q.set("cursor", cursor);
   return alertRead(`/api/v1/alerts/${encodeURIComponent(id)}/history?${q}`);

@@ -22,7 +22,10 @@ import (
 func alertViewEndpoint() webhook.Endpoint {
 	return webhook.Endpoint{Name: "read-webhook", URL: "https://192.0.2.5", Enabled: true, Timeout: time.Second, MaxAttempts: 2}
 }
-func configureAlertViews(h *httpapi.Handler, s *Store) { h.SetAlerts(s, alertViewEndpoint().Hash()) }
+func configureAlertViews(h *httpapi.Handler, s *Store) {
+	h.SetAlerts(s, alertViewEndpoint().Hash())
+	h.SetAlertAcknowledge(s.AcknowledgeAlert)
+}
 func testAlertViews(t *testing.T, ctx context.Context, s *Store, server *httptest.Server, client *http.Client) {
 	t.Helper()
 	request := func(method, path, bearer string) (int, []byte) {

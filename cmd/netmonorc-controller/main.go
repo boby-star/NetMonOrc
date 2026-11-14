@@ -269,6 +269,7 @@ func run() error {
 					endpointHash = endpoint.Hash()
 				}
 				handler.SetAlerts(store, endpointHash)
+				handler.SetAlertAcknowledge(store.AcknowledgeAlert)
 				loadSession := func(c context.Context, id string) (diagnosticview.Session, error) {
 					v, found, e := store.DiagnosticSession(c, id)
 					if e != nil {

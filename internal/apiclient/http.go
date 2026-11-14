@@ -55,33 +55,42 @@ var errorCode = regexp.MustCompile(`^[A-Z0-9_]{1,64}$`)
 // JSON preserves response integers by returning validated bytes rather than a
 // float64-backed map. Error bodies are never printed, as they may echo secrets.
 func (c *Client) JSON(ctx context.Context, method, path string, body any) ([]byte, error) {
+	data, _, err := c.VersionedJSON(ctx, method, path, body, "")
+	return data, err
+}
+
+// VersionedJSON preserves the server's opaque ETag and sends an explicit precondition.
+func (c *Client) VersionedJSON(ctx context.Context, method, path string, body any, expected string) ([]byte, string, error) {
 	u, err := url.Parse(path)
 	if err != nil || u.Host != "" || u.Scheme != "" || u.Fragment != "" || !strings.HasPrefix(u.Path, "/api/v1/") {
-		return nil, fmt.Errorf("API-relative path required")
+		return nil, "", fmt.Errorf("API-relative path required")
 	}
 	var data []byte
 	if body != nil {
 		data, err = json.Marshal(body)
 		if err != nil || len(data) > 1<<20 {
-			return nil, fmt.Errorf("invalid request or body exceeds 1 MiB")
+			return nil, "", fmt.Errorf("invalid request or body exceeds 1 MiB")
 		}
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.server+path, bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("invalid API request")
+		return nil, "", fmt.Errorf("invalid API request")
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
+	if expected != "" {
+		req.Header.Set("If-Match", expected)
+	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	response, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("HTTPS request failed; verify TLS trust, connectivity and deadline")
+		return nil, "", fmt.Errorf("HTTPS request failed; verify TLS trust, connectivity and deadline")
 	}
 	defer response.Body.Close()
 	b, err := io.ReadAll(io.LimitReader(response.Body, (16<<20)+1))
 	if err != nil || len(b) > 16<<20 {
-		return nil, fmt.Errorf("response too large or incomplete; reduce page size")
+		return nil, "", fmt.Errorf("response too large or incomplete; reduce page size")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		var envelope struct {
@@ -94,10 +103,10 @@ func (c *Client) JSON(ctx context.Context, method, path string, body any) ([]byt
 		if !errorCode.MatchString(code) {
 			code = "REQUEST_FAILED"
 		}
-		return nil, &APIError{response.StatusCode, code}
+		return nil, "", &APIError{response.StatusCode, code}
 	}
 	if !json.Valid(b) {
-		return nil, fmt.Errorf("API returned invalid JSON")
+		return nil, "", fmt.Errorf("API returned invalid JSON")
 	}
-	return b, nil
+	return b, response.Header.Get("ETag"), nil
 }
