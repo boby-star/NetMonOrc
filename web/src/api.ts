@@ -722,3 +722,33 @@ export async function cancelDiagnostic(session: Session, id: string): Promise<Di
   if (!response.ok) throw new Error(`Скасування не підтверджено (${response.status}). Оновіть стан сесії.`);
   return response.json();
 }
+
+export interface AlertView {
+  id: string; monitorId: string; ruleRef: string; zone: string | null;
+  state: "normal" | "pending" | "firing" | "resolved";
+  severity: "info" | "warning" | "critical";
+  reasonCodes: string[]; evidenceIds: string[];
+  startedAt?: string; firedAt: string | null; resolvedAt: string | null;
+  acknowledgedAt: string | null;
+}
+export interface AlertPage { items: AlertView[]; nextCursor: string | null }
+export interface AlertHistoryPage { items: {id: string; from: string; to: string; at: string; configRevision: string; suppressed: boolean}[]; nextCursor: string | null }
+export interface DeliveryPage { items: {id: string; eventId: string; state: string; attempts: number; lastHttpStatus: number | null; lastAttemptAt: string | null}[]; nextCursor: string | null }
+async function alertRead<T>(path: string): Promise<T> {
+  const response = await fetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`Історія алертів недоступна (${response.status}). Оновіть запит.`);
+  return response.json() as Promise<T>;
+}
+export function alerts(monitor: string, state: string, cursor: string | null): Promise<AlertPage> {
+  const q = new URLSearchParams({ monitor, limit: "20" }); if (state) q.set("state", state); if (cursor) q.set("cursor", cursor);
+  return alertRead(`/api/v1/alerts?${q}`);
+}
+export function alertDetail(id: string): Promise<AlertView> { return alertRead(`/api/v1/alerts/${encodeURIComponent(id)}`); }
+export function alertHistory(id: string, cursor: string | null): Promise<AlertHistoryPage> {
+  const q = new URLSearchParams({ limit: "20" }); if (cursor) q.set("cursor", cursor);
+  return alertRead(`/api/v1/alerts/${encodeURIComponent(id)}/history?${q}`);
+}
+export function webhookDeliveries(state: string, cursor: string | null): Promise<DeliveryPage> {
+  const q = new URLSearchParams({ limit: "20" }); if (state) q.set("state", state); if (cursor) q.set("cursor", cursor);
+  return alertRead(`/api/v1/webhook/deliveries?${q}`);
+}

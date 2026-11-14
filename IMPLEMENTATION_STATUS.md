@@ -1,3 +1,15 @@
+# Перегляд алертів, переходів і delivery summaries: R14
+
+Додано GET alerts/list/get/history та webhook/deliveries, alerts:read,
+bounded filter-bound cursors. Typed projection зберігається атомарно з
+FSM/event/outbox; firing evidence не затирається unknown/stale даними,
+legacy facts не вгадуються. React і CLI показують lifecycle та окрему
+доставку без URL/payload/secrets. Alert FSM/retry формули не змінені.
+Документація: [alert-history.md](docs/deployment/alert-history.md).
+Залишаються acknowledgement, AlertRule/webhook management/test, UID-based
+rule lifecycle, multi-Monitor, placement/replicas та решта DSL registry.
+Нижче — історія попередніх етапів.
+
 # Ручний запуск і скасування діагностики: R13
 
 Підключені чинні POST start/cancel до Controller, React і CLI. Manual/auto

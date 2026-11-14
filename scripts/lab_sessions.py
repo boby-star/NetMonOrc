@@ -75,6 +75,8 @@ if c['mode']=='login':
     viewer_token=json.loads(body)['token']
     code,_,_=request('GET','/api/v1/agents',bearer=viewer_token);assert code==403
     code,_,_=request('GET','/api/v1/diagnostics',bearer=viewer_token);assert code==403
+    code,_,_=request('GET','/api/v1/alerts',bearer=viewer_token);assert code==403
+    code,_,_=request('GET','/api/v1/webhook/deliveries',bearer=viewer_token);assert code==403
     cookie=admin_cookie
     code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken']);assert code==428
     code,body,new_tag=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken'],if_match=user_tag,response_header='ETag');assert code==200 and json.loads(body)['disabled']
@@ -84,7 +86,7 @@ if c['mode']=='login':
     cookie=viewer_cookie
     code,_,_=request('GET','/api/v1/auth/me');assert code==401
     cookie=admin_cookie
-    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read','diagnostics:run'],'expiresAt':None},csrf=view['csrfToken'])
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read','diagnostics:run','alerts:read'],'expiresAt':None},csrf=view['csrfToken'])
     assert code==201
     api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
     code,body,_=request('GET','/api/v1/auth/me',bearer=api['token']);assert code==200
@@ -299,9 +301,26 @@ def verify(lab):
     lab.wait(agents_rejoined,'Agent heartbeat and revision proof restored after manual-replay restart')
     assert manual_start() and admitted['id']==run_id and admitted['state']=='cancelled'
     assert int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))==runs_before+1
+    alert_snapshot=None
+    alert_events=None
+    def alert_history_ready():
+        nonlocal alert_snapshot,alert_events
+        values=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','alerts'))['items']
+        assert len(values)==1 and values[0]['monitorId']=='research-web' and values[0]['severity']=='critical'
+        alert_snapshot=values[0]
+        alert_events=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','--history','alerts',alert_snapshot['id']))['items']
+        return alert_snapshot['state']=='resolved' and any(e['to']=='firing' for e in alert_events) and any(e['to']=='resolved' for e in alert_events)
+    lab.wait(alert_history_ready,'API/CLI expose real firing and resolved transitions')
+    detail=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','alerts',alert_snapshot['id']))
+    assert detail['id']==alert_snapshot['id'] and detail['firedAt'] and detail['resolvedAt']
+    deliveries=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','deliveries'))['items']
+    assert deliveries and any(d['state']=='delivered' and d['attempts']>=1 and d['lastHttpStatus']==200 and d['lastAttemptAt'] for d in deliveries)
+    encoded=json.dumps(deliveries)
+    assert all(value not in encoded for value in ['https://','payload','lease_token','secretRef'])
+    assert int(lab.sql('SELECT count(*) FROM nmo_webhook_outbox'))==len(deliveries)
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'alertHistoryRESTAndCLI':True,'alertFiringResolvedLifecycleVisible':True,'webhookDeliveryRESTAndCLI':True,'deliveryViewOmitsSecrets':True,'alertReadScopeEnforced':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

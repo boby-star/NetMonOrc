@@ -37,15 +37,34 @@ func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 	if e != nil {
 		return alerting.State{}, e
 	}
-	var b []byte
-	if e = tx.QueryRow(ctx, `SELECT payload FROM nmo_alerts WHERE logical_key=$1 FOR UPDATE`, key).Scan(&b); e != nil {
+	var b, previous []byte
+	var id *string
+	if e = tx.QueryRow(ctx, `SELECT payload,id,api_view FROM nmo_alerts WHERE logical_key=$1 FOR UPDATE`, key).Scan(&b, &id, &previous); e != nil {
 		return alerting.State{}, e
 	}
 	var old alerting.State
 	if e = json.Unmarshal(b, &old); e != nil {
 		return old, e
 	}
+	if id == nil {
+		value, err := eventID()
+		if err != nil {
+			return old, err
+		}
+		id = &value
+	}
 	next := rule.Step(ctx, old, a)
+	view, err := projectAlert(previous, *id, old, next, rule.Rule, a)
+	if err != nil {
+		return old, err
+	}
+	viewJSON, err := json.Marshal(view)
+	if err != nil {
+		return old, err
+	}
+	if rule.Rule.Severity != "info" && rule.Rule.Severity != "warning" && rule.Rule.Severity != "critical" {
+		viewJSON = nil
+	}
 	if next.Transition != nil {
 		id, err := eventID()
 		if err != nil {
@@ -96,7 +115,7 @@ func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 	if e != nil {
 		return old, e
 	}
-	if _, e = tx.Exec(ctx, `UPDATE nmo_alerts SET payload=$2 WHERE logical_key=$1`, key, b); e != nil {
+	if _, e = tx.Exec(ctx, `UPDATE nmo_alerts SET payload=$2,id=$3,api_view=$4 WHERE logical_key=$1`, key, b, *id, viewJSON); e != nil {
 		return old, e
 	}
 	return next.State, tx.Commit(ctx)

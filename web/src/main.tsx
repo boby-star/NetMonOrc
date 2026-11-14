@@ -12,6 +12,7 @@ import {
 } from "./api";
 import "./style.css";
 import { History } from "./History";
+import { Alerts } from "./Alerts";
 import { Tokens } from "./Tokens";
 import { Users } from "./Users";
 import { Diagnostics } from "./Diagnostics";
@@ -336,6 +337,7 @@ function App() {
         {session?.scopes.includes("diagnostics:read") && connection && (
           <Diagnostics key={session.userId + connection.monitor} monitor={connection.monitor} session={session} />
         )}
+        {session?.scopes.includes("alerts:read") && connection && <Alerts key={session.userId + connection.monitor} monitor={connection.monitor} />}
         {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (
           <History

@@ -264,6 +264,11 @@ func run() error {
 				}
 				handler.SetHistoryLoader(store.ReadObservations)
 				handler.SetDiagnostics(store)
+				endpointHash := ""
+				if alertRule != nil {
+					endpointHash = endpoint.Hash()
+				}
+				handler.SetAlerts(store, endpointHash)
 				loadSession := func(c context.Context, id string) (diagnosticview.Session, error) {
 					v, found, e := store.DiagnosticSession(c, id)
 					if e != nil {
