@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// A firing projection retains its triggering evidence until a real transition.
+// Terminal lifecycle evidence is retained until a real state transition.
 // It never reconstructs a legacy firing cause from the latest assessment.
 func projectAlert(previous []byte, id string, old alerting.State, next alerting.Evaluation, rule alerting.Rule, a monitor.Assessment) (alertview.Alert, error) {
 	v := alertview.Alert{ID: id, MonitorID: a.Monitor, RuleRef: rule.Name, State: next.State.Status, Severity: rule.Severity, ReasonCodes: []string{}, EvidenceIDs: []string{}}
@@ -54,7 +54,8 @@ func projectAlert(previous []byte, id string, old alerting.State, next alerting.
 			v.ResolvedAt = &at
 		}
 	}
-	if a.At.After(old.LastEvaluatedAt) && (old.Status != "firing" || v.State != "firing") {
+	held := (old.Status == "firing" || old.Status == "resolved") && v.State == old.Status
+	if a.At.After(old.LastEvaluatedAt) && !held {
 		reasons, evidence := map[string]bool{}, map[string]bool{}
 		for _, zone := range a.Zones {
 			if zone.Reason != "" {

@@ -1,7 +1,7 @@
 # Alert and delivery read integration R14
 
-Робоче дерево після 6d981bf, дата 2026-11-14. Production Controller image
-записаний у image.txt. Compose project nmo-alert-read-r14, private prefix 172.19,
+Фінальне робоче дерево після df0e5cc, дата 2026-11-14. Production Controller image
+записаний у image.txt. Compose project nmo-alert-read-final-r14, private prefix 172.19,
 PostgreSQL і два справжні mTLS Agent. Host ports не публікуються.
 
 scripts/lab_sessions.py читає через CLI/API реальний logical Alert, його
@@ -11,7 +11,8 @@ PAT без alerts:read відхиляється; response не містить UR
 Попередні критичні auth/config/diagnostics/cancel/reconnect scenarios збережені.
 
 scripts/identity_smoke.py перевіряє projection transaction, trigger evidence
-при unknown, захист від stale assessment, cycle timestamps, cooldown-suppressed
+при unknown, збереження resolved evidence до нового циклу,
+захист від stale assessment, cycle timestamps, cooldown-suppressed
 history, bounded pagination/cursor bindings, endpoint revision isolation,
 nullable status/attempt time та privacy. Legacy firing не отримує вигаданих
 onset/evidence. Delivery failure не скасовує firing. Alert FSM не змінювалася.

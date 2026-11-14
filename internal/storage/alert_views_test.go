@@ -104,12 +104,24 @@ func testAlertViews(t *testing.T, ctx context.Context, s *Store, server *httptes
 	a.At = at.Add(2 * time.Second)
 	a.State = "healthy"
 	a.Zones[0].Evidence = []string{"proof-recovered"}
+	a.Zones[0].Reason = "http_200"
 	if _, err = s.EvaluateAlert(ctx, rule, endpoint, a); err != nil {
 		t.Fatal(err)
 	}
 	resolved, _, err := s.Alert(ctx, first.ID)
 	if err != nil || resolved.State != "resolved" || resolved.ResolvedAt == nil {
 		t.Fatal("resolve not projected", err)
+	}
+	a.State = "unknown"
+	a.At = at.Add(2500 * time.Millisecond)
+	a.Zones[0].Evidence = []string{"uncertain-after-resolve"}
+	a.Zones[0].Reason = "missing_coverage"
+	if _, err = s.EvaluateAlert(ctx, rule, endpoint, a); err != nil {
+		t.Fatal(err)
+	}
+	retained, _, err := s.Alert(ctx, first.ID)
+	if err != nil || retained.State != "resolved" || len(retained.EvidenceIDs) != 1 || retained.EvidenceIDs[0] != "proof-recovered" || !retained.ResolvedAt.Equal(*resolved.ResolvedAt) {
+		t.Fatal("unknown overwrote resolution evidence", err)
 	}
 	a.At = at.Add(3 * time.Second)
 	a.State = "down"

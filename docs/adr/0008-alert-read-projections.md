@@ -7,7 +7,7 @@ HTTP маршрути та математична семантика Alert FSM �
 публічного Alert. Поточний Assessment не є достовірним джерелом первинної
 причини старого firing. Тому під тим самим row lock EvaluateAlert записує
 окремий typed api_view і стабільний logical UUID. State/event/outbox/view
-комітяться разом. Firing evidence зберігається до transition; stale inputs
+комітяться разом. Firing і resolved evidence зберігаються до наступного transition; stale inputs
 не змінюють проєкцію. Legacy rows не отримують вигаданих historical facts.
 
 API читає окремі sanitized DTO. History береться зі збережених immutable
