@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/alerting"
+	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/coordinator"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
@@ -216,15 +217,19 @@ func run() error {
 
 	var httpServer *http.Server
 	if *httpListen != "" {
-		token, err := httpapi.LoadToken(*httpTokenFile)
-		if err != nil {
-			return err
+		var token []byte
+		if *httpTokenFile != "" {
+			var err error
+			token, err = httpapi.LoadToken(*httpTokenFile)
+			if err != nil {
+				return err
+			}
 		}
 		var assets fs.FS
 		if *uiDir != "" {
 			assets = os.DirFS(*uiDir)
 		}
-		handler, err := httpapi.New(p.Name, token, store.ReadAssessment, assets)
+		handler, err := httpapi.NewWithSessions(p.Name, token, store.ReadAssessment, assets, auth.New(store))
 		if err != nil {
 			return err
 		}
@@ -246,7 +251,7 @@ func run() error {
 		close(notificationDone)
 	}
 	if httpServer != nil {
-		log.Print("HTTPS assessment API enabled; read-only bootstrap authorization")
+		log.Print("HTTPS API enabled; browser sessions and optional bootstrap reader")
 		go func() {
 			err := httpServer.ListenAndServeTLS(*cert, *key)
 			if err != nil && !stderrors.Is(err, http.ErrServerClosed) {

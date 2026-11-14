@@ -16,6 +16,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY proto ./proto
 RUN --mount=type=cache,target=/root/.cache/go-build go build -trimpath -ldflags='-s -w' -o /out/controller ./cmd/netmonorc-controller && \
+    go build -trimpath -ldflags='-s -w' -o /out/admin ./cmd/netmonorc-admin && \
     go build -trimpath -ldflags='-s -w' -o /out/agent ./cmd/netmonorc-agent && \
     go build -trimpath -ldflags='-s -w' -o /out/netmonorc ./cmd/netmonorc && \
     go build -trimpath -ldflags='-s -w' -o /out/experiment ./cmd/netmonorc-experiment && \
@@ -24,6 +25,7 @@ FROM prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea7
 FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build --chmod=0755 /out/controller /usr/local/bin/netmonorc-controller
+COPY --from=build --chmod=0755 /out/admin /usr/local/bin/netmonorc-admin
 COPY --from=build --chmod=0755 /out/agent /usr/local/bin/netmonorc-agent
 COPY --from=build --chmod=0755 /out/netmonorc /usr/local/bin/netmonorc
 COPY --from=build --chmod=0755 /out/experiment /usr/local/bin/netmonorc-experiment

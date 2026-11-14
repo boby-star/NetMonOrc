@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { loadAssessment, type Assessment } from "./api";
+import {
+  loadAssessment,
+  login,
+  logout,
+  sessionInfo,
+  AccessError,
+  type Session,
+  type Assessment,
+} from "./api";
 import "./style.css";
 const labels = {
   healthy: "Працює",
@@ -13,6 +21,12 @@ const percent = (x: number | null) =>
 function App() {
   const [monitor, setMonitor] = useState("research-web");
   const [token, setToken] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("password");
+  const [session, setSession] = useState<Session | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [restoring, setRestoring] = useState(true);
   const [connection, setConnection] = useState<{
     monitor: string;
     token: string;
@@ -45,6 +59,10 @@ function App() {
       } catch (e) {
         if (!closed) {
           setAssessment(null);
+          if (e instanceof AccessError) {
+            setConnection(null);
+            setSession(null);
+          }
           setError(
             e instanceof Error ? e.message : "Не вдалося отримати оцінку",
           );
@@ -61,6 +79,59 @@ function App() {
       clearInterval(timer);
     };
   }, [connection]);
+  useEffect(() => {
+    let active = true;
+    void sessionInfo()
+      .then((current) => {
+        if (active && current) {
+          setSession(current);
+          setConnection({ monitor: "research-web", token: "" });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setRestoring(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  async function connect() {
+    setSubmitting(true);
+    setError("");
+    setAssessment(null);
+    try {
+      if (mode === "password") {
+        const current = await login(username, password);
+        setSession(current);
+        setConnection({ monitor, token: "" });
+      } else {
+        setSession(null);
+        setConnection({ monitor, token });
+      }
+      setToken("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Помилка входу");
+    } finally {
+      setPassword("");
+      setSubmitting(false);
+    }
+  }
+  async function disconnect() {
+    setSubmitting(true);
+    try {
+      if (session) await logout(session);
+      setSession(null);
+      setConnection(null);
+      setAssessment(null);
+      setToken("");
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Помилка виходу");
+    } finally {
+      setSubmitting(false);
+    }
+  }
   const age = assessment
     ? (now - Date.parse(assessment.evaluatedAt)) / 1000
     : Infinity;
@@ -73,14 +144,16 @@ function App() {
       </header>
       <main>
         <section>
-          <h2>Підключення до Controller</h2>
+          <h2>Вхід до Controller</h2>
+          {session && (
+            <p>
+              {session.username} · {session.role} · сесія до {session.expiresAt}
+            </p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              setAssessment(null);
-              setError("");
-              setConnection({ monitor, token });
-              setToken("");
+              void connect();
             }}
           >
             <label>
@@ -95,6 +168,44 @@ function App() {
             </label>
             {!connection && (
               <label>
+                Спосіб входу
+                <select
+                  value={mode}
+                  disabled={submitting || restoring}
+                  onChange={(e) => setMode(e.target.value)}
+                >
+                  <option value="password">Обліковий запис</option>
+                  <option value="token">Bootstrap токен читання</option>
+                </select>
+              </label>
+            )}
+            {!connection && mode === "password" && (
+              <>
+                <label>
+                  Користувач
+                  <input
+                    value={username}
+                    required
+                    maxLength={64}
+                    autoComplete="username"
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Пароль
+                  <input
+                    type="password"
+                    value={password}
+                    required
+                    maxLength={256}
+                    autoComplete="current-password"
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
+            {!connection && mode === "token" && (
+              <label>
                 Токен читання
                 <input
                   type="password"
@@ -107,24 +218,19 @@ function App() {
               </label>
             )}
             {!connection ? (
-              <button>Підключитися</button>
+              <button disabled={submitting || restoring}>Увійти</button>
             ) : (
               <button
                 type="button"
-                onClick={() => {
-                  setConnection(null);
-                  setAssessment(null);
-                  setError("");
-                  setToken("");
-                }}
+                disabled={submitting || restoring}
+                onClick={() => void disconnect()}
               >
                 Від’єднатися
               </button>
             )}
           </form>
           <small>
-            Токен зберігається лише в пам’яті вкладки. Цей етап підтримує
-            перегляд оцінки одного Monitor.
+            Пароль не зберігається панеллю. Сесія використовує захищену HttpOnly cookie; токен читання — лише пам’ять вкладки. Перегляд одного Monitor.
           </small>
         </section>
         {error && (

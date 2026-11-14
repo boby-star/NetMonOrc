@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -18,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"golang.org/x/sys/unix"
 )
@@ -34,11 +34,13 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
-	monitor   string
-	tokenHash [32]byte
-	load      Load
-	ui        fs.FS
-	readSlots chan struct{}
+	auth         *auth.Service
+	tokenEnabled bool
+	monitor      string
+	tokenHash    [32]byte
+	load         Load
+	ui           fs.FS
+	readSlots    chan struct{}
 }
 
 func LoadToken(file string) ([]byte, error) {
@@ -63,7 +65,10 @@ func LoadToken(file string) ([]byte, error) {
 	return b, nil
 }
 func New(name string, token []byte, load Load, ui fs.FS) (*Handler, error) {
-	if name == "" || len(token) < 32 || load == nil {
+	return NewWithSessions(name, token, load, ui, nil)
+}
+func NewWithSessions(name string, token []byte, load Load, ui fs.FS, sessions *auth.Service) (*Handler, error) {
+	if name == "" || (len(token) < 32 && (sessions == nil || len(token) != 0)) || load == nil {
 		return nil, fmt.Errorf("Monitor, strong token and assessment loader required")
 	}
 	if ui != nil {
@@ -71,7 +76,7 @@ func New(name string, token []byte, load Load, ui fs.FS) (*Handler, error) {
 			return nil, fmt.Errorf("built React index.html unavailable")
 		}
 	}
-	return &Handler{monitor: name, tokenHash: sha256.Sum256(token), load: load, ui: ui, readSlots: make(chan struct{}, 1)}, nil
+	return &Handler{auth: sessions, tokenEnabled: len(token) >= 32, monitor: name, tokenHash: sha256.Sum256(token), load: load, ui: ui, readSlots: make(chan struct{}, 1)}, nil
 }
 func NewServer(address string, h http.Handler) *http.Server {
 	return &http.Server{Addr: address, Handler: h, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13}}
@@ -91,11 +96,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.static(w, r)
 		return
 	}
-	scheme, value, present := strings.Cut(r.Header.Get("Authorization"), " ")
-	hash := sha256.Sum256([]byte(value))
-	if !present || !strings.EqualFold(scheme, "Bearer") || subtle.ConstantTimeCompare(hash[:], h.tokenHash[:]) != 1 {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="NetMonOrc"`)
-		failure(w, 401, "UNAUTHORIZED", "Valid read-only bearer token required")
+	if strings.HasPrefix(r.URL.Path, "/api/v1/auth/") {
+		h.authRoutes(w, r)
+		return
+	}
+	if !h.authorize(w, r) {
 		return
 	}
 	route := "/api/v1/monitors/" + h.monitor + "/assessment"

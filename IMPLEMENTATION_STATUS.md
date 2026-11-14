@@ -1,3 +1,12 @@
+# Сесійний вхід: R2a
+
+Реалізовано login/me/logout, PostgreSQL sessions (тільки token hash),
+Argon2id, origin/CSRF, 8h expiry, 5 failures/15m lockout, bounded login
+та identity audit. React має парольний вхід, session restore й logout.
+Локальний netmonorc-admin створює лише першого admin без password argv.
+Реальні юз-кейси: docs/experiments/browser-sessions. PAT/users CRUD та
+повний RBAC решти endpoints ще не реалізовані.
+
 # Розширення обсягу за запискою: REST API та React
 
 Актуальний технічний план: [thesis-scope-2026-11-13.md](docs/specs/thesis-scope-2026-11-13.md).

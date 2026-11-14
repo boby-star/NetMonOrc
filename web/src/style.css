@@ -123,3 +123,11 @@ code {
 summary {
   cursor: pointer;
 }
+
+select {
+  font: inherit;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #9daea2;
+  background: white;
+}

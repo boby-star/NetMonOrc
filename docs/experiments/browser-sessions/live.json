@@ -1,0 +1,26 @@
+{
+  "restartSessionRestored": true,
+  "logoutRequiresCSRF": true,
+  "revokedCookieRejected": true,
+  "role": "admin",
+  "scopes": [
+    "resources:read",
+    "agents:read",
+    "diagnostics:read",
+    "alerts:read",
+    "resources:write",
+    "agents:manage",
+    "diagnostics:run",
+    "alerts:manage",
+    "system:admin"
+  ],
+  "status": "passed",
+  "trustedTLS": true,
+  "secureHttpOnlySameSiteCookie": true,
+  "bootstrapIdempotent": true,
+  "loginCrossOriginRejected": true,
+  "wrongPasswordRejected": true,
+  "cookieReadsAssessment": true,
+  "browserInteractionTested": false,
+  "credentialsDiscarded": true
+}

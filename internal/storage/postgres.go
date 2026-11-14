@@ -42,6 +42,10 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	}
 	defer tx.Rollback(ctx)
 	_, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(781301);
+CREATE TABLE IF NOT EXISTS nmo_users(id text PRIMARY KEY,username text UNIQUE NOT NULL,password_hash text NOT NULL,role text NOT NULL CHECK(role IN ('admin','viewer')),disabled boolean NOT NULL DEFAULT false,failed_logins integer NOT NULL DEFAULT 0,locked_until timestamptz);
+CREATE TABLE IF NOT EXISTS nmo_browser_sessions(token_hash bytea PRIMARY KEY,user_id text NOT NULL REFERENCES nmo_users(id) ON DELETE CASCADE,expires_at timestamptz NOT NULL);
+CREATE INDEX IF NOT EXISTS nmo_browser_session_expiry ON nmo_browser_sessions(expires_at);
+CREATE TABLE IF NOT EXISTS nmo_identity_audit(id bigserial PRIMARY KEY,username text NOT NULL,action text NOT NULL,succeeded boolean NOT NULL,occurred_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS nmo_sessions(agent_id text PRIMARY KEY,generation bigint NOT NULL,applied_revision text NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS nmo_assignments(agent_id text NOT NULL,revision text NOT NULL,zone text NOT NULL,monitor text NOT NULL,PRIMARY KEY(agent_id,revision,zone,monitor));
 CREATE TABLE IF NOT EXISTS nmo_observations(id text PRIMARY KEY,agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,check_id text NOT NULL,finished_at timestamptz NOT NULL,received_at timestamptz NOT NULL DEFAULT now(),payload jsonb NOT NULL,payload_hash bytea NOT NULL);

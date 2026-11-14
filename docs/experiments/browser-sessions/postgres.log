@@ -1,0 +1,24 @@
+PASS: PostgreSQL ready
+PASS: no observations -> unknown
+PASS: foreign CA rejected
+PASS: two authenticated processes -> healthy
+PASS: private HTML report reflects live assessment
+PASS: trusted HTTPS REST returns live PostgreSQL Assessment; anonymous rejected; production React assets served
+PASS: observations buffered while Controller is offline
+PASS: Controller/Agent restart and durable replay
+PASS: replay did not create a duplicate database observation
+PASS: assessment restored after reconnect
+PASS: confirmed service failure -> down
+PASS: service recovery -> healthy
+PASS: Agent loss plus TTL -> unknown, not down
+=== RUN   TestPostgresWebhookSummaryIsolation
+--- PASS: TestPostgresWebhookSummaryIsolation (0.02s)
+=== RUN   TestPostgresBrowserSessionsAndCSRF
+--- PASS: TestPostgresBrowserSessionsAndCSRF (1.50s)
+=== RUN   TestPostgresDiagnosticBudgetsAndIsolation
+--- PASS: TestPostgresDiagnosticBudgetsAndIsolation (0.03s)
+=== RUN   TestPostgresDurabilityAndFencing
+--- PASS: TestPostgresDurabilityAndFencing (0.02s)
+PASS
+ok  	github.com/boby-star/NetMonOrc/internal/storage	1.575s
+Evidence: /workspace/NetMonOrc/.local/distributed-4d907cc9
