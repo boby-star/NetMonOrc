@@ -1,3 +1,14 @@
+# CLI remote configuration workflow: R8
+
+Додані validate --remote, plan, apply, apply --wait, get Monitor/operations.
+YAML documents або JSON/YAML ConfigBatch, explicit versions/requestId,
+private PAT context, shared bounded TLS client, status polling без POST retry.
+CLI get зберігає JSON integer precision; HTTP error bodies не виводяться.
+Compose перевірив YAML validation, plan, apply --wait до реальних ACK,
+get completed після restart та зворотне застосування. Документація:
+[remote-cli.md](docs/deployment/remote-cli.md). Загальні CLI kind/команди,
+Cobra/named contexts та table/yaml output ще не завершені.
+
 # Атомарний config/apply та durable operations: R7
 
 Реалізовані POST config/apply, GET operations/list, React batch editor і

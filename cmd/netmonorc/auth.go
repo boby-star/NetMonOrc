@@ -27,13 +27,9 @@ func authCommand(args []string) error {
 	if f.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
 	}
-	path := *contextFile
-	if path == "" {
-		root, err := os.UserConfigDir()
-		if err != nil {
-			return fmt.Errorf("user config directory unavailable; provide context-file")
-		}
-		path = filepath.Join(root, "netmonorc", "context.json")
+	path, err := cliContextPath(*contextFile)
+	if err != nil {
+		return err
 	}
 	if args[0] != "login" && (*server != "" || *caFile != "" || *stdin) {
 		return fmt.Errorf("server, ca-file and token-stdin apply only to login")
@@ -62,7 +58,6 @@ func authCommand(args []string) error {
 		return fmt.Errorf("login requires --server https://host:port")
 	}
 	var input []byte
-	var err error
 	if *stdin {
 		input, err = io.ReadAll(io.LimitReader(os.Stdin, 130))
 		if err != nil || len(input) > 129 {

@@ -3,17 +3,13 @@ package apiclient
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"golang.org/x/sys/unix"
@@ -133,38 +129,17 @@ func Logout(path string) error {
 }
 func (c Context) WhoAmI(ctx context.Context) (auth.SessionView, error) {
 	var view auth.SessionView
-	if err := c.Validate(); err != nil {
+	client, err := c.Client()
+	if err != nil {
 		return view, err
 	}
-	roots, err := x509.SystemCertPool()
+	defer client.Close()
+	b, err := client.JSON(ctx, "GET", "/api/v1/auth/me", nil)
 	if err != nil {
-		roots = x509.NewCertPool()
+		return view, err
 	}
-	if c.CAFile != "" {
-		pem, err := os.ReadFile(c.CAFile)
-		if err != nil || !roots.AppendCertsFromPEM(pem) {
-			return view, fmt.Errorf("trusted CA bundle unavailable")
-		}
-	}
-	transport := &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: roots}, MaxIdleConns: 1, MaxConnsPerHost: 1, ResponseHeaderTimeout: 5 * time.Second, MaxResponseHeaderBytes: 16384}
-	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequestWithContext(ctx, "GET", strings.TrimSuffix(c.Server, "/")+"/api/v1/auth/me", nil)
-	if err != nil {
-		return view, fmt.Errorf("invalid identity request")
-	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	response, err := client.Do(req)
-	if err != nil {
-		return view, fmt.Errorf("HTTPS identity request failed; verify server, trusted CA and connectivity")
-	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return view, fmt.Errorf("identity request rejected (HTTP %d)", response.StatusCode)
-	}
-	b, err := io.ReadAll(io.LimitReader(response.Body, 16385))
-	if err != nil || len(b) > 16384 {
-		return view, fmt.Errorf("identity response too large or incomplete")
+	if len(b) > 16384 {
+		return view, fmt.Errorf("identity response too large")
 	}
 	if err = json.Unmarshal(b, &view); err != nil || view.UserID == "" || (view.Role != "admin" && view.Role != "viewer") || view.CSRFToken != "" {
 		return auth.SessionView{}, fmt.Errorf("invalid API token identity response")

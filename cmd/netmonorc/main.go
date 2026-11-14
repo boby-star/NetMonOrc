@@ -27,13 +27,24 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: netmonorc login|logout|whoami|validate|probe|assess [flags]")
+		return fmt.Errorf("usage: netmonorc login|logout|whoami|validate|plan|apply|get|probe|assess [flags]")
 	}
 	if args[0] == "login" || args[0] == "logout" || args[0] == "whoami" {
 		return authCommand(args)
 	}
+	if args[0] == "plan" || args[0] == "apply" || args[0] == "get" {
+		return remoteCommand(args)
+	}
+	if args[0] == "validate" {
+		for _, arg := range args[1:] {
+			if arg == "--remote" || arg == "-remote" {
+				return remoteCommand(args)
+			}
+		}
+	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	manifest := f.String("config", "examples/http.yaml", "Monitor manifest")
+	f.StringVar(manifest, "f", "examples/http.yaml", "Monitor manifest alias")
 	agent := f.String("agent", "", "local observation source ID (not authenticated)")
 	zone := f.String("zone", "", "source zone")
 	allow := f.String("allow-cidrs", "", "comma-separated explicit target CIDRs")

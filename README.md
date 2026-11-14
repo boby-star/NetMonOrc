@@ -13,6 +13,8 @@ Admin-панель підтримує [керування користувача
 збережена конфігурація доходить до агентів та визначає новий Assessment.
 [Batch apply та operations](docs/deployment/batch-apply.md) підтримують атомарні
 пакети, idempotency та підтвердження застосування агентами.
+[Remote CLI](docs/deployment/remote-cli.md) має validate/plan/apply --wait
+і читання Monitor/операцій через PAT.
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
 [історія та пагінація](docs/architecture/observation-history.md),
 [перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки
