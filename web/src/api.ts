@@ -359,3 +359,156 @@ export async function patchUser(
     }),
   );
 }
+
+export interface ResourceManifest {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    name: string;
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
+  spec: Record<string, unknown>;
+}
+export interface MonitorResource {
+  manifest: ResourceManifest;
+  uid: string;
+  generation: number;
+  resourceVersion: string;
+  createdAt: string;
+  updatedAt: string;
+  status?: {
+    state: string;
+    desiredRevision: string;
+    conditions: { type: string; status: string; reason: string }[];
+  };
+}
+export interface VersionedResource {
+  resource: MonitorResource;
+  etag: string;
+}
+export interface ConfigValidation {
+  valid: boolean;
+  errors: { code: string; message: string; path?: string }[];
+  warnings: { code: string; message: string }[];
+  normalizedSummary: Record<string, unknown>;
+}
+export interface ConfigPlan {
+  planId: string;
+  diffs: {
+    kind: string;
+    name: string;
+    action: string;
+    resourceVersion: string | null;
+    effectiveRevision: string;
+  }[];
+  warnings: { code: string; message: string }[];
+}
+function resourceError(status: number): Error {
+  if (status === 412)
+    return new Error(
+      "Конфігурацію вже змінено. Завантажте актуальну версію перед повторним збереженням.",
+    );
+  if (status === 409)
+    return new Error("Ресурс уже існує або його використовує Controller.");
+  if (status === 422)
+    return new Error(
+      "Маніфест не підтримується або містить помилку. Виконайте серверну перевірку.",
+    );
+  if (status === 401) return new Error("Увійдіть повторно.");
+  return new Error(
+    `Операцію з конфігурацією не підтверджено (${status}). Оновіть запис.`,
+  );
+}
+async function resourceResponse(
+  response: Response,
+): Promise<VersionedResource> {
+  if (!response.ok) throw resourceError(response.status);
+  const etag = response.headers.get("ETag");
+  if (!etag) throw new Error("Відсутня версія ресурсу.");
+  return { resource: (await response.json()) as MonitorResource, etag };
+}
+export async function monitorResource(
+  name: string,
+): Promise<VersionedResource> {
+  return resourceResponse(
+    await fetch(`/api/v1/resources/Monitor/${encodeURIComponent(name)}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    }),
+  );
+}
+export async function checkConfiguration(
+  session: Session,
+  manifest: ResourceManifest,
+): Promise<ConfigValidation> {
+  const response = await fetch("/api/v1/config/validate", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": session.csrfToken,
+    },
+    body: JSON.stringify({ manifests: [manifest] }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json() as Promise<ConfigValidation>;
+}
+export async function planConfiguration(
+  session: Session,
+  manifest: ResourceManifest,
+): Promise<ConfigPlan> {
+  const response = await fetch("/api/v1/config/plan", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": session.csrfToken,
+    },
+    body: JSON.stringify({ manifests: [manifest] }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json() as Promise<ConfigPlan>;
+}
+export async function saveMonitor(
+  session: Session,
+  manifest: ResourceManifest,
+  current: VersionedResource | null,
+): Promise<VersionedResource> {
+  const path =
+    "/api/v1/resources/Monitor" +
+    (current
+      ? "/" + encodeURIComponent(current.resource.manifest.metadata.name)
+      : "");
+  return resourceResponse(
+    await fetch(path, {
+      method: current ? "PUT" : "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": session.csrfToken,
+        ...(current ? { "If-Match": current.etag } : {}),
+      },
+      body: JSON.stringify(manifest),
+      signal: AbortSignal.timeout(8000),
+    }),
+  );
+}
+export async function deleteMonitor(
+  session: Session,
+  current: VersionedResource,
+): Promise<void> {
+  const response = await fetch(
+    `/api/v1/resources/Monitor/${encodeURIComponent(current.resource.manifest.metadata.name)}`,
+    {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "X-CSRF-Token": session.csrfToken, "If-Match": current.etag },
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (response.status !== 204) throw resourceError(response.status);
+}

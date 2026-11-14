@@ -39,7 +39,7 @@ def main():
             subprocess.run(['go', 'test', './internal/storage', '-run',
                             '^TestPostgresBrowserSessionsAndCSRF$', '-count=1', '-v', '-timeout=60s'],
                            cwd=ROOT, env=env, check=True, timeout=90)
-        print('PASS: critical HTTPS identity, users, PAT, password and history use cases', flush=True)
+        print('PASS: critical HTTPS identity, users, PAT, Monitor CRUD and revision isolation', flush=True)
     finally:
         if owned:
             subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, check=True, timeout=20)

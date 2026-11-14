@@ -41,6 +41,9 @@ func (s *Store) GetUser(ctx context.Context, id string) (auth.UserView, bool, er
 	return v, err == nil, err
 }
 func checkAdmin(ctx context.Context, tx pgx.Tx, actor auth.AdminCredential) (string, error) {
+	return checkAdminScope(ctx, tx, actor, "system:admin")
+}
+func checkAdminScope(ctx context.Context, tx pgx.Tx, actor auth.AdminCredential, scope string) (string, error) {
 	if actor.UserID == "" || len(actor.Hash) != 32 {
 		return "", auth.ErrCredentials
 	}
@@ -62,7 +65,7 @@ func checkAdmin(ctx context.Context, tx pgx.Tx, actor auth.AdminCredential) (str
 	if actor.PAT {
 		var scopes []string
 		err = tx.QueryRow(ctx, `SELECT scopes FROM nmo_api_tokens WHERE user_id=$1 AND token_hash=$2 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) FOR SHARE`, actor.UserID, actor.Hash).Scan(&scopes)
-		if err == nil && !slices.Contains(scopes, "system:admin") {
+		if err == nil && !slices.Contains(scopes, scope) {
 			return "", auth.ErrForbidden
 		}
 	} else {

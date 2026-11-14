@@ -14,6 +14,7 @@ import "./style.css";
 import { History } from "./History";
 import { Tokens } from "./Tokens";
 import { Users } from "./Users";
+import { Configuration } from "./Configuration";
 const labels = {
   healthy: "Працює",
   degraded: "Погіршення",
@@ -316,10 +317,17 @@ function App() {
                 setCurrentPassword("");
                 setNewPassword("");
                 setPasswordNotice("");
-              setError("Права облікового запису змінено. Увійдіть повторно.");
+                setError("Права облікового запису змінено. Увійдіть повторно.");
               }}
             />
           )}
+        {session && connection && (
+          <Configuration
+            key={session.userId + connection.monitor}
+            session={session}
+            monitor={connection.monitor}
+          />
+        )}
         {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (
           <History

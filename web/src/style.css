@@ -175,3 +175,18 @@ fieldset {
   padding: 0.75rem;
   background: #e9f0e8;
 }
+.manifest-editor {
+  width: 100%;
+  min-height: 24rem;
+  padding: 0.8rem;
+  border: 1px solid #9daea2;
+  border-radius: 6px;
+  font: 0.9rem/1.5 monospace;
+  resize: vertical;
+}
+.config-result {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #e9f0e8;
+  padding: 1rem;
+}

@@ -19,6 +19,7 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resources"
 	"golang.org/x/sys/unix"
 )
 
@@ -34,14 +35,16 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
-	history      HistoryLoad
-	auth         *auth.Service
-	tokenEnabled bool
-	monitor      string
-	tokenHash    [32]byte
-	load         Load
-	ui           fs.FS
-	readSlots    chan struct{}
+	resources        *resources.Service
+	expectedRevision string
+	history          HistoryLoad
+	auth             *auth.Service
+	tokenEnabled     bool
+	monitor          string
+	tokenHash        [32]byte
+	load             Load
+	ui               fs.FS
+	readSlots        chan struct{}
 }
 
 func LoadToken(file string) ([]byte, error) {
@@ -97,6 +100,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.static(w, r)
 		return
 	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/resources/") || strings.HasPrefix(r.URL.Path, "/api/v1/config/") {
+		h.resourceRoutes(w, r)
+		return
+	}
 	if r.URL.Path == "/api/v1/users" || strings.HasPrefix(r.URL.Path, "/api/v1/users/") {
 		h.userRoutes(w, r)
 		return
@@ -138,7 +145,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	a, found, err := h.load(ctx, h.monitor)
 	age := time.Since(a.At)
-	if err != nil || !found || a.Monitor != h.monitor || age > 5*time.Second || age < -5*time.Second {
+	if err != nil || !found || a.Monitor != h.monitor || age > 5*time.Second || age < -5*time.Second || (h.expectedRevision != "" && a.Revision != h.expectedRevision) {
 		failure(w, 503, "ASSESSMENT_UNAVAILABLE", "Fresh assessment temporarily unavailable")
 		return
 	}

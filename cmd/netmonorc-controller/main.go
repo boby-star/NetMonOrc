@@ -27,6 +27,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/notify"
 	"github.com/boby-star/NetMonOrc/internal/report"
+	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/boby-star/NetMonOrc/internal/secure"
 	"github.com/boby-star/NetMonOrc/internal/storage"
 	"github.com/boby-star/NetMonOrc/internal/transport"
@@ -41,6 +42,9 @@ func main() {
 		log.Fatal(e)
 	}
 }
+
+var errReconcile = stderrors.New("reload desired Monitor")
+
 func run() error {
 	manifest := flag.String("config", "examples/http.yaml", "Monitor manifest")
 	listen := flag.String("listen", "127.0.0.1:9443", "mTLS gRPC listen address")
@@ -65,238 +69,302 @@ func run() error {
 	httpTokenFile := flag.String("http-token-file", "", "private read-only bootstrap bearer token file")
 	uiDir := flag.String("http-ui-dir", "", "built React directory; optional")
 	flag.Parse()
-	if *httpListen == "" && (*httpTokenFile != "" || *uiDir != "") {
-		return fmt.Errorf("http-token-file/http-ui-dir require http-listen")
-	}
-	b, e := os.ReadFile(*manifest)
-	if e != nil {
-		return e
-	}
-	p, e := config.Compile(b)
-	if e != nil {
-		return e
-	}
-	var profile diagnostics.Profile
-	if p.Diagnostics != nil && p.Diagnostics.Enabled {
-		if *profilePath == "" {
-			return fmt.Errorf("enabled diagnostics require diagnostic-profile")
-		}
-		data, err := os.ReadFile(*profilePath)
-		if err != nil {
-			return err
-		}
-		profile, err = config.CompileDiagnostics(data)
-		if err != nil {
-			return err
-		}
-		p, err = config.ResolveDiagnostics(p, profile)
-		if err != nil {
-			return err
-		}
-	} else if *profilePath != "" {
-		return fmt.Errorf("diagnostics disabled; profile cannot trigger a run")
-	}
-	if *staticComparison {
-		p, e = config.WithStaticComparison(p)
-		if e != nil {
-			return e
-		}
-	}
-	var alertRule *alerting.Evaluator
-	var endpoint webhook.Endpoint
-	var sender *webhook.Sender
-	if (*alertPath == "") != (*endpointPath == "") {
-		return fmt.Errorf("alert-rule and webhook-config must be provided together")
-	}
-	if *alertPath != "" {
-		data, err := os.ReadFile(*alertPath)
-		if err != nil {
-			return err
-		}
-		rule, err := config.CompileAlert(data)
-		if err != nil {
-			return err
-		}
-		data, err = os.ReadFile(*endpointPath)
-		if err != nil {
-			return err
-		}
-		endpoint, err = config.CompileWebhook(data)
-		if err != nil {
-			return err
-		}
-		if rule.Monitor != p.Name || rule.Channel != endpoint.Name {
-			return fmt.Errorf("AlertRule monitor/channel reference mismatch")
-		}
-		alertRule, err = alerting.New(rule)
-		if err != nil {
-			return err
-		}
-		if endpoint.Enabled {
-			var cidrs []netip.Prefix
-			for _, text := range strings.Split(*webhookAllow, ",") {
-				cidr, err := netip.ParsePrefix(text)
+	parent, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	for {
+		err := func() error {
+			ctx, cancel := context.WithCancel(parent)
+			defer cancel()
+			if *httpListen == "" && (*httpTokenFile != "" || *uiDir != "") {
+				return fmt.Errorf("http-token-file/http-ui-dir require http-listen")
+			}
+			b, e := os.ReadFile(*manifest)
+			if e != nil {
+				return e
+			}
+			bootstrap, e := resources.DecodeYAML(b)
+			if e != nil {
+				return e
+			}
+			execution := bootstrap
+			execution.Metadata = resources.Metadata{Name: bootstrap.Metadata.Name}
+			wire, e := json.Marshal(execution)
+			if e != nil {
+				return e
+			}
+			p, e := config.Compile(wire)
+			if e != nil {
+				return e
+			}
+			var profile diagnostics.Profile
+			if p.Diagnostics != nil && p.Diagnostics.Enabled {
+				if *profilePath == "" {
+					return fmt.Errorf("enabled diagnostics require diagnostic-profile")
+				}
+				data, err := os.ReadFile(*profilePath)
 				if err != nil {
-					return fmt.Errorf("explicit webhook-allow-cidrs required")
+					return err
 				}
-				cidrs = append(cidrs, cidr)
+				profile, err = config.CompileDiagnostics(data)
+				if err != nil {
+					return err
+				}
+				p, err = config.ResolveDiagnostics(p, profile)
+				if err != nil {
+					return err
+				}
+			} else if *profilePath != "" {
+				return fmt.Errorf("diagnostics disabled; profile cannot trigger a run")
 			}
-			sender, err = webhook.New(endpoint, cidrs, *webhookSecretDir, *webhookCA)
-			if err != nil {
-				return err
+			if *staticComparison {
+				p, e = config.WithStaticComparison(p)
+				if e != nil {
+					return e
+				}
 			}
-			defer sender.Close()
-		}
-	}
-	assessor, e := monitor.NewAssessor(p)
-	if e != nil {
-		return e
-	}
-	var slots []monitor.Slot
-	for _, entry := range strings.Split(*roster, ",") {
-		id, z, ok := strings.Cut(entry, "=")
-		if !ok || !secure.AgentID.MatchString(id) {
-			return fmt.Errorf("invalid fixed Agent roster")
-		}
-		slots = append(slots, monitor.Slot{Agent: id, Zone: z})
-	}
-	if len(slots) != len(p.Zones) {
-		return fmt.Errorf("one fixed Agent is required per configured zone")
-	}
-	if _, e = assessor.Evaluate(slots, nil, time.Now()); e != nil {
-		return e
-	}
-	tls, e := secure.Config(*ca, *cert, *key, true, "")
-	if e != nil {
-		return e
-	}
-	b, e = os.ReadFile(*database)
-	if e != nil {
-		return e
-	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-	dbctx, done := context.WithTimeout(ctx, 10*time.Second)
-	store, e := storage.Open(dbctx, strings.TrimSpace(string(b)))
-	done()
-	if e != nil {
-		return e
-	}
-	defer store.Close()
-	lis, e := net.Listen("tcp", *listen)
-	if e != nil {
-		return e
-	}
-	defer lis.Close()
-	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
-	agentServer := &transport.Server{Plan: p, Slots: slots, Store: store}
-	pb.RegisterAgentServiceServer(server, agentServer)
-	if (p.Diagnostics != nil && p.Diagnostics.Enabled) || alertRule != nil {
-		c, done := context.WithTimeout(ctx, 5*time.Second)
-		e = store.LockController(c)
-		done()
-		if e != nil {
-			return e
-		}
-	}
-	var notifications *notify.Service
-	if alertRule != nil {
-		notifications = &notify.Service{Store: store, Rule: alertRule, Endpoint: endpoint, Sender: sender}
-	}
-	var diagnostic *coordinator.Coordinator
-	if p.Diagnostics != nil && p.Diagnostics.Enabled {
-		diagnostic, e = coordinator.New(p, profile, agentServer, store, *reportPath)
-		if e != nil {
-			return e
-		}
-		if e = diagnostic.RestoreReport(ctx); e != nil {
-			return e
-		}
-		defer diagnostic.Wait()
-	}
+			b, e = os.ReadFile(*database)
+			if e != nil {
+				return e
+			}
+			dbctx, done := context.WithTimeout(ctx, 10*time.Second)
+			store, e := storage.Open(dbctx, strings.TrimSpace(string(b)))
+			done()
+			if e != nil {
+				return e
+			}
+			defer store.Close()
 
-	var httpServer *http.Server
-	if *httpListen != "" {
-		var token []byte
-		if *httpTokenFile != "" {
-			var err error
-			token, err = httpapi.LoadToken(*httpTokenFile)
-			if err != nil {
-				return err
+			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison}
+			if p.Diagnostics != nil && p.Diagnostics.Enabled {
+				registry.Diagnostic = &profile
 			}
-		}
-		var assets fs.FS
-		if *uiDir != "" {
-			assets = os.DirFS(*uiDir)
-		}
-		handler, err := httpapi.NewWithSessions(p.Name, token, store.ReadAssessment, assets, auth.New(store))
-		if err != nil {
-			return err
-		}
-		handler.SetHistoryLoader(store.ReadObservations)
-		httpServer = httpapi.NewServer(*httpListen, handler)
-	}
-	errors := make(chan error, 4)
-	notificationDone := make(chan struct{})
-	if notifications != nil {
-		go func() {
-			defer close(notificationDone)
-			if err := notifications.Run(ctx); err != nil {
-				select {
-				case errors <- err:
-				case <-ctx.Done():
+			seedPlan, e := registry.Compile(bootstrap)
+			if e != nil {
+				return e
+			}
+			managed, e := store.SeedResource(ctx, bootstrap, seedPlan.Revision)
+			if e != nil {
+				return e
+			}
+			p, e = registry.Compile(managed.Manifest)
+			if e != nil {
+				return e
+			}
+			if e = store.RefreshResourceRevision(ctx, p.Name, managed.ResourceVersion, p.Revision); e != nil {
+				if stderrors.Is(e, resources.ErrVersion) {
+					return errReconcile
+				}
+				return e
+			}
+			resourceService := resources.New(store, registry)
+			var alertRule *alerting.Evaluator
+			var endpoint webhook.Endpoint
+			var sender *webhook.Sender
+			if (*alertPath == "") != (*endpointPath == "") {
+				return fmt.Errorf("alert-rule and webhook-config must be provided together")
+			}
+			if *alertPath != "" {
+				data, err := os.ReadFile(*alertPath)
+				if err != nil {
+					return err
+				}
+				rule, err := config.CompileAlert(data)
+				if err != nil {
+					return err
+				}
+				data, err = os.ReadFile(*endpointPath)
+				if err != nil {
+					return err
+				}
+				endpoint, err = config.CompileWebhook(data)
+				if err != nil {
+					return err
+				}
+				if rule.Monitor != p.Name || rule.Channel != endpoint.Name {
+					return fmt.Errorf("AlertRule monitor/channel reference mismatch")
+				}
+				alertRule, err = alerting.New(rule)
+				if err != nil {
+					return err
+				}
+				if endpoint.Enabled {
+					var cidrs []netip.Prefix
+					for _, text := range strings.Split(*webhookAllow, ",") {
+						cidr, err := netip.ParsePrefix(text)
+						if err != nil {
+							return fmt.Errorf("explicit webhook-allow-cidrs required")
+						}
+						cidrs = append(cidrs, cidr)
+					}
+					sender, err = webhook.New(endpoint, cidrs, *webhookSecretDir, *webhookCA)
+					if err != nil {
+						return err
+					}
+					defer sender.Close()
 				}
 			}
-		}()
-	} else {
-		close(notificationDone)
-	}
-	if httpServer != nil {
-		log.Print("HTTPS API enabled; browser sessions and optional bootstrap reader")
-		go func() {
-			err := httpServer.ListenAndServeTLS(*cert, *key)
-			if err != nil && !stderrors.Is(err, http.ErrServerClosed) {
-				errors <- err
+			assessor, e := monitor.NewAssessor(p)
+			if e != nil {
+				return e
 			}
-		}()
-	}
-	go func() { errors <- server.Serve(lis) }()
-	go func() {
-		tick := time.NewTicker(time.Second)
-		defer tick.Stop()
-		for {
-			if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport, notifications, *alertOutput, *deliveryOutput); e != nil {
-				errors <- e
-				return
+			var slots []monitor.Slot
+			for _, entry := range strings.Split(*roster, ",") {
+				id, z, ok := strings.Cut(entry, "=")
+				if !ok || !secure.AgentID.MatchString(id) {
+					return fmt.Errorf("invalid fixed Agent roster")
+				}
+				slots = append(slots, monitor.Slot{Agent: id, Zone: z})
 			}
+			if len(slots) != len(p.Zones) {
+				return fmt.Errorf("one fixed Agent is required per configured zone")
+			}
+			if _, e = assessor.Evaluate(slots, nil, time.Now()); e != nil {
+				return e
+			}
+			tls, e := secure.Config(*ca, *cert, *key, true, "")
+			if e != nil {
+				return e
+			}
+			lis, e := net.Listen("tcp", *listen)
+			if e != nil {
+				return e
+			}
+			defer lis.Close()
+			server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
+			agentServer := &transport.Server{Plan: p, Slots: slots, Store: store}
+			pb.RegisterAgentServiceServer(server, agentServer)
+			{
+				c, done := context.WithTimeout(ctx, 5*time.Second)
+				e = store.LockController(c)
+				done()
+				if e != nil {
+					return e
+				}
+			}
+			var notifications *notify.Service
+			if alertRule != nil {
+				notifications = &notify.Service{Store: store, Rule: alertRule, Endpoint: endpoint, Sender: sender}
+			}
+			var diagnostic *coordinator.Coordinator
+			if p.Diagnostics != nil && p.Diagnostics.Enabled {
+				diagnostic, e = coordinator.New(p, profile, agentServer, store, *reportPath)
+				if e != nil {
+					return e
+				}
+				if e = diagnostic.RestoreReport(ctx); e != nil {
+					return e
+				}
+				defer diagnostic.Wait()
+			}
+
+			var httpServer *http.Server
+			if *httpListen != "" {
+				var token []byte
+				if *httpTokenFile != "" {
+					var err error
+					token, err = httpapi.LoadToken(*httpTokenFile)
+					if err != nil {
+						return err
+					}
+				}
+				var assets fs.FS
+				if *uiDir != "" {
+					assets = os.DirFS(*uiDir)
+				}
+				handler, err := httpapi.NewWithSessions(p.Name, token, func(c context.Context, name string) (monitor.Assessment, bool, error) {
+					return store.ReadLiveAssessment(c, name, p.Revision)
+				}, assets, auth.New(store))
+				if err != nil {
+					return err
+				}
+				handler.SetHistoryLoader(store.ReadObservations)
+				handler.SetResources(resourceService, p.Revision)
+				httpServer = httpapi.NewServer(*httpListen, handler)
+			}
+			errors := make(chan error, 4)
+			notificationDone := make(chan struct{})
+			if notifications != nil {
+				go func() {
+					defer close(notificationDone)
+					if err := notifications.Run(ctx); err != nil {
+						select {
+						case errors <- err:
+						case <-ctx.Done():
+						}
+					}
+				}()
+			} else {
+				close(notificationDone)
+			}
+			if httpServer != nil {
+				log.Print("HTTPS API enabled; browser sessions and optional bootstrap reader")
+				go func() {
+					err := httpServer.ListenAndServeTLS(*cert, *key)
+					if err != nil && !stderrors.Is(err, http.ErrServerClosed) {
+						errors <- err
+					}
+				}()
+			}
+			go func() { errors <- server.Serve(lis) }()
+			assessmentDone := make(chan struct{})
+			go func() {
+				defer close(assessmentDone)
+				tick := time.NewTicker(time.Second)
+				defer tick.Stop()
+				for {
+					if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport, notifications, *alertOutput, *deliveryOutput); e != nil {
+						errors <- e
+						return
+					}
+					latest, found, err := store.Resource(ctx, p.Name)
+					if err != nil {
+						if ctx.Err() == nil {
+							errors <- err
+						}
+						return
+					}
+					if !found || latest.Revision != p.Revision {
+						errors <- errReconcile
+						return
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case <-tick.C:
+					}
+				}
+			}()
+			log.Print("Controller listening with mTLS; fixed roster loaded")
+			var result error
 			select {
 			case <-ctx.Done():
-				return
-			case <-tick.C:
+			case result = <-errors:
 			}
+			cancel()
+			if httpServer != nil {
+				shutdown, done := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = httpServer.Shutdown(shutdown)
+				done()
+			}
+			<-assessmentDone
+			<-notificationDone
+			stopped := make(chan struct{})
+			go func() { server.GracefulStop(); close(stopped) }()
+			select {
+			case <-stopped:
+			case <-time.After(3 * time.Second):
+				server.Stop()
+			}
+			return result
+		}()
+		if parent.Err() != nil {
+			return nil
 		}
-	}()
-	log.Print("Controller listening with mTLS; fixed roster loaded")
-	var result error
-	select {
-	case <-ctx.Done():
-	case result = <-errors:
+		if !stderrors.Is(err, errReconcile) {
+			return err
+		}
+		log.Print("Reloading persisted Monitor; previous sessions and assessment revision fenced")
 	}
-	cancel()
-	if httpServer != nil {
-		shutdown, done := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = httpServer.Shutdown(shutdown)
-		done()
-	}
-	<-notificationDone
-	stopped := make(chan struct{})
-	go func() { server.GracefulStop(); close(stopped) }()
-	select {
-	case <-stopped:
-	case <-time.After(3 * time.Second):
-		server.Stop()
-	}
-	return result
 }
 func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath, deliveryPath string) error {
 	var alertState *alerting.State

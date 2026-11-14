@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users GET/POST/GET-by-ID/PATCH з ETag; решта маршрутів залишається планом до реалізації відповідних модулів.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor CRUD/status/revisions та config validate/plan. Активний Monitor перечитується з PostgreSQL і узгоджується з Agents. Інші kind, batch apply/operations та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -506,7 +506,7 @@ paths:
       tags:
       - Resources
       summary: Список DSL-ресурсів
-      description: Generic list для всіх 11 kind; labelSelector і курсорна пагінація.
+      description: Повний контракт для всіх kind; поточний зріз реалізує Monitor. Інші kind повертають 422. Monitor підтримує limit 1..200, cursor за name ASC і labelSelector key=value через кому; фільтр state поки не реалізований.
       operationId: listResources
       x-netmonorc-rbac: viewer
       parameters:
@@ -573,7 +573,7 @@ paths:
       tags:
       - Resources
       summary: Створити DSL-ресурс
-      description: Create-only; body.kind має збігатися з URL; status заборонено. Повний semantic validate.
+      description: Create-only; body.kind має збігатися з URL; status заборонено. Поточний Monitor проходить суворий compiler підтриманого DSL-профілю. Повертає ETag; наявна назва — 409. Новий невибраний Monitor має pending до вибору Controller.
       operationId: createResource
       x-netmonorc-rbac: admin
       parameters:
@@ -619,7 +619,7 @@ paths:
       tags:
       - Resources
       summary: Отримати DSL-ресурс
-      description: Повертає manifest + status + revision; ETag для write.
+      description: Повертає manifest/status, uid, generation і opaque resourceVersion; ETag для write. active у status означає завантажений план Controller, а не healthy мережевого ресурсу.
       operationId: getResource
       x-netmonorc-rbac: viewer
       parameters:
@@ -662,7 +662,7 @@ paths:
       tags:
       - Resources
       summary: Повністю замінити ресурс
-      description: Full spec/metadata replace; required If-Match, kind/name збігаються; без PATCH.
+      description: Full spec/metadata replace; required If-Match, kind/name збігаються; без PATCH. Для активного Monitor збережена нова effective revision спричиняє кероване reconciliation Controller та перепідключення Agents. generation змінюється лише за зміни spec; resourceVersion — за кожного прийнятого PUT.
       operationId: replaceResource
       x-netmonorc-rbac: admin
       parameters:
@@ -709,7 +709,7 @@ paths:
       tags:
       - Resources
       summary: Видалити DSL-ресурс
-      description: Required If-Match; за активних references повернути 409.
+      description: Required If-Match; за активних references повернути 409. Поточний зріз захищає вибраний Controller Monitor; standby Monitor видаляється зі збереженням revision ledger. Повторне створення має новий uid.
       operationId: deleteResource
       x-netmonorc-rbac: admin
       parameters:
@@ -825,7 +825,7 @@ paths:
       tags:
       - Configuration
       summary: Валідація набору маніфестів
-      description: No mutation; локальні схеми, CEL, refs за поточним desired state. Наявність live Agent не обов’язкова.
+      description: No mutation; поточний зріз компілює 1..20 Monitor маніфестів (body ≤1 MiB), CEL і доступний зовнішній DiagnosticProfile. Непідтримані kind/поля або невідомий profileRef дають valid=false з errors. Live Agent не потрібний.
       operationId: validateConfiguration
       x-netmonorc-rbac: admin
       security:
@@ -869,7 +869,7 @@ paths:
       tags:
       - Configuration
       summary: План застосування
-      description: No mutation; diff, assignments, warnings, pending/partial feasibility.
+      description: No mutation; поточний зріз повертає create/replace/unchanged diff, поточний resourceVersion, effective revision та deterministic planId. Реальний placement лишається fixed roster; placements=[] із явним warning. Це preview, не config/apply чи reservation.
       operationId: planConfiguration
       x-netmonorc-rbac: admin
       security:
@@ -2392,9 +2392,9 @@ components:
         manifest:
           $ref: '#/components/schemas/ResourceManifest'
         status:
-          type:
-          - object
-          - 'null'
+          anyOf:
+          - $ref: '#/components/schemas/ResourceStatus'
+          - type: 'null'
         uid:
           type: string
           format: uuid
@@ -2446,6 +2446,7 @@ components:
       properties:
         state:
           type: string
+          description: Поточний зріз — active або pending стан плану, окремо від Assessment state.
         desiredRevision:
           type: string
         assignedRevisions:
@@ -2455,11 +2456,18 @@ components:
         conditions:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/ResourceCondition'
         assessment:
           type:
           - object
           - 'null'
+    ResourceCondition:
+      type: object
+      required: [type, status, reason]
+      properties:
+        type: {type: string}
+        status: {type: string}
+        reason: {type: string}
     LoginRequest:
       type: object
       required:
@@ -2632,12 +2640,14 @@ components:
           format: date-time
     ConfigBatch:
       type: object
+      additionalProperties: false
       required:
       - manifests
       properties:
         manifests:
           type: array
           minItems: 1
+          maxItems: 20
           items:
             $ref: '#/components/schemas/ResourceManifest'
         expectedVersions:

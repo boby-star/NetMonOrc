@@ -92,6 +92,18 @@ if c['mode']=='login':
     # Returned secrets go only to the parent operator process over a private
     # captured pipe, for the restart portion; never printed by the helper UI.
     print(json.dumps({'cookie':cookie,'csrf':view['csrfToken'],'userId':view['userId'],'apiToken':api['token'],'apiTokenId':api['id']}))
+elif c['mode']=='configuration':
+    cookie=c['cookie']
+    code,body,etag=request('GET','/api/v1/resources/Monitor/research-web',response_header='ETag');assert code==200 and etag
+    resource=json.loads(body);original=resource['manifest']
+    import copy
+    manifest=copy.deepcopy(c.get('manifest',original))
+    if 'manifest' not in c:manifest['spec']['checks'][0]['config']['expectedStatus']=[503]
+    code,body,_=request('POST','/api/v1/config/validate',{'manifests':[manifest]},csrf=c['csrf']);assert code==200 and json.loads(body)['valid']
+    code,body,_=request('POST','/api/v1/config/plan',{'manifests':[manifest]},csrf=c['csrf']);assert code==200 and json.loads(body)['planId']
+    code,body,_=request('PUT','/api/v1/resources/Monitor/research-web',manifest,csrf=c['csrf'],if_match=etag);assert code==200
+    changed=json.loads(body)
+    print(json.dumps({'revision':changed['status']['desiredRevision'],'original':original}))
 else:
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/auth/me');assert code==200
@@ -124,10 +136,16 @@ def verify(lab):
     assert identity['userId']==first['userId'] and identity['expiresAt'] is None
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     password=''
+    changed=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'configuration'}).encode()))
+    lab.wait(lambda:lab.assessment().get('state')=='down' and lab.assessment().get('revision')==changed['revision'],'updated probe plan reached Agents and new assessment')
     previous=lab.assessment()['at'];lab.compose('restart','controller')
-    lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='healthy','fresh assessment after restart')
+    lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='down' and lab.assessment().get('revision')==changed['revision'],'persisted desired configuration survived process restart')
+    restored=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'configuration','manifest':changed['original']}).encode()))
+    lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==restored['revision'],'restored Monitor reconciled to healthy')
+    assert lab.sql("SELECT count(*) FROM nmo_assessments a JOIN nmo_observations o ON o.monitor=a.monitor WHERE a.monitor='research-web' AND o.revision<>a.revision AND o.id IN (SELECT jsonb_array_elements_text(z->'evidence') FROM jsonb_array_elements(a.payload->'zones') z)")=='0'
+
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

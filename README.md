@@ -9,6 +9,8 @@ CLI підтримує захищені login/whoami/local logout через о�
 [Персональні токени та CLI](docs/deployment/personal-api-tokens.md).
 Admin-панель підтримує [керування користувачами](docs/deployment/users.md)
 із захистом останнього admin та конкурентних змін.
+Додані [Monitor CRUD, редактор і реальне reconciliation](docs/deployment/monitor-resources.md):
+збережена конфігурація доходить до агентів та визначає новий Assessment.
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
 [історія та пагінація](docs/architecture/observation-history.md),
 [перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки

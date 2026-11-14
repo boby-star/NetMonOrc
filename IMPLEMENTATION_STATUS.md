@@ -1,3 +1,17 @@
+# Monitor registry та реальне reconciliation: R6
+
+Реалізовані Monitor CRUD, ETag/resourceVersion/generation, immutable revision
+ledger, label filter, status, config validate/plan і React JSON-редактор.
+PostgreSQL desired state переживає process restart; Controller bootstrap
+не перезаписує збережений Monitor. Новий effective plan завантажується через
+кероване перезавантаження runtime та reconnect/lease delivery агентам.
+Live Assessment SQL gate виключає старий healthy під час переходу ревізій.
+Критичний PostgreSQL/HTTPS сценарій та Compose REST → Agents → Assessment
+пройшли: [докази](docs/experiments/monitor-resources-r6). Деталі: [monitor-resources.md](docs/deployment/monitor-resources.md).
+Підтримано поточний один active Monitor і fixed roster. Інші DSL kind,
+profile CRUD, multi-Monitor/replicas, atomic batch apply/operations та повний
+CLI ще не завершені. Наступні записи — історія попередніх етапів.
+
 # Керування користувачами: R5
 
 Реалізовані Users GET/POST/GET-by-ID/PATCH та admin-розділ React.
