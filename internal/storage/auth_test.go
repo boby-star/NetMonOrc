@@ -120,6 +120,50 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	if code, _, _ := request("GET", "/api/v1/monitors/service/assessment", nil, "", ""); code != 200 {
 		t.Fatal("cookie cannot read assessment", code)
 	}
+	// Password change must be atomic across all sessions and preserve CSRF protection.
+	_, otherSession, e := service.Login(ctx, username, password)
+	if e != nil {
+		t.Fatal(e)
+	}
+	change := map[string]string{"currentPassword": password, "newPassword": "replacement-password-long"}
+	if code, _, _ := request("POST", "/api/v1/auth/change-password", change, "", server.URL); code != 403 {
+		t.Fatal("password change without CSRF", code)
+	}
+	if code, _, _ := request("POST", "/api/v1/auth/change-password", map[string]string{"currentPassword": "wrong", "newPassword": change["newPassword"]}, view.CSRFToken, server.URL); code != 401 {
+		t.Fatal("wrong current password accepted", code)
+	}
+	if code, _, _ := request("POST", "/api/v1/auth/change-password", map[string]string{"currentPassword": password, "newPassword": "short"}, view.CSRFToken, server.URL); code != 422 {
+		t.Fatal("weak password accepted", code)
+	}
+	if _, e = service.Me(ctx, otherSession); e != nil {
+		t.Fatal("rejected change revoked session", e)
+	}
+	oldCookie := cookie
+	code, data, cookies = request("POST", "/api/v1/auth/change-password", change, view.CSRFToken, server.URL)
+	if code != 200 || len(cookies) != 1 {
+		t.Fatal("password change failed", code)
+	}
+	if _, e = service.Me(ctx, oldCookie.Value); e != auth.ErrCredentials {
+		t.Fatal("old session survived password change", e)
+	}
+	if _, e = service.Me(ctx, otherSession); e != auth.ErrCredentials {
+		t.Fatal("parallel session survived password change", e)
+	}
+	oldCSRF := view.CSRFToken
+	cookie = cookies[0]
+	if e = json.Unmarshal(data, &view); e != nil || view.CSRFToken == oldCSRF || cookie.Value == oldCookie.Value {
+		t.Fatal("credentials not rotated", e)
+	}
+	if _, e = auth.New(s).Me(ctx, cookie.Value); e != nil {
+		t.Fatal("replacement session not durable", e)
+	}
+	if _, _, e = service.Login(ctx, username, password); e != auth.ErrCredentials {
+		t.Fatal("old password still usable", e)
+	}
+	password = change["newPassword"]
+	if _, _, e = service.Login(ctx, username, password); e != nil {
+		t.Fatal("new password unusable", e)
+	}
 	if code, _, _ := request("POST", "/api/v1/auth/logout", nil, "", server.URL); code != 403 {
 		t.Fatal("logout without CSRF", code)
 	}

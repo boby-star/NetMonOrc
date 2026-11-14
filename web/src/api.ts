@@ -100,3 +100,31 @@ export async function logout(session: Session): Promise<void> {
   if (response.status !== 204 && response.status !== 401)
     throw new Error("Вихід не підтверджено сервером. Спробуйте ще раз.");
 }
+
+export async function changePassword(
+  session: Session,
+  currentPassword: string,
+  newPassword: string,
+): Promise<Session> {
+  const response = await fetch("/api/v1/auth/change-password", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": session.csrfToken,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (response.status === 401)
+    throw new Error("Перевірте поточний пароль і чинність сесії.");
+  if (response.status === 422)
+    throw new Error("Новий пароль має містити від 16 до 256 байтів UTF-8.");
+  if (response.status === 429)
+    throw new Error("Забагато спроб. Спробуйте пізніше.");
+  if (!response.ok)
+    throw new Error(
+      "Зміну пароля не підтверджено. Перевірте з’єднання та увійдіть повторно.",
+    );
+  return response.json() as Promise<Session>;
+}

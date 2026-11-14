@@ -18,9 +18,11 @@ const cookieName = "netmonorc_session"
 
 func cookieToken(r *http.Request) string {
 	raw := ""
+	count := 0
 	for _, c := range r.Cookies() {
 		if c.Name == cookieName {
-			if raw != "" {
+			count++
+			if count > 1 {
 				return ""
 			}
 			raw = c.Value
@@ -37,6 +39,8 @@ func sameOrigin(r *http.Request) bool {
 }
 func authError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, auth.ErrPassword):
+		failure(w, 422, "INVALID_PASSWORD", "Password requires 16..256 UTF-8 bytes")
 	case errors.Is(err, auth.ErrCredentials):
 		failure(w, 401, "UNAUTHORIZED", "Invalid credentials or session")
 	case errors.Is(err, auth.ErrBusy):
@@ -113,6 +117,54 @@ func (h *Handler) authRoutes(w http.ResponseWriter, r *http.Request) {
 			authError(w, err)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(view)
+	case "/api/v1/auth/change-password":
+		if r.Method != "POST" {
+			w.Header().Set("Allow", "POST")
+			failure(w, 405, "METHOD_NOT_ALLOWED", "POST required")
+			return
+		}
+		if !sameOrigin(r) {
+			failure(w, 403, "ORIGIN_REJECTED", "Same-origin request required")
+			return
+		}
+		raw := cookieToken(r)
+		current, err := h.auth.Me(ctx, raw)
+		if err != nil {
+			authError(w, err)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-CSRF-Token")), []byte(current.CSRFToken)) != 1 {
+			failure(w, 403, "CSRF_REJECTED", "Valid CSRF token required")
+			return
+		}
+		kind, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || kind != "application/json" {
+			failure(w, 400, "INVALID_ARGUMENT", "JSON password change required")
+			return
+		}
+		var input struct {
+			CurrentPassword string `json:"currentPassword"`
+			NewPassword     string `json:"newPassword"`
+		}
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if err = decoder.Decode(&input); err != nil {
+			failure(w, 400, "INVALID_ARGUMENT", "Invalid password change request")
+			return
+		}
+		if decoder.Decode(new(any)) != io.EOF {
+			failure(w, 400, "INVALID_ARGUMENT", "One password change required")
+			return
+		}
+		view, fresh, err := h.auth.ChangePassword(ctx, raw, input.CurrentPassword, input.NewPassword)
+		input.CurrentPassword, input.NewPassword = "", ""
+		if err != nil {
+			authError(w, err)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: fresh, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: view.ExpiresAt, MaxAge: int(auth.SessionTTL.Seconds())})
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(view)
 	case "/api/v1/auth/logout":

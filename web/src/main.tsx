@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   loadAssessment,
   login,
+  changePassword,
   logout,
   sessionInfo,
   AccessError,
@@ -23,6 +24,9 @@ function App() {
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState("");
   const [mode, setMode] = useState("password");
   const [session, setSession] = useState<Session | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -121,6 +125,9 @@ function App() {
     setSubmitting(true);
     try {
       if (session) await logout(session);
+      setCurrentPassword("");
+      setNewPassword("");
+      setPasswordNotice("");
       setSession(null);
       setConnection(null);
       setAssessment(null);
@@ -129,6 +136,23 @@ function App() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Помилка виходу");
     } finally {
+      setSubmitting(false);
+    }
+  }
+  async function updatePassword() {
+    if (!session) return;
+    setSubmitting(true);
+    setPasswordNotice("");
+    try {
+      setSession(await changePassword(session, currentPassword, newPassword));
+      setPasswordNotice("Пароль змінено. Попередні сесії відкликано.");
+    } catch (e) {
+      setPasswordNotice(
+        e instanceof Error ? e.message : "Не вдалося змінити пароль.",
+      );
+    } finally {
+      setCurrentPassword("");
+      setNewPassword("");
       setSubmitting(false);
     }
   }
@@ -230,9 +254,54 @@ function App() {
             )}
           </form>
           <small>
-            Пароль не зберігається панеллю. Сесія використовує захищену HttpOnly cookie; токен читання — лише пам’ять вкладки. Перегляд одного Monitor.
+            Пароль не зберігається панеллю. Сесія використовує захищену HttpOnly
+            cookie; токен читання — лише пам’ять вкладки. Перегляд одного
+            Monitor.
           </small>
         </section>
+        {session && (
+          <section>
+            <details>
+              <summary>Змінити власний пароль</summary>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void updatePassword();
+                }}
+              >
+                <label>
+                  Поточний пароль
+                  <input
+                    type="password"
+                    required
+                    maxLength={256}
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Новий пароль
+                  <input
+                    type="password"
+                    required
+                    minLength={16}
+                    maxLength={256}
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </label>
+                <button disabled={submitting}>Зберегти пароль</button>
+              </form>
+              <small>
+                Від 16 до 256 байтів UTF-8. Зміна завершить усі попередні сесії
+                цього користувача.
+              </small>
+              {passwordNotice && <p role="status">{passwordNotice}</p>}
+            </details>
+          </section>
+        )}
         {error && (
           <p role="alert" className="error">
             {error}

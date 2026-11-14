@@ -1,5 +1,8 @@
 # REST + React: перший наскрізний етап R1
 
+Історичний опис R1. Парольні сесії та зміна власного пароля вже додані
+в R2: [інструкція](../deployment/browser-sessions.md). Межі нижче стосуються R1.
+
 Реалізовано GET /api/v1/monitors/{name}/assessment за наявним OpenAPI.
 Controller читає збережений Assessment PostgreSQL, перетворює DTO, повертає
 monitorId/state/coverageState/zoneStates/reasonCodes/evidenceIds/evaluatedAt/revision.

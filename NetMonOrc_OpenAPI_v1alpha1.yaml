@@ -135,7 +135,13 @@ paths:
       tags:
       - Auth
       summary: Змінити власний пароль
-      description: Вимагає currentPassword; новий зберігається Argon2id hash.
+      description: >-
+        Вимагає чинну cookie-сесію, X-CSRF-Token та currentPassword.
+        Новий пароль містить 16..256 байтів UTF-8 та зберігається як Argon2id hash.
+        Успішна зміна атомарно відкликає всі попередні cookie-сесії користувача;
+        відповідь встановлює нову Secure/HttpOnly/SameSite=Strict cookie та повертає
+        SessionView з новим csrfToken. Неправильний поточний пароль дає 401,
+        недопустимий новий пароль — 422. Обидві ролі можуть змінювати власний пароль.
       operationId: changeMyPassword
       x-netmonorc-rbac: viewer
       requestBody:
@@ -2444,6 +2450,7 @@ components:
       - username
       - role
       - expiresAt
+      - scopes
       properties:
         userId:
           type: string
@@ -2459,6 +2466,20 @@ components:
           format: date-time
         csrfToken:
           type: string
+        scopes:
+          type: array
+          items:
+            type: string
+            enum:
+            - resources:read
+            - resources:write
+            - agents:read
+            - agents:manage
+            - diagnostics:read
+            - diagnostics:run
+            - alerts:read
+            - alerts:manage
+            - system:admin
     ApiTokenCreate:
       type: object
       required:

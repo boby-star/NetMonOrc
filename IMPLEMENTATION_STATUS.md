@@ -1,3 +1,18 @@
+# Зміна власного пароля: R2b
+
+API `/api/v1/auth/change-password` та React-форма інтегровані з PostgreSQL.
+Успіх атомарно відкликає всі старі cookie-сесії та видає нову сесію/CSRF;
+поточний пароль, чинна сесія, origin та CSRF обов'язкові. Хешування ділить
+обмежений слот і rate budget із login. Неправильні currentPassword не
+обходять persisted lockout. Інструкція: docs/deployment/browser-sessions.md.
+Перевірено один критичний real PostgreSQL/HTTPS сценарій: відмова без CSRF,
+неправильний поточний/слабкий новий пароль, відсутність змін після відмови,
+відкликання двох старих сесій, нові cookie/CSRF, збереження після нового Service,
+старий пароль відхиляється, новий приймається. Production React build та
+цільові Go tests/vet проходять. Browser DOM automation не запускалась.
+PAT, users CRUD та решта розширеного обсягу залишаються відкритими;
+100% готовності всього розширеного проєкту не заявляється.
+
 # Сесійний вхід: R2a
 
 Реалізовано login/me/logout, PostgreSQL sessions (тільки token hash),

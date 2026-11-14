@@ -19,6 +19,7 @@ import (
 )
 
 var ErrCredentials = errors.New("invalid credentials or session")
+var ErrPassword = errors.New("password requires 16..256 UTF-8 bytes")
 var ErrBusy = errors.New("authentication admission limit")
 
 const SessionTTL = 8 * time.Hour
@@ -41,6 +42,7 @@ type Repository interface {
 	FinishLogin(context.Context, User, bool, []byte, time.Time) (bool, error)
 	SessionUser(context.Context, []byte) (User, time.Time, bool, error)
 	RevokeSession(context.Context, []byte) error
+	ChangePassword(context.Context, User, []byte, bool, string, []byte, time.Time) (bool, error)
 }
 type Service struct {
 	repo      Repository
@@ -67,7 +69,7 @@ func ValidUsername(s string) bool {
 }
 func HashPassword(password string) (string, error) {
 	if len(password) < 16 || len(password) > 256 || !utf8.ValidString(password) {
-		return "", fmt.Errorf("password requires 16..256 UTF-8 bytes")
+		return "", ErrPassword
 	}
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
@@ -124,23 +126,10 @@ func (s *Service) Login(ctx context.Context, username, password string) (Session
 	if !ValidUsername(username) || len(password) == 0 || len(password) > 256 || !utf8.ValidString(password) {
 		return empty, "", ErrCredentials
 	}
-	select {
-	case s.loginSlot <- struct{}{}:
-		defer func() { <-s.loginSlot }()
-	default:
+	if !s.admitPassword() {
 		return empty, "", ErrBusy
 	}
-	s.mu.Lock()
-	if time.Since(s.window) >= time.Minute {
-		s.window = time.Now()
-		s.attempts = 0
-	}
-	s.attempts++
-	limited := s.attempts > 20
-	s.mu.Unlock()
-	if limited {
-		return empty, "", ErrBusy
-	}
+	defer func() { <-s.loginSlot }()
 	u, found, e := s.repo.FindUser(ctx, username)
 	if e != nil {
 		return empty, "", e
@@ -189,4 +178,74 @@ func (s *Service) Me(ctx context.Context, raw string) (SessionView, error) {
 }
 func (s *Service) Logout(ctx context.Context, raw string) error {
 	return s.repo.RevokeSession(ctx, HashToken(raw))
+}
+
+// admitPassword shares one bounded hashing slot and rate budget across login and changes.
+func (s *Service) admitPassword() bool {
+	select {
+	case s.loginSlot <- struct{}{}:
+	default:
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if time.Since(s.window) >= time.Minute {
+		s.window = time.Now()
+		s.attempts = 0
+	}
+	s.attempts++
+	if s.attempts > 20 {
+		<-s.loginSlot
+		return false
+	}
+	return true
+}
+
+func (s *Service) ChangePassword(ctx context.Context, raw, currentPassword, newPassword string) (SessionView, string, error) {
+	var empty SessionView
+	if len(newPassword) < 16 || len(newPassword) > 256 || !utf8.ValidString(newPassword) {
+		return empty, "", ErrPassword
+	}
+	if len(currentPassword) == 0 || len(currentPassword) > 256 || !utf8.ValidString(currentPassword) {
+		return empty, "", ErrCredentials
+	}
+	if !s.admitPassword() {
+		return empty, "", ErrBusy
+	}
+	defer func() { <-s.loginSlot }()
+	v, err := s.Me(ctx, raw)
+	if err != nil {
+		return empty, "", err
+	}
+	u, found, err := s.repo.FindUser(ctx, v.Username)
+	if err != nil {
+		return empty, "", err
+	}
+	if !found || u.ID != v.UserID {
+		return empty, "", ErrCredentials
+	}
+	correct, err := VerifyPassword(currentPassword, u.PasswordHash)
+	if err != nil {
+		return empty, "", err
+	}
+	newHash := ""
+	if correct {
+		newHash, err = HashPassword(newPassword)
+		if err != nil {
+			return empty, "", err
+		}
+	}
+	fresh, err := Token()
+	if err != nil {
+		return empty, "", err
+	}
+	expiry := time.Now().UTC().Add(SessionTTL)
+	ok, err := s.repo.ChangePassword(ctx, u, HashToken(raw), correct, newHash, HashToken(fresh), expiry)
+	if err != nil {
+		return empty, "", err
+	}
+	if !ok {
+		return empty, "", ErrCredentials
+	}
+	return view(u, expiry, fresh), fresh, nil
 }

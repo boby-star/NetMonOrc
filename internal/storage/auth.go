@@ -127,3 +127,65 @@ func (s *Store) HasUsers(ctx context.Context) (bool, error) {
 	err := s.pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM nmo_users)").Scan(&found)
 	return found, err
 }
+
+// ChangePassword locks the identity before rechecking the credential snapshot and
+// session, so concurrent changes/logout cannot resurrect an obsolete session.
+func (s *Store) ChangePassword(ctx context.Context, expected auth.User, session []byte, correct bool, newHash string, fresh []byte, expiry time.Time) (bool, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+	var hash, role string
+	var disabled bool
+	var failures int
+	var locked *time.Time
+	err = tx.QueryRow(ctx, `SELECT password_hash,role,disabled,failed_logins,locked_until FROM nmo_users WHERE id=$1 FOR UPDATE`, expected.ID).Scan(&hash, &role, &disabled, &failures, &locked)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	var active bool
+	// Lock the session too: logout and password change have a single commit order.
+	var tokenHash []byte
+	err = tx.QueryRow(ctx, `SELECT token_hash FROM nmo_browser_sessions WHERE token_hash=$1 AND user_id=$2 AND expires_at>now() FOR UPDATE`, session, expected.ID).Scan(&tokenHash)
+	active = err == nil
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+	now := time.Now()
+	isLocked := locked != nil && now.Before(*locked)
+	if locked != nil && !isLocked {
+		failures = 0
+		locked = nil
+	}
+	eligible := active && !disabled && role == expected.Role && hash == expected.PasswordHash && !isLocked
+	success := eligible && correct
+	if eligible && !correct {
+		failures++
+		if failures >= 5 {
+			until := now.Add(15 * time.Minute)
+			locked = &until
+		}
+		if _, err = tx.Exec(ctx, `UPDATE nmo_users SET failed_logins=$2,locked_until=$3 WHERE id=$1`, expected.ID, failures, locked); err != nil {
+			return false, err
+		}
+	}
+	if success {
+		if _, err = tx.Exec(ctx, `UPDATE nmo_users SET password_hash=$2,failed_logins=0,locked_until=NULL WHERE id=$1`, expected.ID, newHash); err != nil {
+			return false, err
+		}
+		if _, err = tx.Exec(ctx, `DELETE FROM nmo_browser_sessions WHERE user_id=$1`, expected.ID); err != nil {
+			return false, err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO nmo_browser_sessions(token_hash,user_id,expires_at) VALUES($1,$2,$3)`, fresh, expected.ID, expiry); err != nil {
+			return false, err
+		}
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO nmo_identity_audit(username,action,succeeded) VALUES($1,'password.change',$2)`, expected.Username, success); err != nil {
+		return false, err
+	}
+	return success, tx.Commit(ctx)
+}
