@@ -123,6 +123,11 @@ elif c['mode']=='control-disabled':
     cookie=c['cookie']
     code,_,_=request('POST','/api/v1/monitors/research-web/diagnostics',{'profileRef':'web-lab','requestId':'disabled-manual'},csrf=c['csrf']);assert code==409
     print(json.dumps({'disabledRejected':True}))
+elif c['mode']=='webhook-prepare':
+    cookie=c['cookie']
+    code,_,_=request('POST','/api/v1/webhook/test',{});assert code==403
+    code,_,_=request('POST','/api/v1/webhook/test',{'message':'not allowed'},csrf=c['csrf']);assert code==400
+    print(json.dumps({'validated':True}))
 elif c['mode']=='ack-prepare':
     cookie=c['cookie']
     code,body,tag=request('GET','/api/v1/alerts/'+c['alertId'],response_header='ETag');assert code==200 and tag
@@ -353,9 +358,27 @@ def verify(lab):
     encoded=json.dumps(deliveries)
     assert all(value not in encoded for value in ['https://','payload','lease_token','secretRef'])
     assert int(lab.sql('SELECT count(*) FROM nmo_webhook_outbox'))==len(deliveries)
+    checked=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'webhook-prepare'}).encode()));assert checked['validated']
+    lab.wait(lambda:lab.sql("SELECT count(*) FROM nmo_webhook_outbox WHERE state IN ('pending','leased')")=='0','ordinary notifications drained before isolated test')
+    alerts_before=int(lab.sql('SELECT count(*) FROM nmo_alerts'))
+    events_before=int(lab.sql('SELECT count(*) FROM nmo_alert_events'))
+    mode={'generation':secrets.token_hex(8),'fail_next':1}
+    lab.compose('exec','-T','webhook','python3','-c',"from pathlib import Path;import sys;p=Path('/data/mode.json');t=p.with_suffix('.tmp');t.write_text(sys.stdin.read());t.replace(p)",input=json.dumps(mode).encode())
+    test_op=json.loads(lab.compose('exec','-T','controller',*cli,'webhook','test','--context-file','/tmp/cli/context.json','--wait','--timeout','45s'))
+    assert test_op['kind']=='webhook.test' and test_op['state']=='completed' and test_op['result']['attempts']==2 and test_op['result']['lastHttpStatus']==200
+    test_event=test_op['result']['eventId']
+    check_receiver="import sqlite3,json,sys;db=sqlite3.connect('/data/receiver.sqlite');event=json.loads(db.execute('SELECT payload FROM events WHERE id=?',(sys.argv[1],)).fetchone()[0]);print(json.dumps({'valid':set(event)=={'event_id','event_type','occurred_at','schema_version'} and event['event_type']=='webhook.test' and event['schema_version']=='1','attempts':db.execute('SELECT count(*) FROM attempts WHERE event_id=?',(sys.argv[1],)).fetchone()[0]}))"
+    receiver=json.loads(lab.compose('exec','-T','webhook','python3','-c',check_receiver,test_event));assert receiver['valid'] and receiver['attempts']==2
+    assert int(lab.sql('SELECT count(*) FROM nmo_alerts'))==alerts_before and int(lab.sql('SELECT count(*) FROM nmo_alert_events'))==events_before
+    previous=lab.assessment()['at'];lab.compose('restart','controller')
+    lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='healthy','monitoring healthy after webhook operation restart')
+    lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
+    recovered_test=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','operations',test_op['id']))
+    assert recovered_test['kind']=='webhook.test' and recovered_test['state']=='completed' and recovered_test['result']['eventId']==test_event
+    lab.wait(agents_rejoined,'Agent proofs restored after webhook-test restart')
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'alertAcknowledgementCLIAndAPI':True,'acknowledgementSurvivesRestart':True,'acknowledgementDoesNotResolveOrNotify':True,'newFiringClearsAcknowledgement':True,'staleAcknowledgementRejected':True,'acknowledgementScopeAndCSRF':True,'alertHistoryRESTAndCLI':True,'alertFiringResolvedLifecycleVisible':True,'webhookDeliveryRESTAndCLI':True,'deliveryViewOmitsSecrets':True,'alertReadScopeEnforced':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'webhookTestThroughDurableOutbox':True,'webhookTestExactPayloadNoMessage':True,'webhookTestRetriesSameEvent':True,'webhookTestDoesNotCreateAlert':True,'webhookTestOperationSurvivesRestart':True,'alertAcknowledgementCLIAndAPI':True,'acknowledgementSurvivesRestart':True,'acknowledgementDoesNotResolveOrNotify':True,'newFiringClearsAcknowledgement':True,'staleAcknowledgementRejected':True,'acknowledgementScopeAndCSRF':True,'alertHistoryRESTAndCLI':True,'alertFiringResolvedLifecycleVisible':True,'webhookDeliveryRESTAndCLI':True,'deliveryViewOmitsSecrets':True,'alertReadScopeEnforced':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

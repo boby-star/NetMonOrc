@@ -99,7 +99,7 @@ func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 			if err != nil {
 				return old, err
 			}
-			_, e = tx.Exec(ctx, `INSERT INTO nmo_webhook_outbox(event_id,endpoint_hash,payload,next_after,expires_at) VALUES($1,$2,$3,$4,$5)`, id, endpoint.Hash(), body, a.At, a.At.Add(24*time.Hour))
+			e = queueNotification(ctx, tx, id, event.Type, a.At, endpoint, body)
 			if e != nil {
 				return old, e
 			}
@@ -170,6 +170,9 @@ func (s *Store) ClaimWebhook(ctx context.Context, endpoint webhook.Endpoint) (*D
 	if e != nil {
 		return nil, e
 	}
+	if e = refreshWebhookOperations(ctx, tx); e != nil {
+		return nil, e
+	}
 	if !endpoint.Enabled {
 		return nil, tx.Commit(ctx)
 	}
@@ -204,6 +207,9 @@ func (s *Store) ClaimWebhook(ctx context.Context, endpoint webhook.Endpoint) (*D
 	if e != nil {
 		return nil, e
 	}
+	if e = refreshWebhookOperations(ctx, tx); e != nil {
+		return nil, e
+	}
 	return &job, tx.Commit(ctx)
 }
 func (s *Store) FinishWebhook(ctx context.Context, job Delivery, endpoint webhook.Endpoint, status int) error {
@@ -227,6 +233,9 @@ func (s *Store) FinishWebhook(ctx context.Context, job Delivery, endpoint webhoo
 	}
 	_, e = tx.Exec(ctx, `UPDATE nmo_webhook_attempts SET finished_at=now(),status_code=$3 WHERE event_id=$1 AND lease_token=$2`, job.ID, job.Lease, status)
 	if e != nil {
+		return e
+	}
+	if e = refreshWebhookOperations(ctx, tx); e != nil {
 		return e
 	}
 	return tx.Commit(ctx)

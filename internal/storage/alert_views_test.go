@@ -16,6 +16,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/httpapi"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/operationview"
 	"github.com/boby-star/NetMonOrc/internal/webhook"
 )
 
@@ -25,6 +26,9 @@ func alertViewEndpoint() webhook.Endpoint {
 func configureAlertViews(h *httpapi.Handler, s *Store) {
 	h.SetAlerts(s, alertViewEndpoint().Hash())
 	h.SetAlertAcknowledge(s.AcknowledgeAlert)
+	h.SetWebhookTest(func(ctx context.Context, actor auth.AdminCredential) (operationview.Operation, error) {
+		return s.QueueWebhookTest(ctx, actor, alertViewEndpoint())
+	})
 }
 func testAlertViews(t *testing.T, ctx context.Context, s *Store, server *httptest.Server, client *http.Client) {
 	t.Helper()

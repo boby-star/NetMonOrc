@@ -607,7 +607,9 @@ export async function operation(id: string): Promise<Operation> {
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw resourceError(response.status);
-  return response.json() as Promise<Operation>;
+  const value = await response.json() as Operation;
+  if (value.kind !== "config.apply") throw new Error("Ця операція належить іншому розділу.");
+  return value;
 }
 export async function operations(
   state: string,
@@ -622,7 +624,9 @@ export async function operations(
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw resourceError(response.status);
-  return response.json() as Promise<OperationPage>;
+  const value = await response.json() as OperationPage;
+  value.items = value.items.filter(item => item.kind === "config.apply");
+  return value;
 }
 
 export interface AgentView {
@@ -771,4 +775,25 @@ export function alertHistory(id: string, cursor: string | null): Promise<AlertHi
 export function webhookDeliveries(state: string, cursor: string | null): Promise<DeliveryPage> {
   const q = new URLSearchParams({ limit: "20" }); if (state) q.set("state", state); if (cursor) q.set("cursor", cursor);
   return alertRead(`/api/v1/webhook/deliveries?${q}`);
+}
+
+export interface WebhookTestOperation {
+  id: string; kind: "webhook.test"; state: "accepted" | "running" | "completed" | "failed";
+  startedAt: string; finishedAt: string | null;
+  error: { code: string; message: string } | null;
+  result: { eventId: string; deliveryState: string; attempts: number; lastHttpStatus: number | null };
+}
+export async function testWebhook(session: Session): Promise<WebhookTestOperation> {
+  const response = await fetch("/api/v1/webhook/test", {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken },
+    body: "{}", signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`Тест не поставлено в чергу (${response.status}). Перевірте поточну операцію та конфігурацію webhook.`);
+  return response.json() as Promise<WebhookTestOperation>;
+}
+export async function webhookTestOperation(id: string): Promise<WebhookTestOperation> {
+  const value = await alertRead<WebhookTestOperation>(`/api/v1/operations/${encodeURIComponent(id)}`);
+  if (value.kind !== "webhook.test") throw new Error("Операція не є тестом webhook.");
+  return value;
 }

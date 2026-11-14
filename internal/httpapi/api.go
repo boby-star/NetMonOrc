@@ -22,6 +22,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/operationview"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 	"golang.org/x/sys/unix"
 )
@@ -38,6 +39,8 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	operations       operationview.Reader
+	webhookTest      WebhookTestCommand
 	alertAcknowledge AlertAcknowledgeCommand
 	alerts           alertview.Reader
 	alertEndpoint    string
@@ -112,6 +115,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/monitors/") && strings.HasSuffix(r.URL.Path, "/diagnostics") || (strings.HasPrefix(r.URL.Path, "/api/v1/diagnostics/") && strings.HasSuffix(r.URL.Path, "/cancel") && r.Method == "POST") {
 		h.diagnosticCommandRoutes(w, r)
+		return
+	}
+	if r.URL.Path == "/api/v1/webhook/test" {
+		h.testWebhook(w, r)
 		return
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/alerts/") && strings.HasSuffix(r.URL.Path, "/acknowledge") && r.Method == "POST" {

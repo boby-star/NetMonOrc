@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { acknowledgeAlert, type Session, alerts, alertDetail, alertHistory, webhookDeliveries,
+import { testWebhook, webhookTestOperation, type WebhookTestOperation, acknowledgeAlert, type Session, alerts, alertDetail, alertHistory, webhookDeliveries,
   type AlertView, type AlertPage, type AlertHistoryPage, type DeliveryPage } from "./api";
 
 export function Alerts({ monitor, session }: { monitor: string; session: Session }) {
+  const [test, setTest] = useState<WebhookTestOperation | null>(null);
   const [etag, setEtag] = useState("");
   const [note, setNote] = useState("");
   const canManage = session.role === "admin" && session.scopes.includes("alerts:manage");
@@ -65,6 +66,13 @@ export function Alerts({ monitor, session }: { monitor: string; session: Session
       </table></div><button disabled={busy || !history.nextCursor} onClick={() => void act(() => open(selected.id, history.nextCursor))}>Наступна сторінка історії</button></>}
     </div>}
     <h3>Webhook поточної конфігурації</h3>
+    {canManage && <button disabled={busy || test?.state === "accepted" || test?.state === "running"} onClick={() => void act(async () => setTest(await testWebhook(session)))}>Надіслати тест webhook</button>}
+    {test && <div>
+      <p>Тест {test.id}: {test.state} · доставка {test.result.deliveryState} · спроб {test.result.attempts} · HTTP {test.result.lastHttpStatus ?? "відповіді ще немає"}</p>
+      {test.error && <p role="alert">{test.error.code}: {test.error.message}</p>}
+      <button disabled={busy} onClick={() => void act(async () => setTest(await webhookTestOperation(test.id)))}>Оновити статус тесту</button>
+      <small>Accepted означає запис у чергу. Completed підтверджує доставку; тест не створює Alert.</small>
+    </div>}
     <form onSubmit={e => { e.preventDefault(); void act(async () => setDeliveries(await webhookDeliveries(deliveryState, null))); }}>
       <label>Стан доставки<select value={deliveryState} disabled={busy} onChange={e => { setDeliveryState(e.target.value); setDeliveries(null); }}>
         <option value="">Усі</option><option value="pending">У черзі</option><option value="leased">Спроба виконується</option><option value="delivered">Доставлено</option><option value="failed">Не доставлено</option><option value="cancelled">Скасовано</option>

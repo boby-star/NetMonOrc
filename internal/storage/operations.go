@@ -52,7 +52,7 @@ func lookupApply(ctx context.Context, tx pgx.Tx, owner, key string, digest []byt
 	if !bytes.Equal(hash, digest) {
 		return resources.Operation{}, false, resources.ErrIdempotency
 	}
-	op, err := scanOperation(tx.QueryRow(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE id=$1`, id))
+	op, err := scanOperation(tx.QueryRow(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE id=$1 AND kind='config.apply'`, id))
 	return op, err == nil, err
 }
 func (s *Store) RecoverApply(ctx context.Context, actor auth.AdminCredential, key string, digest []byte) (resources.Operation, bool, error) {
@@ -157,14 +157,14 @@ func (s *Store) ApplyResources(ctx context.Context, actor auth.AdminCredential, 
 	return op, tx.Commit(ctx)
 }
 func (s *Store) Operation(ctx context.Context, id string) (resources.Operation, bool, error) {
-	op, err := scanOperation(s.pool.QueryRow(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE id=$1`, id))
+	op, err := scanOperation(s.pool.QueryRow(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE id=$1 AND kind='config.apply'`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return op, false, nil
 	}
 	return op, err == nil, err
 }
 func (s *Store) Operations(ctx context.Context, before, state string, limit int) ([]resources.Operation, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE ($1='' OR id<$1) AND ($2='' OR state=$2) ORDER BY id DESC LIMIT $3`, before, state, limit+1)
+	rows, err := s.pool.Query(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE kind='config.apply' AND ($1='' OR id<$1) AND ($2='' OR state=$2) ORDER BY id DESC LIMIT $3`, before, state, limit+1)
 	if err != nil {
 		return nil, err
 	}

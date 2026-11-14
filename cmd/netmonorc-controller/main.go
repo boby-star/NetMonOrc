@@ -28,6 +28,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/httpapi"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/notify"
+	"github.com/boby-star/NetMonOrc/internal/operationview"
 	"github.com/boby-star/NetMonOrc/internal/report"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/boby-star/NetMonOrc/internal/secure"
@@ -270,6 +271,13 @@ func run() error {
 				}
 				handler.SetAlerts(store, endpointHash)
 				handler.SetAlertAcknowledge(store.AcknowledgeAlert)
+				handler.SetOperations(store)
+				handler.SetWebhookTest(func(c context.Context, actor auth.AdminCredential) (operationview.Operation, error) {
+					if notifications == nil || notifications.Sender == nil || !endpoint.Enabled {
+						return operationview.Operation{}, resources.ErrConflict
+					}
+					return store.QueueWebhookTest(c, actor, endpoint)
+				})
 				loadSession := func(c context.Context, id string) (diagnosticview.Session, error) {
 					v, found, e := store.DiagnosticSession(c, id)
 					if e != nil {

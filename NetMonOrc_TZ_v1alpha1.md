@@ -868,7 +868,7 @@ Response `202`: `sessionId`, `status: created|running`, `location: /api/v1/diagn
 | `GET` | `/api/v1/alerts/{id}/history` | `viewer` | `—` | `200 Page` | Immutable transitions та events. |
 | `POST` | `/api/v1/alerts/{id}/acknowledge` | `admin` | `AcknowledgeRequest` | `200 Alert` | Receipt поточного firing; не змінює FSM/MonitorAssessment/outbox. If-Match із GET Alert обов’язковий (missing 428/stale 412); новий цикл скидає поточне acknowledgedAt. |
 | `GET` | `/api/v1/webhook/deliveries` | `viewer` | `—` | `200 PageWebhookDeliveries` | Без secret і чутливих HTTP body; тільки одна конфігурована destination. |
-| `POST` | `/api/v1/webhook/test` | `admin` | `WebhookTestRequest` | `202 Operation` | Надіслати test event через outbox, повернути Operation; не bypass SSRF. |
+| `POST` | `/api/v1/webhook/test` | `admin` | `WebhookTestRequest` (`{}` без message) | `202 Operation` | Окремий webhook.test через outbox без Alert; чинні TLS/SSRF/retry, статус у webhook.test Operation. |
 | `GET` | `/api/v1/dashboard/summary` | `viewer` | `—` | `200 DashboardSummary` | Aggregated counts, coverage, recent diagnostics; не підміна детального API. |
 | `GET` | `/api/v1/system/status` | `viewer` | `—` | `200 SystemStatus` | Server version, DB, агентів, черги, компоненти (без secrets). |
 | `GET` | `/api/v1/audit-events` | `admin` | `—` | `200 PageAuditEvents` | Admin-only, immutable entries, filters/time/pagination. |

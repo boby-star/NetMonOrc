@@ -21,7 +21,7 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(781305)`); err != nil {
 		return err
 	}
-	rows, err := tx.Query(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE state IN ('accepted','running') ORDER BY updated_at ASC,id ASC LIMIT 10 FOR UPDATE`)
+	rows, err := tx.Query(ctx, `SELECT `+operationColumns+` FROM nmo_operations WHERE kind='config.apply' AND state IN ('accepted','running') ORDER BY updated_at ASC,id ASC LIMIT 10 FOR UPDATE`)
 	if err != nil {
 		return err
 	}

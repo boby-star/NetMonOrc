@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/auth"
+	"github.com/boby-star/NetMonOrc/internal/operationview"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 )
 
+func (h *Handler) SetOperations(reader operationview.Reader) { h.operations = reader }
 func (h *Handler) operationRoutes(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
@@ -22,7 +24,14 @@ func (h *Handler) operationRoutes(w http.ResponseWriter, r *http.Request) {
 		authError(w, err)
 		return
 	}
-	if !slices.Contains(principal.Scopes, "resources:read") {
+	kinds := []string{}
+	if slices.Contains(principal.Scopes, "resources:read") {
+		kinds = append(kinds, "config.apply")
+	}
+	if slices.Contains(principal.Scopes, "alerts:read") {
+		kinds = append(kinds, "webhook.test")
+	}
+	if len(kinds) == 0 {
 		authError(w, auth.ErrForbidden)
 		return
 	}
@@ -31,15 +40,17 @@ func (h *Handler) operationRoutes(w http.ResponseWriter, r *http.Request) {
 		failure(w, 405, "METHOD_NOT_ALLOWED", "GET required")
 		return
 	}
-	if h.resources == nil {
+	if h.operations == nil {
 		failure(w, 404, "NOT_FOUND", "Operations unavailable")
 		return
 	}
-	if !h.resources.Admit() {
+	select {
+	case h.readSlots <- struct{}{}:
+		defer func() { <-h.readSlots }()
+	default:
 		authError(w, auth.ErrBusy)
 		return
 	}
-	defer h.resources.Release()
 	if len(r.URL.RawQuery) > 4096 {
 		failure(w, 400, "INVALID_ARGUMENT", "Query too long")
 		return
@@ -54,13 +65,17 @@ func (h *Handler) operationRoutes(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")
 			return
 		}
-		op, found, e := h.resources.Repo.Operation(ctx, id)
+		op, found, e := h.operations.ReadOperation(ctx, id)
 		if e != nil {
 			resourceError(w, e)
 			return
 		}
 		if !found {
 			resourceError(w, resources.ErrNotFound)
+			return
+		}
+		if !slices.Contains(kinds, op.Kind) {
+			authError(w, auth.ErrForbidden)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -95,12 +110,12 @@ func (h *Handler) operationRoutes(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "INVALID_ARGUMENT", "Invalid cursor")
 		return
 	}
-	rows, e := h.resources.Repo.Operations(ctx, params.Get("cursor"), state, limit)
+	rows, e := h.operations.ReadOperations(ctx, params.Get("cursor"), state, kinds, limit)
 	if e != nil {
 		resourceError(w, e)
 		return
 	}
-	page := resources.OperationPage{Items: rows}
+	page := operationview.Page{Items: rows}
 	if len(rows) > limit {
 		cursor := rows[limit-1].ID
 		page.NextCursor = &cursor

@@ -68,5 +68,5 @@ Compose запускає реальний firing, підтверджує чер�
 перевірено production build; browser DOM clicks не автоматизовані. Докази:
 [alert-acknowledgement-r15](../experiments/alert-acknowledgement-r15).
 
-Залишаються повний AlertRule/UID lifecycle, CRUD правил/webhook, webhook test,
+Залишаються повний AlertRule/UID lifecycle, CRUD правил/webhook,
 multi-Monitor та placement. Цей етап завершує acknowledgement поточного runtime.

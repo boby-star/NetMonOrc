@@ -1,3 +1,13 @@
+# Durable webhook test та typed operations: R16
+
+POST webhook/test підключено до API/React/CLI. Окрема подія без message
+проходить чинні TLS/SSRF/retry/outbox, без fake Alert. Accepted означає commit
+черги, completed — 2xx; статус переживає restart. Notification ledger мігрує
+старі IDs/payload; operations читання фільтрує kind за відповідним scope.
+Документація: [webhook-test.md](docs/deployment/webhook-test.md).
+Відкриті: rule/webhook CRUD, UID lifecycle, multi-Monitor/placement,
+Target/CheckProfile/policies, groups/dependencies та остаточна звірка вимог.
+
 # Підтвердження поточного циклу алерта: R15
 
 POST acknowledgement підключено до Controller/React/CLI; admin+alerts:manage,

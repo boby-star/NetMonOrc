@@ -34,6 +34,7 @@ func configureResourceTest(t *testing.T, ctx context.Context, s *Store, h *httpa
 		t.Fatal(e)
 	}
 	h.SetResources(resources.New(s, registry), "")
+	h.SetOperations(s)
 }
 func testResourceUseCases(t *testing.T, ctx context.Context, s *Store, server *httptest.Server, client *http.Client, session auth.SessionView) {
 	t.Helper()
