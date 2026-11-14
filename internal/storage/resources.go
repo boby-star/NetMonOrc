@@ -150,27 +150,8 @@ func (s *Store) SaveResource(ctx context.Context, actor auth.AdminCredential, m 
 	if expected != nil && current.ResourceVersion != *expected {
 		return current, resources.ErrVersion
 	}
-	data, err := json.Marshal(m)
+	v, err := saveResourceTx(ctx, tx, m, revision, current, found, username)
 	if err != nil {
-		return current, err
-	}
-	var v resources.View
-	if found {
-		v, err = scanResource(tx.QueryRow(ctx, `UPDATE nmo_resources SET generation=generation+CASE WHEN manifest->'spec' IS DISTINCT FROM $2::jsonb->'spec' THEN 1 ELSE 0 END,version=version+1,manifest=$2,effective_revision=$3,updated_at=now() WHERE kind='Monitor' AND name=$1 RETURNING `+resourceColumns, m.Metadata.Name, data, revision))
-	} else {
-		uid, e := eventID()
-		if e != nil {
-			return v, e
-		}
-		v, err = scanResource(tx.QueryRow(ctx, `INSERT INTO nmo_resources(name,uid,manifest,effective_revision) VALUES($1,$2,$3,$4) RETURNING `+resourceColumns, m.Metadata.Name, uid, data, revision))
-	}
-	if err != nil {
-		return v, err
-	}
-	if err = recordResource(ctx, tx, v, username); err != nil {
-		return v, err
-	}
-	if _, err = tx.Exec(ctx, `INSERT INTO nmo_identity_audit(username,action,succeeded) VALUES($1,$2,true)`, username, "resource.save:Monitor/"+m.Metadata.Name); err != nil {
 		return v, err
 	}
 	return v, tx.Commit(ctx)
@@ -262,4 +243,31 @@ func (s *Store) ReadLiveAssessment(ctx context.Context, name, revision string) (
 		return a, false, err
 	}
 	return a, true, nil
+}
+
+func saveResourceTx(ctx context.Context, tx pgx.Tx, m resources.Manifest, revision string, current resources.View, found bool, username string) (resources.View, error) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return resources.View{}, err
+	}
+	var v resources.View
+	if found {
+		v, err = scanResource(tx.QueryRow(ctx, `UPDATE nmo_resources SET generation=generation+CASE WHEN manifest->'spec' IS DISTINCT FROM $2::jsonb->'spec' THEN 1 ELSE 0 END,version=version+1,manifest=$2,effective_revision=$3,updated_at=now() WHERE kind='Monitor' AND name=$1 RETURNING `+resourceColumns, m.Metadata.Name, data, revision))
+	} else {
+		uid, e := eventID()
+		if e != nil {
+			return v, e
+		}
+		v, err = scanResource(tx.QueryRow(ctx, `INSERT INTO nmo_resources(name,uid,manifest,effective_revision) VALUES($1,$2,$3,$4) RETURNING `+resourceColumns, m.Metadata.Name, uid, data, revision))
+	}
+	if err != nil {
+		return v, err
+	}
+	if err = recordResource(ctx, tx, v, username); err != nil {
+		return v, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO nmo_identity_audit(username,action,succeeded) VALUES($1,$2,true)`, username, "resource.save:Monitor/"+m.Metadata.Name); err != nil {
+		return v, err
+	}
+	return v, nil
 }

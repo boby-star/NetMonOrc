@@ -512,3 +512,99 @@ export async function deleteMonitor(
   );
   if (response.status !== 204) throw resourceError(response.status);
 }
+
+export interface ConfigBatch {
+  manifests: ResourceManifest[];
+  expectedVersions?: Record<string, string | null>;
+  requestId?: string;
+}
+export interface ApplyTarget {
+  kind: string;
+  name: string;
+  uid: string;
+  resourceVersion: string;
+  effectiveRevision: string;
+  ready: boolean;
+  reason: string;
+}
+export interface Operation {
+  id: string;
+  kind: string;
+  state: "accepted" | "running" | "completed" | "failed";
+  startedAt: string;
+  finishedAt: string | null;
+  error: { code: string; message: string } | null;
+  result: { desiredCommitted: boolean; targets: ApplyTarget[] };
+}
+export interface OperationPage {
+  items: Operation[];
+  nextCursor: string | null;
+}
+export async function applyConfiguration(
+  session: Session,
+  batch: ConfigBatch,
+): Promise<Operation> {
+  const response = await fetch("/api/v1/config/apply", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": session.csrfToken,
+    },
+    body: JSON.stringify(batch),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) {
+    if (response.status === 428)
+      throw new Error(
+        "Для наявних Monitor потрібні поточні expectedVersions. Завантажте ресурси знову.",
+      );
+    if (response.status === 409)
+      throw new Error(
+        "Конфлікт create-only або requestId уже належить іншому запиту. Перевірте пакет і версії.",
+      );
+    throw resourceError(response.status);
+  }
+  return response.json() as Promise<Operation>;
+}
+export async function validateBatch(
+  session: Session,
+  batch: ConfigBatch,
+): Promise<ConfigValidation> {
+  const response = await fetch("/api/v1/config/validate", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": session.csrfToken,
+    },
+    body: JSON.stringify(batch),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json() as Promise<ConfigValidation>;
+}
+export async function operation(id: string): Promise<Operation> {
+  const response = await fetch(`/api/v1/operations/${encodeURIComponent(id)}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json() as Promise<Operation>;
+}
+export async function operations(
+  state: string,
+  cursor: string | null,
+): Promise<OperationPage> {
+  const params = new URLSearchParams({ limit: "20" });
+  if (state) params.set("state", state);
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`/api/v1/operations?${params}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json() as Promise<OperationPage>;
+}

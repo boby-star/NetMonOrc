@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor CRUD/status/revisions та config validate/plan. Активний Monitor перечитується з PostgreSQL і узгоджується з Agents. Інші kind, batch apply/operations та решта маршрутів ще не реалізовані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor CRUD/status/revisions та config validate/plan. Додано атомарний Monitor batch apply та durable operations з готовністю за ACK агентів. Інші kind та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -913,7 +913,17 @@ paths:
       tags:
       - Configuration
       summary: Застосувати конфігурацію
-      description: Transactional desired upsert із expectedVersions і requestId; асинхронне reconciliation; не prune.
+      description: >-
+        Атомарний desired upsert 1..20 Monitor; без prune. Для наявного ресурсу
+        потрібен expectedVersions[kind/name] (без нього 428, stale 412), null
+        або пропуск для нового означає create-only (конфлікт 409).
+        requestId — необов'язковий idempotency key у межах user ID на 24 години:
+        той самий typed/canonical JSON body повертає існуючу Operation без
+        повторного upsert; інший body з тим самим ключем — 409 IDEMPOTENCY_KEY_REUSED.
+        Повертає 202 та Location статусу. accepted означає commit desired;
+        completed — підтвердження потрібних актуальних assignments агентами,
+        не healthy ресурсу. Невибрані Monitor очікують Controller; superseded
+        targets завершують незавершену операцію з failed/CONFIG_SUPERSEDED.
       operationId: applyConfiguration
       x-netmonorc-rbac: admin
       security:
@@ -927,11 +937,13 @@ paths:
               $ref: '#/components/schemas/ConfigBatch'
       responses:
         '202':
+          headers:
+            Location: {schema: {type: string}, description: URL статусу операції}
           description: Застосувати конфігурацію
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Operation'
+                $ref: '#/components/schemas/ConfigApplyOperation'
         '400':
           $ref: '#/components/responses/StandardError'
         '401':
@@ -957,7 +969,7 @@ paths:
       tags:
       - Configuration
       summary: Список асинхронних операцій
-      description: Apply та адміністративні операції зі станами accepted/running/completed/failed.
+      description: Поточний зріз — config.apply зі станами accepted/running/completed/failed, limit 1..200 (default 50), ID DESC/cursor та фільтр state. Потрібний resources:read.
       operationId: listOperations
       x-netmonorc-rbac: viewer
       parameters:
@@ -2652,7 +2664,7 @@ components:
             $ref: '#/components/schemas/ResourceManifest'
         expectedVersions:
           type: object
-          description: Для apply обов’язкові preconditions по kind/name. null = create-only.
+          description: Для існуючих ресурсів apply обов’язковий поточний resourceVersion по kind/name. null або пропуск для нового = create-only. Зайві ключі відхиляються.
           additionalProperties:
             type:
             - string
@@ -2728,6 +2740,32 @@ components:
           type:
           - object
           - 'null'
+    ConfigApplyOperation:
+      allOf:
+      - $ref: '#/components/schemas/Operation'
+      - type: object
+        properties:
+          kind: {type: string, const: config.apply}
+          result: {$ref: '#/components/schemas/ConfigApplyResult'}
+    ConfigApplyResult:
+      type: object
+      required: [desiredCommitted, targets]
+      properties:
+        desiredCommitted: {type: boolean}
+        targets:
+          type: array
+          items: {$ref: '#/components/schemas/ConfigApplyTarget'}
+    ConfigApplyTarget:
+      type: object
+      required: [kind, name, uid, resourceVersion, effectiveRevision, ready, reason]
+      properties:
+        kind: {type: string}
+        name: {type: string}
+        uid: {type: string, format: uuid}
+        resourceVersion: {type: string}
+        effectiveRevision: {type: string}
+        ready: {type: boolean}
+        reason: {type: string}
     EnrollmentCreate:
       type: object
       required:

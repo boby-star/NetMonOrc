@@ -24,6 +24,10 @@ func (h *Handler) SetResources(service *resources.Service, revision string) {
 }
 func resourceError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, resources.ErrPreconditionRequired):
+		failure(w, 428, "PRECONDITION_REQUIRED", "Existing resources require expectedVersions")
+	case errors.Is(err, resources.ErrIdempotency):
+		failure(w, 409, "IDEMPOTENCY_KEY_REUSED", "Request ID was already used for another body")
 	case errors.Is(err, resources.ErrNotFound):
 		failure(w, 404, "NOT_FOUND", "Resource unavailable")
 	case errors.Is(err, resources.ErrVersion):
@@ -142,12 +146,30 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")
 			return
 		}
-		if r.URL.Path != "/api/v1/config/validate" && r.URL.Path != "/api/v1/config/plan" {
+		if r.URL.Path != "/api/v1/config/validate" && r.URL.Path != "/api/v1/config/plan" && r.URL.Path != "/api/v1/config/apply" {
 			failure(w, 404, "NOT_FOUND", "Configuration operation unavailable")
 			return
 		}
 		var batch resources.Batch
 		if !resourceJSON(w, r, &batch) {
+			return
+		}
+		if r.URL.Path == "/api/v1/config/apply" {
+			actor := auth.AdminCredential{UserID: principal.UserID, Hash: auth.HashToken(cookieToken(r))}
+			if r.Header.Get("Authorization") != "" {
+				raw, _ := bearer(r)
+				actor.Hash = auth.HashToken(raw)
+				actor.PAT = true
+			}
+			op, e := h.resources.Apply(ctx, actor, batch)
+			if e != nil {
+				resourceError(w, e)
+				return
+			}
+			w.Header().Set("Location", "/api/v1/operations/"+op.ID)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(202)
+			_ = json.NewEncoder(w).Encode(op)
 			return
 		}
 		validation := h.resources.Validate(batch)

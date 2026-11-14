@@ -316,6 +316,12 @@ func run() error {
 						errors <- e
 						return
 					}
+					opctx, opdone := context.WithTimeout(ctx, 3*time.Second)
+					opErr := store.ReconcileOperations(opctx, p.Name, p.Revision, slots, agentServer.AppliedAssignments(time.Now()))
+					opdone()
+					if opErr != nil && ctx.Err() == nil {
+						log.Print("Operation reconciliation deferred; regular assessment continues")
+					}
 					latest, found, err := store.Resource(ctx, p.Name)
 					if err != nil {
 						if ctx.Err() == nil {

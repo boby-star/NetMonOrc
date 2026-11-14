@@ -11,6 +11,8 @@ Admin-панель підтримує [керування користувача
 із захистом останнього admin та конкурентних змін.
 Додані [Monitor CRUD, редактор і реальне reconciliation](docs/deployment/monitor-resources.md):
 збережена конфігурація доходить до агентів та визначає новий Assessment.
+[Batch apply та operations](docs/deployment/batch-apply.md) підтримують атомарні
+пакети, idempotency та підтвердження застосування агентами.
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
 [історія та пагінація](docs/architecture/observation-history.md),
 [перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки

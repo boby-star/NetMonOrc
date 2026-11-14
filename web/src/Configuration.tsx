@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BatchApply } from "./BatchApply";
 import {
   monitorResource,
   checkConfiguration,
@@ -190,6 +191,7 @@ export function Configuration({
         версію; після конфлікту завантажте актуальний запис. Статус плану не є
         оцінкою доступності ресурсу.
       </small>
+      <BatchApply session={session} current={current} draft={text} />
       {busy && <p role="status">Виконання…</p>}
       {error && (
         <p role="alert" className="error">

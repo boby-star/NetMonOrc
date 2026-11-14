@@ -100,6 +100,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.static(w, r)
 		return
 	}
+	if r.URL.Path == "/api/v1/operations" || strings.HasPrefix(r.URL.Path, "/api/v1/operations/") {
+		h.operationRoutes(w, r)
+		return
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/resources/") || strings.HasPrefix(r.URL.Path, "/api/v1/config/") {
 		h.resourceRoutes(w, r)
 		return

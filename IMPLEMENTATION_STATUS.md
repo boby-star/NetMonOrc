@@ -1,3 +1,15 @@
+# Атомарний config/apply та durable operations: R7
+
+Реалізовані POST config/apply, GET operations/list, React batch editor і
+progress. Desired/ledger/Operation комітяться однією транзакцією; preconditions,
+24h per-user idempotency, replay без повторного upsert, конфлікт reuse body.
+Completed вимагає актуального stream ACK/heartbeat та generation fencing у БД.
+Superseded targets завершують незакінчену операцію з failed; implicit prune немає.
+Критичний PG/HTTPS та Compose apply→Agents→completed/restart/replay пройшли.
+Документація: [batch-apply.md](docs/deployment/batch-apply.md).
+Поточний scope — один active Monitor/fixed roster; інші kind і multi-Monitor
+execution ще відкриті. Наступні записи — історія попередніх етапів.
+
 # Monitor registry та реальне reconciliation: R6
 
 Реалізовані Monitor CRUD, ETag/resourceVersion/generation, immutable revision

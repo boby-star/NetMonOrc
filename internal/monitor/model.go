@@ -119,3 +119,11 @@ type AssessmentRule struct {
 	State    string
 	Reason   string
 }
+
+// AppliedAssignment is a current, heartbeat-backed stream acknowledgement.
+type AppliedAssignment struct {
+	Agent      string
+	Zone       string
+	Generation int64
+	Revision   string
+}

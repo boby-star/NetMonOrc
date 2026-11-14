@@ -64,4 +64,8 @@ type Repository interface {
 	SaveResource(context.Context, auth.AdminCredential, Manifest, string, *string) (View, error)
 	DeleteResource(context.Context, auth.AdminCredential, string, string) error
 	ResourceHistory(context.Context, string, string, int) ([]Revision, error)
+	RecoverApply(context.Context, auth.AdminCredential, string, []byte) (Operation, bool, error)
+	ApplyResources(context.Context, auth.AdminCredential, Batch, map[string]string, []byte) (Operation, error)
+	Operation(context.Context, string) (Operation, bool, error)
+	Operations(context.Context, string, string, int) ([]Operation, error)
 }

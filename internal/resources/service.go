@@ -112,6 +112,14 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 		if err != nil {
 			return plan, err
 		}
+		if expected, provided := batch.ExpectedVersions[m.Kind+"/"+m.Metadata.Name]; provided {
+			if expected == nil && found {
+				return plan, ErrConflict
+			}
+			if expected != nil && (!found || current.ResourceVersion != *expected) {
+				return plan, ErrVersion
+			}
+		}
 		compiled, _ := s.Registry.Compile(m)
 		diff := Diff{Kind: m.Kind, Name: m.Metadata.Name, Action: "create", EffectiveRevision: compiled.Revision}
 		if found {
@@ -127,7 +135,7 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 		plan.Diffs = append(plan.Diffs, diff)
 	}
 	// Actual placement is the fixed roster; a dry-run does not invent live capacity.
-	plan.Warnings = append(plan.Warnings, Detail{Code: "FIXED_ROSTER", Message: "Placement remains the configured fixed Agent roster; config/apply is not implemented in this slice"})
+	plan.Warnings = append(plan.Warnings, Detail{Code: "FIXED_ROSTER", Message: "Placement remains the configured fixed Agent roster; unselected Monitors await Controller selection"})
 	b, _ := json.Marshal(plan)
 	digest := sha256.Sum256(b)
 	plan.PlanID = hex.EncodeToString(digest[:])

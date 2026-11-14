@@ -101,9 +101,18 @@ elif c['mode']=='configuration':
     if 'manifest' not in c:manifest['spec']['checks'][0]['config']['expectedStatus']=[503]
     code,body,_=request('POST','/api/v1/config/validate',{'manifests':[manifest]},csrf=c['csrf']);assert code==200 and json.loads(body)['valid']
     code,body,_=request('POST','/api/v1/config/plan',{'manifests':[manifest]},csrf=c['csrf']);assert code==200 and json.loads(body)['planId']
-    code,body,_=request('PUT','/api/v1/resources/Monitor/research-web',manifest,csrf=c['csrf'],if_match=etag);assert code==200
-    changed=json.loads(body)
-    print(json.dumps({'revision':changed['status']['desiredRevision'],'original':original}))
+    import uuid
+    batch={'manifests':[manifest],'expectedVersions':{'Monitor/research-web':resource['resourceVersion']},'requestId':str(uuid.uuid4())}
+    code,body,_=request('POST','/api/v1/config/apply',batch,csrf=c['csrf']);assert code==202
+    op=json.loads(body);assert op['state']=='accepted' and op['result']['desiredCommitted']
+    print(json.dumps({'revision':op['result']['targets'][0]['effectiveRevision'],'original':original,'operationId':op['id'],'batch':batch}))
+elif c['mode']=='operation':
+    cookie=c['cookie']
+    code,body,_=request('GET','/api/v1/operations/'+c['operationId']);assert code==200
+    op=json.loads(body)
+    if 'batch' in c:
+        code,replay,_=request('POST','/api/v1/config/apply',c['batch'],csrf=c['csrf']);assert code==202 and json.loads(replay)['id']==op['id']
+    print(json.dumps({'state':op['state'],'finishedAt':op['finishedAt'],'allTargetsReady':all(t['ready'] for t in op['result']['targets'])}))
 else:
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/auth/me');assert code==200
@@ -138,14 +147,21 @@ def verify(lab):
     password=''
     changed=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'configuration'}).encode()))
     lab.wait(lambda:lab.assessment().get('state')=='down' and lab.assessment().get('revision')==changed['revision'],'updated probe plan reached Agents and new assessment')
+    def operation_status(admission,replay=False):
+        args={**common,**first,'mode':'operation','operationId':admission['operationId']}
+        if replay:args['batch']=admission['batch']
+        return json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps(args).encode()))
+    lab.wait(lambda:operation_status(changed)['state']=='completed','apply operation completed after Agent acknowledgements')
     previous=lab.assessment()['at'];lab.compose('restart','controller')
     lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='down' and lab.assessment().get('revision')==changed['revision'],'persisted desired configuration survived process restart')
+    recovered=operation_status(changed,True);assert recovered['state']=='completed' and recovered['allTargetsReady'] and recovered['finishedAt']
     restored=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'configuration','manifest':changed['original']}).encode()))
     lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==restored['revision'],'restored Monitor reconciled to healthy')
+    lab.wait(lambda:operation_status(restored)['state']=='completed','restored apply confirmed by Agents')
     assert lab.sql("SELECT count(*) FROM nmo_assessments a JOIN nmo_observations o ON o.monitor=a.monitor WHERE a.monitor='research-web' AND o.revision<>a.revision AND o.id IN (SELECT jsonb_array_elements_text(z->'evidence') FROM jsonb_array_elements(a.payload->'zones') z)")=='0'
 
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':
