@@ -79,7 +79,7 @@ func (s *Store) StartDiagnostic(ctx context.Context, p monitor.Plan, profile dia
 	if p.Diagnostics.ComparisonStatic {
 		mode = "static"
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration))
+	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,profile_ref,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration), profile.Name)
 	if e != nil {
 		return "", e
 	}

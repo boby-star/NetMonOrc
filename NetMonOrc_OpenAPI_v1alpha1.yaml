@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Решта kind та решта маршрутів ще не реалізовані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Додано читання діагностичних сесій і фізичних задач. Решта kind та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -1624,7 +1624,7 @@ paths:
       tags:
       - Diagnostics
       summary: Список діагностичних сесій
-      description: By monitor/state/time/limit/cursor.
+      description: Історичні сесії PostgreSQL; monitor/state/since/until, limit 1..200. Keyset cursor за startedAt DESC, id DESC прив’язаний до фільтрів. Незавершений звіт не отримує вигаданий список гіпотез.
       operationId: listDiagnosticSessions
       x-netmonorc-rbac: viewer
       parameters:
@@ -1716,7 +1716,7 @@ paths:
       tags:
       - Diagnostics
       summary: Дані діагностичної сесії
-      description: Remaining hypotheses, consumed budget, evidence, stopReason.
+      description: Збережені hypotheses (поле відсутнє без звіту), зарезервовані фізичні probes, ID отриманих діагностичних observations та stopReason. Історичний profileRef не вгадується; для legacy записів поле може бути відсутнє.
       operationId: getDiagnosticSession
       x-netmonorc-rbac: viewer
       parameters:
@@ -1753,7 +1753,7 @@ paths:
       tags:
       - Diagnostics
       summary: Дії діагностичної сесії
-      description: Detailed step/action/agent/attempt/observations.
+      description: Фізичні action/agent/attempt, reservation state, deadline та отримані observation IDs. Без check_spec/targets/HTTP body. Keyset cursor за id ASC прив’язаний до session; під час виконання для повного актуального списку оновіть першу сторінку.
       operationId: getDiagnosticTasks
       x-netmonorc-rbac: viewer
       parameters:
@@ -3079,6 +3079,7 @@ components:
           enum:
           - fixed
           - adaptive
+          - static
         state:
           type: string
           enum:
@@ -3096,11 +3097,19 @@ components:
           - 'null'
           format: date-time
         remainingHypotheses:
+          description: Відсутнє без збереженого звіту; порожній масив є відомим порожнім набором.
           type: array
           items:
             type: string
         budgetUsed:
           type: object
+          required: [additionalChecks]
+          additionalProperties: false
+          properties:
+            additionalChecks:
+              type: integer
+              minimum: 0
+              description: Зарезервовані фізичні probes, включно зі спробами без отриманого Observation; бюджет не повертається.
         evidenceIds:
           type: array
           items:

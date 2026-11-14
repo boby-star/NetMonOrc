@@ -74,6 +74,7 @@ if c['mode']=='login':
     code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-viewer-reader','scopes':['resources:read']},csrf=viewer_view['csrfToken']);assert code==201
     viewer_token=json.loads(body)['token']
     code,_,_=request('GET','/api/v1/agents',bearer=viewer_token);assert code==403
+    code,_,_=request('GET','/api/v1/diagnostics',bearer=viewer_token);assert code==403
     cookie=admin_cookie
     code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken']);assert code==428
     code,body,new_tag=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken'],if_match=user_tag,response_header='ETag');assert code==200 and json.loads(body)['disabled']
@@ -83,7 +84,7 @@ if c['mode']=='login':
     cookie=viewer_cookie
     code,_,_=request('GET','/api/v1/auth/me');assert code==401
     cookie=admin_cookie
-    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read'],'expiresAt':None},csrf=view['csrfToken'])
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read'],'expiresAt':None},csrf=view['csrfToken'])
     assert code==201
     api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
     code,body,_=request('GET','/api/v1/auth/me',bearer=api['token']);assert code==200
@@ -244,9 +245,20 @@ def verify(lab):
     lab.compose('start','branch')
     lab.wait(lambda:agent_status()['onlineState']=='online','Agent snapshot follows fenced reconnect and heartbeat')
     lab.wait(lambda:lab.assessment().get('state')=='healthy','regular monitoring restored after Agent reconnect')
+    sessions=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','diagnostics'))
+    assert sessions['items']
+    candidates=[s for s in sessions['items'] if s['budgetUsed']['additionalChecks']>0]
+    assert candidates
+    diagnostic=candidates[0]
+    detail=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','diagnostics',diagnostic['id']))
+    assert detail['monitorId']=='research-web' and detail['profileRef']=='web-lab'
+    tasks=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','--tasks','diagnostics',diagnostic['id']))
+    assert tasks['items'] and len(tasks['items'])==detail['budgetUsed']['additionalChecks']
+    assert all(t['sessionId']==diagnostic['id'] and t['attemptNo']>=1 and 'check_spec' not in t for t in tasks['items'])
+    assert all(observation in detail['evidenceIds'] for t in tasks['items'] for observation in t['observationIds'])
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

@@ -19,6 +19,7 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/agentstatus"
 	"github.com/boby-star/NetMonOrc/internal/auth"
+	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 	"golang.org/x/sys/unix"
@@ -36,6 +37,7 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	diagnostics      diagnosticview.Reader
 	agents           func() []agentstatus.View
 	resources        *resources.Service
 	expectedRevision string
@@ -100,6 +102,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
 		h.static(w, r)
+		return
+	}
+	if r.URL.Path == "/api/v1/diagnostics" || strings.HasPrefix(r.URL.Path, "/api/v1/diagnostics/") {
+		h.diagnosticRoutes(w, r)
 		return
 	}
 	if r.URL.Path == "/api/v1/agents" || strings.HasPrefix(r.URL.Path, "/api/v1/agents/") {

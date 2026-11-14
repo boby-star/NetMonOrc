@@ -1,3 +1,15 @@
+# Історія діагностичних сесій: R12
+
+Підключені GET diagnostics/list/get/tasks, scope diagnostics:read, bounded
+keyset pagination і monitor/state/time filters. DTO показують тільки
+збережені дані: reservations окремо від Observation, hypotheses без звіту
+не вгадуються, legacy profileRef не реконструюється. Додано React-розділ
+та CLI get diagnostics/--tasks. Наявний research static mode відображено
+в OpenAPI без зміни DSL або математичних алгоритмів.
+Документація: [diagnostic-history.md](docs/deployment/diagnostic-history.md).
+POST start/cancel та повне керування діагностикою залишаються відкритими;
+так само multi-Monitor, placement та решта вказаного нижче обсягу.
+
 # DiagnosticProfile registry та залежні ревізії: R11
 
 Додано CRUD/status/revisions профілів через REST, React і CLI get;

@@ -38,13 +38,17 @@ func remoteCommand(args []string) error {
 	timeout := f.Duration("timeout", time.Minute, "overall deadline (1s..30m)")
 	limit := f.Int("limit", 50, "read page size (1..200)")
 	cursor := f.String("cursor", "", "opaque read page cursor")
-	state := f.String("state", "", "operations state filter")
+	state := f.String("state", "", "operations or diagnostics state filter")
+	tasks := f.Bool("tasks", false, "read physical tasks of one diagnostic session")
 	_ = f.Bool("remote", false, "use server validation")
 	if err := f.Parse(args[1:]); err != nil {
 		return err
 	}
 	if *timeout < time.Second || *timeout > 30*time.Minute || *limit < 1 || *limit > 200 {
 		return fmt.Errorf("invalid timeout or page limit")
+	}
+	if *tasks && (args[0] != "get" || f.NArg() != 2 || f.Arg(0) != "diagnostics") {
+		return fmt.Errorf("tasks requires get diagnostics ID")
 	}
 	path, err := cliContextPath(*contextFile)
 	if err != nil {
@@ -63,7 +67,7 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires Monitor|DiagnosticProfile|operations|agents [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires Monitor|DiagnosticProfile|operations|agents|diagnostics [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
@@ -73,14 +77,20 @@ func remoteCommand(args []string) error {
 			route = "/api/v1/resources/DiagnosticProfile"
 		case "operations":
 			route = "/api/v1/operations"
+		case "diagnostics":
+			route = "/api/v1/diagnostics"
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|operations|agents")
+			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|operations|agents|diagnostics")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))
-		} else {
+		}
+		if *tasks {
+			route += "/tasks"
+		}
+		if f.NArg() != 2 || *tasks {
 			params := url.Values{"limit": {fmt.Sprint(*limit)}}
 			if *cursor != "" {
 				params.Set("cursor", *cursor)

@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS nmo_assessments(monitor text PRIMARY KEY,revision tex
 ALTER TABLE nmo_observations ADD COLUMN IF NOT EXISTS diagnostic_task_id text NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS nmo_incidents(monitor text PRIMARY KEY,episode_id text NOT NULL DEFAULT '',run_id text NOT NULL DEFAULT '',last_finished timestamptz);
 CREATE TABLE IF NOT EXISTS nmo_diagnostic_runs(id text PRIMARY KEY,episode_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,profile_hash text NOT NULL,mode text NOT NULL,max_checks integer NOT NULL,used_checks integer NOT NULL DEFAULT 0,deadline timestamptz NOT NULL,state text NOT NULL,reason text NOT NULL DEFAULT '',report jsonb,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz);
+ALTER TABLE nmo_diagnostic_runs ADD COLUMN IF NOT EXISTS profile_ref text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS nmo_diagnostic_runs_history ON nmo_diagnostic_runs(started_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS nmo_diagnostic_runs_monitor ON nmo_diagnostic_runs(monitor,started_at DESC,id DESC);
 CREATE TABLE IF NOT EXISTS nmo_alerts(logical_key text PRIMARY KEY,payload jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS nmo_alert_events(id text PRIMARY KEY,logical_key text NOT NULL,transition jsonb NOT NULL,suppressed boolean NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
@@ -73,6 +75,8 @@ CREATE TABLE IF NOT EXISTS nmo_webhook_outbox(event_id text PRIMARY KEY REFERENC
 CREATE INDEX IF NOT EXISTS nmo_webhook_due ON nmo_webhook_outbox(state,next_after);
 CREATE TABLE IF NOT EXISTS nmo_webhook_attempts(event_id text NOT NULL REFERENCES nmo_webhook_outbox(event_id),attempt integer NOT NULL,lease_token text NOT NULL,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz,status_code integer NOT NULL DEFAULT 0,PRIMARY KEY(event_id,attempt));
 CREATE TABLE IF NOT EXISTS nmo_diagnostic_tasks(id text PRIMARY KEY,run_id text NOT NULL REFERENCES nmo_diagnostic_runs(id),agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,zone text NOT NULL,check_id text NOT NULL,deadline timestamptz NOT NULL,check_spec jsonb NOT NULL,state text NOT NULL);
+CREATE INDEX IF NOT EXISTS nmo_diagnostic_tasks_run ON nmo_diagnostic_tasks(run_id,id);
+CREATE INDEX IF NOT EXISTS nmo_observations_diagnostic_task ON nmo_observations(diagnostic_task_id,id) WHERE diagnostic_task_id<>'';
 ALTER TABLE nmo_diagnostic_tasks ADD COLUMN IF NOT EXISTS attempt_no integer NOT NULL DEFAULT 1;`)
 	if e == nil {
 		e = tx.Commit(ctx)

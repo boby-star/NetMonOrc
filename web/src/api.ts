@@ -661,3 +661,47 @@ export async function agents(
     );
   return response.json() as Promise<AgentPage>;
 }
+
+export interface DiagnosticSession {
+  id: string;
+  monitorId: string;
+  profileRef?: string;
+  mode: "static" | "fixed" | "adaptive";
+  state: "created" | "running" | "completed" | "inconclusive" | "cancelled";
+  startedAt: string;
+  finishedAt: string | null;
+  remainingHypotheses?: string[];
+  budgetUsed: { additionalChecks: number };
+  evidenceIds: string[];
+  stopReason: string | null;
+}
+export interface DiagnosticTask {
+  id: string;
+  sessionId: string;
+  actionId: string;
+  agentId: string;
+  state: string;
+  attemptNo: number;
+  deadline: string;
+  observationIds: string[];
+}
+export interface DiagnosticPage { items: DiagnosticSession[]; nextCursor: string | null }
+async function diagnosticRead<T>(path: string): Promise<T> {
+  const response = await fetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`Діагностика недоступна (${response.status}). Оновіть запит.`);
+  return response.json() as Promise<T>;
+}
+export function diagnosticSessions(monitor: string, state: string, cursor: string | null): Promise<DiagnosticPage> {
+  const query = new URLSearchParams({ monitor, limit: "20" });
+  if (state) query.set("state", state);
+  if (cursor) query.set("cursor", cursor);
+  return diagnosticRead(`/api/v1/diagnostics?${query}`);
+}
+export function diagnosticSession(id: string): Promise<DiagnosticSession> {
+  return diagnosticRead(`/api/v1/diagnostics/${encodeURIComponent(id)}`);
+}
+export function diagnosticTasks(id: string, cursor: string | null): Promise<{items: DiagnosticTask[]; nextCursor: string | null}> {
+  const query = new URLSearchParams({ limit: "20" });
+  if (cursor) query.set("cursor", cursor);
+  return diagnosticRead(`/api/v1/diagnostics/${encodeURIComponent(id)}/tasks?${query}`);
+}

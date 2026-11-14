@@ -262,6 +262,7 @@ func run() error {
 					return err
 				}
 				handler.SetHistoryLoader(store.ReadObservations)
+				handler.SetDiagnostics(store)
 				handler.SetResources(resourceService, p.Revision)
 				handler.SetAgents(func() []agentstatus.View { return agentServer.AgentStatuses(time.Now()) })
 				httpServer = httpapi.NewServer(*httpListen, handler)

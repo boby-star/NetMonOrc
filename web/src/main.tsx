@@ -14,6 +14,7 @@ import "./style.css";
 import { History } from "./History";
 import { Tokens } from "./Tokens";
 import { Users } from "./Users";
+import { Diagnostics } from "./Diagnostics";
 import { Agents } from "./Agents";
 import { Configuration } from "./Configuration";
 const labels = {
@@ -331,6 +332,9 @@ function App() {
         )}
         {session?.scopes.includes("agents:read") && (
           <Agents key={session.userId} />
+        )}
+        {session?.scopes.includes("diagnostics:read") && connection && (
+          <Diagnostics key={session.userId + connection.monitor} monitor={connection.monitor} />
         )}
         {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (
