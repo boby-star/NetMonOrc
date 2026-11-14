@@ -259,4 +259,5 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	if _, e = service.Me(ctx, raw); e != auth.ErrCredentials {
 		t.Fatal("expired session accepted", e)
 	}
+	testUserManagement(t, ctx, s, server, username, password)
 }

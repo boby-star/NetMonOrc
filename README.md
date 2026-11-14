@@ -7,6 +7,8 @@
 cookie-сесії, зміну власного пароля, історію перевірок і керування PAT у React.
 CLI підтримує захищені login/whoami/local logout через особистий токен.
 [Персональні токени та CLI](docs/deployment/personal-api-tokens.md).
+Admin-панель підтримує [керування користувачами](docs/deployment/users.md)
+із захистом останнього admin та конкурентних змін.
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
 [історія та пагінація](docs/architecture/observation-history.md),
 [перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки

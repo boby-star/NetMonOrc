@@ -14,7 +14,7 @@ import http.client,json,socket,ssl,sys
 from http.cookies import SimpleCookie
 c=json.load(sys.stdin);ctx=ssl.create_default_context(cadata=c['ca'])
 cookie=''
-def request(method,path,body=None,csrf='',origin='https://localhost',bearer=''):
+def request(method,path,body=None,csrf='',origin='https://localhost',bearer='',if_match='',response_header='Set-Cookie'):
     global cookie
     data=json.dumps(body).encode() if body is not None else b''
     headers={'Host':'localhost','Connection':'close','Content-Length':str(len(data))}
@@ -22,12 +22,13 @@ def request(method,path,body=None,csrf='',origin='https://localhost',bearer=''):
     if cookie:headers['Cookie']=cookie
     if csrf:headers['X-CSRF-Token']=csrf
     if bearer:headers['Authorization']='Bearer '+bearer
+    if if_match:headers['If-Match']=if_match
     if origin:headers['Origin']=origin
     with socket.create_connection((c['address'],8443),timeout=8) as raw:
         with ctx.wrap_socket(raw,server_hostname='localhost') as sock:
             sock.sendall((method+' '+path+' HTTP/1.1\r\n'+''.join(k+': '+v+'\r\n' for k,v in headers.items())+'\r\n').encode()+data)
             response=http.client.HTTPResponse(sock);response.begin();payload=response.read(16384)
-            return response.status,payload,response.getheader('Set-Cookie')
+            return response.status,payload,response.getheader(response_header)
 if c['mode']=='login':
     code,_,_=request('POST','/api/v1/auth/login',{'username':'admin','password':c['password']},origin='https://foreign.example')
     assert code==403
@@ -60,6 +61,27 @@ if c['mode']=='login':
     code,body,setcookie=request('POST','/api/v1/auth/login',{'username':'admin','password':c['replacement']});assert code==200
     parsed=SimpleCookie();parsed.load(setcookie);cookie='netmonorc_session='+parsed['netmonorc_session'].value
     view=json.loads(body)
+    code,body,own_tag=request('GET','/api/v1/users/'+view['userId'],response_header='ETag');assert code==200 and own_tag
+    assert 'password' not in body.decode() and 'hash' not in body.decode()
+    code,_,_=request('PATCH','/api/v1/users/'+view['userId'],{'disabled':True},csrf=view['csrfToken'],if_match=own_tag);assert code==409
+    code,body,user_tag=request('POST','/api/v1/users',{'username':'live-viewer','role':'viewer','initialPassword':c['viewerPassword']},csrf=view['csrfToken'],response_header='ETag');assert code==201 and user_tag
+    created=json.loads(body);assert created['role']=='viewer' and 'initialPassword' not in created
+    admin_cookie=cookie;cookie=''
+    code,body,setcookie=request('POST','/api/v1/auth/login',{'username':'live-viewer','password':c['viewerPassword']});assert code==200
+    viewer_view=json.loads(body);parsed=SimpleCookie();parsed.load(setcookie);viewer_cookie='netmonorc_session='+parsed['netmonorc_session'].value
+    cookie=viewer_cookie
+    code,_,_=request('GET','/api/v1/users');assert code==403
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-viewer-reader','scopes':['resources:read']},csrf=viewer_view['csrfToken']);assert code==201
+    viewer_token=json.loads(body)['token']
+    cookie=admin_cookie
+    code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken']);assert code==428
+    code,body,new_tag=request('PATCH','/api/v1/users/'+created['id'],{'disabled':True},csrf=view['csrfToken'],if_match=user_tag,response_header='ETag');assert code==200 and json.loads(body)['disabled']
+    code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':False},csrf=view['csrfToken'],if_match=user_tag);assert code==412
+    code,_,_=request('PATCH','/api/v1/users/'+created['id'],{'disabled':False},csrf=view['csrfToken'],if_match=new_tag);assert code==200
+    code,_,_=request('GET','/api/v1/auth/me',bearer=viewer_token);assert code==401
+    cookie=viewer_cookie
+    code,_,_=request('GET','/api/v1/auth/me');assert code==401
+    cookie=admin_cookie
     code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read'],'expiresAt':None},csrf=view['csrfToken'])
     assert code==201
     api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
@@ -95,7 +117,7 @@ def verify(lab):
     # Re-running bootstrap must not replace credentials.
     lab.compose(*args,input=secrets.token_urlsafe(32).encode())
     common={'address':lab.prefix+'.40.4','ca':(lab.work/'pki/ca.crt').read_text()}
-    first=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,'mode':'login','password':password,'replacement':secrets.token_urlsafe(32)}).encode()))
+    first=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,'mode':'login','password':password,'replacement':secrets.token_urlsafe(32),'viewerPassword':secrets.token_urlsafe(24)}).encode()))
     cli=('/usr/local/bin/netmonorc',)
     lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
     identity=json.loads(lab.compose('exec','-T','controller',*cli,'whoami','--context-file','/tmp/cli/context.json'))
@@ -105,7 +127,7 @@ def verify(lab):
     previous=lab.assessment()['at'];lab.compose('restart','controller')
     lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='healthy','fresh assessment after restart')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':
@@ -115,4 +137,4 @@ if __name__=='__main__':
     target=Path(a.output);target.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
     fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as f:json.dump(result,f,indent=2);f.write('\n')
-    print('Verified real HTTPS login/password change/history, persistent session, CSRF logout and revoked cookie rejection; secrets omitted.')
+    print('Verified real HTTPS identity/users/PAT/history, CLI, persisted sessions and revocation; secrets omitted.')

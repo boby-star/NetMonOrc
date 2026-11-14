@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Решта маршрутів залишається планом до реалізації відповідних модулів.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users GET/POST/GET-by-ID/PATCH з ETag; решта маршрутів залишається планом до реалізації відповідних модулів.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -316,7 +316,7 @@ paths:
       tags:
       - Users
       summary: Перелік користувачів
-      description: Лише admin; без password hashes.
+      description: Admin із system:admin; cookie або PAT. Без credentials/password hashes. limit 1..200 (default 50), порядок ID DESC, cursor — останній ID попередньої сторінки.
       operationId: listUsers
       x-netmonorc-rbac: admin
       parameters:
@@ -356,7 +356,7 @@ paths:
       tags:
       - Users
       summary: Створити користувача
-      description: Admin створює viewer/admin, пароль bootstrap через захищений механізм.
+      description: Admin із system:admin створює viewer/admin; initialPassword передається лише через HTTPS JSON, зберігається Argon2id. Cookie mutation вимагає CSRF. Повторне username — 409. Повертає ETag та Location.
       operationId: createUser
       x-netmonorc-rbac: admin
       security:
@@ -370,6 +370,9 @@ paths:
               $ref: '#/components/schemas/UserCreate'
       responses:
         '201':
+          headers:
+            ETag: {description: Поточна версія metadata користувача, schema: {type: string}}
+            Location: {schema: {type: string}}
           description: Створити користувача
           content:
             application/json:
@@ -400,7 +403,7 @@ paths:
       tags:
       - Users
       summary: Дані користувача
-      description: Без credentials.
+      description: Admin із system:admin; без credentials. Повертає сильний ETag для наступного PATCH. Для користувачів до міграції невідомий createdAt пропускається.
       operationId: getUser
       x-netmonorc-rbac: admin
       parameters:
@@ -410,6 +413,8 @@ paths:
       - bearerAuth: []
       responses:
         '200':
+          headers:
+            ETag: {description: Поточна версія metadata користувача, schema: {type: string}}
           description: Дані користувача
           content:
             application/json:
@@ -439,7 +444,14 @@ paths:
       tags:
       - Users
       summary: Змінити роль/disabled
-      description: Admin не може заблокувати останнього активного admin.
+      description: >-
+        Admin із system:admin змінює role та/або disabled. Потрібний один сильний
+        ETag у If-Match; без нього 428, застаріла версія 412. Cookie потребує
+        X-CSRF-Token. Порожній patch або null-поля — 422. Транзакція не дозволяє
+        блокувати чи знижувати роль останнього активного admin (409), включно з
+        конкурентними запитами. Зміна ролі або блокування атомарно відкликає
+        всі cookie-сесії та PAT цільового користувача; повторне ввімкнення не
+        відновлює старі credentials. Відповідь містить новий ETag.
       operationId: patchUser
       x-netmonorc-rbac: admin
       parameters:
@@ -462,6 +474,8 @@ paths:
               $ref: '#/components/schemas/UserPatch'
       responses:
         '200':
+          headers:
+            ETag: {description: Нова версія metadata користувача, schema: {type: string}}
           description: Змінити роль/disabled
           content:
             application/json:
@@ -2565,6 +2579,7 @@ components:
           format: password
     UserCreate:
       type: object
+      additionalProperties: false
       required:
       - username
       - role
@@ -2572,6 +2587,7 @@ components:
       properties:
         username:
           type: string
+          description: 1..64 байтів UTF-8, без крайніх пробілів і контрольних символів.
         role:
           type: string
           enum:
@@ -2580,9 +2596,10 @@ components:
         initialPassword:
           type: string
           format: password
-          description: Не повертати у GET; рекомендована одноразова передача.
+          description: 16..256 байтів UTF-8; не повертати у відповідях, не зберігати відкритим текстом.
     UserPatch:
       type: object
+      minProperties: 1
       additionalProperties: false
       properties:
         role:

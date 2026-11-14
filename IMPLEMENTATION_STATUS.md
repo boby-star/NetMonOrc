@@ -1,3 +1,17 @@
+# Керування користувачами: R5
+
+Реалізовані Users GET/POST/GET-by-ID/PATCH та admin-розділ React.
+Список без credentials, створення Argon2id, role/disabled, ETag/If-Match,
+RBAC admin+system:admin, CSRF і повторна перевірка actor credential в транзакції.
+Блокування/зміна ролі відкликає sessions/PAT; re-enable не відновлює їх.
+DB transaction lock захищає останнього admin навіть за конкурентних mutations.
+Невідомий createdAt legacy user не вигадується. Деталі:
+[users.md](docs/deployment/users.md).
+Критичні real PostgreSQL/HTTPS use cases та окремий production Compose
+сценарій пройшли: [докази](docs/experiments/users-r5). React build і Go build/vet
+проходять. Resource/config CRUD, загальні CLI commands, placement/replicas,
+ResourceGroup та решта розширеного обсягу залишаються відкритими.
+
 # Персональні токени й CLI: R4
 
 Реалізовані POST/GET/DELETE /auth/tokens і bearer /auth/me. PostgreSQL

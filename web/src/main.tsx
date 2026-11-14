@@ -13,6 +13,7 @@ import {
 import "./style.css";
 import { History } from "./History";
 import { Tokens } from "./Tokens";
+import { Users } from "./Users";
 const labels = {
   healthy: "Працює",
   degraded: "Погіршення",
@@ -303,6 +304,22 @@ function App() {
             </details>
           </section>
         )}
+        {session?.role === "admin" &&
+          session.scopes.includes("system:admin") && (
+            <Users
+              key={session.userId}
+              session={session}
+              onOwnChange={() => {
+                setSession(null);
+                setConnection(null);
+                setAssessment(null);
+                setCurrentPassword("");
+                setNewPassword("");
+                setPasswordNotice("");
+              setError("Права облікового запису змінено. Увійдіть повторно.");
+              }}
+            />
+          )}
         {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (
           <History

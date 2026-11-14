@@ -43,6 +43,9 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	defer tx.Rollback(ctx)
 	_, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(781301);
 CREATE TABLE IF NOT EXISTS nmo_users(id text PRIMARY KEY,username text UNIQUE NOT NULL,password_hash text NOT NULL,role text NOT NULL CHECK(role IN ('admin','viewer')),disabled boolean NOT NULL DEFAULT false,failed_logins integer NOT NULL DEFAULT 0,locked_until timestamptz);
+ALTER TABLE nmo_users ADD COLUMN IF NOT EXISTS created_at timestamptz;
+ALTER TABLE nmo_users ALTER COLUMN created_at SET DEFAULT now();
+ALTER TABLE nmo_users ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 1;
 CREATE TABLE IF NOT EXISTS nmo_api_tokens(id text PRIMARY KEY,user_id text NOT NULL REFERENCES nmo_users(id) ON DELETE CASCADE,name text NOT NULL,token_hash bytea NOT NULL UNIQUE,scopes text[] NOT NULL,expires_at timestamptz,created_at timestamptz NOT NULL DEFAULT now(),revoked_at timestamptz);
 CREATE INDEX IF NOT EXISTS nmo_api_tokens_owner ON nmo_api_tokens(user_id,id DESC);
 CREATE TABLE IF NOT EXISTS nmo_browser_sessions(token_hash bytea PRIMARY KEY,user_id text NOT NULL REFERENCES nmo_users(id) ON DELETE CASCADE,expires_at timestamptz NOT NULL);

@@ -39,12 +39,16 @@ func sameOrigin(r *http.Request) bool {
 }
 func authError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, auth.ErrConflict):
+		failure(w, 409, "CONFLICT", "Duplicate identity or last active administrator")
+	case errors.Is(err, auth.ErrPrecondition):
+		failure(w, 412, "PRECONDITION_FAILED", "Resource version changed; reload before retrying")
 	case errors.Is(err, auth.ErrInput):
-		failure(w, 422, "INVALID_ARGUMENT", "Invalid token request")
+		failure(w, 422, "INVALID_ARGUMENT", "Invalid request")
 	case errors.Is(err, auth.ErrForbidden):
 		failure(w, 403, "FORBIDDEN", "Requested permission unavailable")
 	case errors.Is(err, auth.ErrNotFound):
-		failure(w, 404, "NOT_FOUND", "Token not found")
+		failure(w, 404, "NOT_FOUND", "Resource not found")
 	case errors.Is(err, auth.ErrPassword):
 		failure(w, 422, "INVALID_PASSWORD", "Password requires 16..256 UTF-8 bytes")
 	case errors.Is(err, auth.ErrCredentials):

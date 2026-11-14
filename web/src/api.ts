@@ -249,3 +249,113 @@ export async function revokeToken(session: Session, id: string): Promise<void> {
       `Відкликання не підтверджено (${response.status}). Оновіть список.`,
     );
 }
+
+export interface UserView {
+  id: string;
+  username: string;
+  role: "admin" | "viewer";
+  disabled: boolean;
+  createdAt?: string;
+}
+export interface UserPage {
+  items: UserView[];
+  nextCursor: string | null;
+}
+export interface VersionedUser {
+  user: UserView;
+  etag: string;
+}
+function userError(status: number): Error {
+  switch (status) {
+    case 401:
+      return new Error("Сесію завершено. Увійдіть повторно.");
+    case 403:
+      return new Error("Потрібні права адміністратора та чинний CSRF-токен.");
+    case 409:
+      return new Error(
+        "Назва користувача вже зайнята або зміна залишить систему без активного адміністратора.",
+      );
+    case 412:
+      return new Error(
+        "Користувача вже змінено. Повторно відкрийте його запис і перевірте поля.",
+      );
+    case 422:
+      return new Error(
+        "Перевірте ім’я, роль та пароль (16..256 байтів UTF-8).",
+      );
+    case 429:
+      return new Error("Сервер зайнятий. Повторіть запит пізніше.");
+    default:
+      return new Error(
+        `Операцію з користувачами не підтверджено (${status}). Оновіть список.`,
+      );
+  }
+}
+async function versionedUser(response: Response): Promise<VersionedUser> {
+  if (!response.ok) throw userError(response.status);
+  const etag = response.headers.get("ETag");
+  if (!etag) throw new Error("Сервер не повернув версію користувача.");
+  return { user: (await response.json()) as UserView, etag };
+}
+export async function users(
+  cursor: string | null,
+  signal: AbortSignal,
+): Promise<UserPage> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`/api/v1/users?${params}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+  });
+  if (!response.ok) throw userError(response.status);
+  return response.json() as Promise<UserPage>;
+}
+export async function user(id: string): Promise<VersionedUser> {
+  return versionedUser(
+    await fetch(`/api/v1/users/${encodeURIComponent(id)}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    }),
+  );
+}
+export async function createUser(
+  session: Session,
+  username: string,
+  role: string,
+  initialPassword: string,
+): Promise<VersionedUser> {
+  return versionedUser(
+    await fetch("/api/v1/users", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": session.csrfToken,
+      },
+      body: JSON.stringify({ username, role, initialPassword }),
+      signal: AbortSignal.timeout(8000),
+    }),
+  );
+}
+export async function patchUser(
+  session: Session,
+  selected: VersionedUser,
+  role: string,
+  disabled: boolean,
+): Promise<VersionedUser> {
+  return versionedUser(
+    await fetch(`/api/v1/users/${encodeURIComponent(selected.user.id)}`, {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": session.csrfToken,
+        "If-Match": selected.etag,
+      },
+      body: JSON.stringify({ role, disabled }),
+      signal: AbortSignal.timeout(8000),
+    }),
+  );
+}

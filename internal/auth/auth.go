@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
@@ -47,26 +48,31 @@ type Repository interface {
 	RevokeAPIToken(context.Context, string, string) (bool, error)
 	APITokenUser(context.Context, []byte) (User, []string, *time.Time, bool, error)
 	ChangePassword(context.Context, User, []byte, bool, string, []byte, time.Time) (bool, error)
+	ListUsers(context.Context, string, int) ([]UserView, error)
+	GetUser(context.Context, string) (UserView, bool, error)
+	CreateUser(context.Context, AdminCredential, UserCreate, string) (UserView, error)
+	PatchUser(context.Context, AdminCredential, string, int64, UserPatch) (UserView, error)
 }
 type Service struct {
 	repo      Repository
 	loginSlot chan struct{}
 	readSlot  chan struct{}
 	tokenSlot chan struct{}
+	userSlot  chan struct{}
 	mu        sync.Mutex
 	window    time.Time
 	attempts  int
 }
 
 func New(repo Repository) *Service {
-	return &Service{repo: repo, loginSlot: make(chan struct{}, 1), readSlot: make(chan struct{}, 1), tokenSlot: make(chan struct{}, 1)}
+	return &Service{repo: repo, loginSlot: make(chan struct{}, 1), readSlot: make(chan struct{}, 1), tokenSlot: make(chan struct{}, 1), userSlot: make(chan struct{}, 1)}
 }
 func ValidUsername(s string) bool {
 	if !utf8.ValidString(s) || len(s) == 0 || len(s) > 64 || strings.TrimSpace(s) != s {
 		return false
 	}
 	for _, r := range s {
-		if r < 32 || r == 127 {
+		if unicode.IsControl(r) {
 			return false
 		}
 	}
