@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -54,6 +55,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	h.SetHistoryLoader(s.ReadObservations)
 	server := httptest.NewTLSServer(h)
 	defer server.Close()
 	client := server.Client()
@@ -119,6 +121,58 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	}
 	if code, _, _ := request("GET", "/api/v1/monitors/service/assessment", nil, "", ""); code != 200 {
 		t.Fatal("cookie cannot read assessment", code)
+	}
+	// Equal database timestamps require ID tie-breaking, including sub-microsecond payload times.
+	finished := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
+	for _, id := range []string{"history-a", "history-b", "history-c"} {
+		o := monitor.Observation{ID: id, Monitor: "service", Revision: "historical-revision", Check: "http", Agent: "test-agent", Zone: "west", StartedAt: finished.Add(-time.Second), FinishedAt: finished, Execution: "completed", Outcome: "failure"}
+		if id == "history-a" {
+			o.Zone = "east"
+			o.Execution = "execution_failed"
+			o.Outcome = "unknown"
+		}
+		payload, err := json.Marshal(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.pool.Exec(ctx, `INSERT INTO nmo_observations(id,agent_id,monitor,revision,check_id,finished_at,payload,payload_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, o.ID, o.Agent, o.Monitor, o.Revision, o.Check, o.FinishedAt, payload, []byte{1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, data, _ = request("GET", "/api/v1/monitors/service/observations?limit=1", nil, "", "")
+	var page httpapi.ObservationPage
+	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 1 || page.Items[0].ObservationID != "history-c" || page.NextCursor == nil {
+		t.Fatal("history first page", code)
+	}
+	if page.Items[0].ConfigRevision != "historical-revision" || page.Items[0].ProbeOutcome != "failure" || page.Items[0].ReceivedAt.IsZero() {
+		t.Fatal("history provenance lost")
+	}
+	cursor := *page.NextCursor
+	code, data, _ = request("GET", "/api/v1/monitors/service/observations?limit=1&cursor="+url.QueryEscape(cursor), nil, "", "")
+	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 1 || page.Items[0].ObservationID != "history-b" || page.NextCursor == nil {
+		t.Fatal("history keyset skipped equal timestamp", code)
+	}
+	code, data, _ = request("GET", "/api/v1/monitors/service/observations?limit=1&cursor="+url.QueryEscape(*page.NextCursor), nil, "", "")
+	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 1 || page.Items[0].ObservationID != "history-a" || page.NextCursor != nil {
+		t.Fatal("history last page", code)
+	}
+	for _, query := range []string{"limit=0", "limit=201", "limit=1&limit=2", "since=invalid", "until=2020-01-01T00:00:00Z&since=2021-01-01T00:00:00Z", "zone=east&cursor=" + url.QueryEscape(cursor), "unknown=x", "zone=%zz"} {
+		if code, _, _ := request("GET", "/api/v1/monitors/service/observations?"+query, nil, "", ""); code != 400 {
+			t.Fatal("invalid history query accepted", query, code)
+		}
+	}
+	code, data, _ = request("GET", "/api/v1/monitors/service/observations?zone=east", nil, "", "")
+	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 1 || page.Items[0].ExecutionStatus != "execution_failed" || page.Items[0].ProbeOutcome != "unknown" {
+		t.Fatal("zone filter or execution/probe distinction", code)
+	}
+	interval := url.Values{"since": {finished.Add(-time.Second).Format(time.RFC3339Nano)}, "until": {finished.Add(time.Second).Format(time.RFC3339Nano)}}
+	code, data, _ = request("GET", "/api/v1/monitors/service/observations?"+interval.Encode(), nil, "", "")
+	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 3 {
+		t.Fatal("history interval filtering", code)
+	}
+	code, data, _ = request("GET", "/api/v1/monitors/service/observations?since="+url.QueryEscape(finished.Add(time.Second).Format(time.RFC3339Nano)), nil, "", "")
+	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 0 || page.NextCursor != nil {
+		t.Fatal("empty history must be a valid page", code)
 	}
 	// Password change must be atomic across all sessions and preserve CSRF protection.
 	_, otherSession, e := service.Login(ctx, username, password)

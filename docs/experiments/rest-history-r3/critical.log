@@ -1,0 +1,5 @@
+=== RUN   TestPostgresBrowserSessionsAndCSRF
+--- PASS: TestPostgresBrowserSessionsAndCSRF (2.11s)
+PASS
+ok  	github.com/boby-star/NetMonOrc/internal/storage	2.116s
+PASS: critical HTTPS identity, password rotation and observation history use cases

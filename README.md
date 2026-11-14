@@ -3,8 +3,11 @@
 ## Поточний обсяг: REST API та React
 
 За новим дорученням реалізація розширюється за [запискою і технічним планом](docs/specs/thesis-scope-2026-11-13.md).
-Перший робочий етап — захищений Assessment REST і React-перегляд:
-[запуск та межі R1](docs/architecture/rest-react-r1.md). Історичні відсотки
+Реалізовано захищений Assessment REST, парольний вхід/вихід, durable
+cookie-сесії, зміну власного пароля та історію перевірок у React.
+[Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
+[історія та пагінація](docs/architecture/observation-history.md),
+[перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки
 мінімального прототипу не характеризують готовність розширеного продукту.
 
 ## Мінімальний дослідницький профіль

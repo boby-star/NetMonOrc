@@ -39,6 +39,26 @@ if c['mode']=='login':
     cookie='netmonorc_session='+item.value
     view=json.loads(body);assert view['role']=='admin' and view['csrfToken'] and view['scopes']
     code,_,_=request('GET','/api/v1/monitors/research-web/assessment');assert code==200
+    code,body,_=request('GET','/api/v1/monitors/research-web/observations?limit=2')
+    assert code==200
+    history=json.loads(body);assert len(history['items'])==2 and history['nextCursor']
+    first={o['observationId'] for o in history['items']}
+    from urllib.parse import quote
+    code,body,_=request('GET','/api/v1/monitors/research-web/observations?limit=2&cursor='+quote(history['nextCursor']))
+    assert code==200 and not first.intersection(o['observationId'] for o in json.loads(body)['items'])
+    code,body,_=request('GET','/api/v1/monitors/research-web/observations?zone=office&limit=2')
+    assert code==200 and all(o['networkZone']=='office' for o in json.loads(body)['items'])
+    change={'currentPassword':c['password'],'newPassword':c['replacement']}
+    code,_,_=request('POST','/api/v1/auth/change-password',change);assert code==403
+    code,body,setcookie=request('POST','/api/v1/auth/change-password',change,csrf=view['csrfToken']);assert code==200
+    parsed=SimpleCookie();parsed.load(setcookie);rotated='netmonorc_session='+parsed['netmonorc_session'].value
+    changed=json.loads(body);assert changed['csrfToken']!=view['csrfToken']
+    code,_,_=request('GET','/api/v1/auth/me');assert code==401
+    cookie=rotated
+    code,_,_=request('POST','/api/v1/auth/login',{'username':'admin','password':c['password']});assert code==401
+    code,body,setcookie=request('POST','/api/v1/auth/login',{'username':'admin','password':c['replacement']});assert code==200
+    parsed=SimpleCookie();parsed.load(setcookie);cookie='netmonorc_session='+parsed['netmonorc_session'].value
+    view=json.loads(body)
     # Returned secrets go only to the parent operator process over a private
     # captured pipe, for the restart portion; never printed by the helper UI.
     print(json.dumps({'cookie':cookie,'csrf':view['csrfToken'],'userId':view['userId']}))
@@ -63,12 +83,12 @@ def verify(lab):
     # Re-running bootstrap must not replace credentials.
     lab.compose(*args,input=secrets.token_urlsafe(32).encode())
     common={'address':lab.prefix+'.40.4','ca':(lab.work/'pki/ca.crt').read_text()}
-    first=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,'mode':'login','password':password}).encode()))
+    first=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,'mode':'login','password':password,'replacement':secrets.token_urlsafe(32)}).encode()))
     password=''
     previous=lab.assessment()['at'];lab.compose('restart','controller')
     lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='healthy','fresh assessment after restart')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':
@@ -78,4 +98,4 @@ if __name__=='__main__':
     target=Path(a.output);target.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
     fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as f:json.dump(result,f,indent=2);f.write('\n')
-    print('Verified real HTTPS login, persistent session, CSRF logout and revoked cookie rejection; secrets omitted.')
+    print('Verified real HTTPS login/password change/history, persistent session, CSRF logout and revoked cookie rejection; secrets omitted.')

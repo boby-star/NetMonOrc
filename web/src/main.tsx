@@ -11,6 +11,7 @@ import {
   type Assessment,
 } from "./api";
 import "./style.css";
+import { History } from "./History";
 const labels = {
   healthy: "Працює",
   degraded: "Погіршення",
@@ -285,7 +286,6 @@ function App() {
                   <input
                     type="password"
                     required
-                    minLength={16}
                     maxLength={256}
                     autoComplete="new-password"
                     value={newPassword}
@@ -301,6 +301,12 @@ function App() {
               {passwordNotice && <p role="status">{passwordNotice}</p>}
             </details>
           </section>
+        )}
+        {session && connection && (
+          <History
+            key={session.userId + connection.monitor}
+            monitor={connection.monitor}
+          />
         )}
         {error && (
           <p role="alert" className="error">

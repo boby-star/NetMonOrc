@@ -1380,7 +1380,15 @@ paths:
       tags:
       - Monitoring
       summary: Історія спостережень Monitor
-      description: Фільтри zone/since/until, observation id, provenance, replay.
+      description: >-
+        Історія з PostgreSQL: zone та включні since/until за finishedAt.
+        Сортування finishedAt DESC, observationId DESC; limit 1..200 (default 50).
+        nextCursor прив'язаний до Monitor та фільтрів; при зміні фільтрів почніть
+        без cursor. Нові записи після початку перегляду доступні через оновлення
+        першої сторінки. Історичні ревізії не впливають на live assessment.
+        Поточна реалізація вимагає browser cookie з resources:read; bootstrap bearer
+        дозволяє лише Assessment. receivedAt походить із БД; isReplay та failureDomain
+        не повертаються, якщо їх не збережено — значення не вгадуються.
       operationId: listMonitorObservations
       x-netmonorc-rbac: viewer
       parameters:

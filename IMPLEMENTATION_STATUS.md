@@ -1,3 +1,16 @@
+# Історія перевірок у панелі: R3
+
+Додано GET `/api/v1/monitors/{name}/observations` і React-таблицю.
+Дані читаються з PostgreSQL з networkZone, agent/check, execution/probe,
+часом приймання, ревізією та diagnostic provenance. Keyset pagination,
+limit ≤200, zone/since/until, bounded query та shared reader admission.
+Поточний Assessment не змінюється через перегляд історії.
+Окремий Compose-стенд із production образом перевірив login → history →
+password change → restart → logout: docs/experiments/rest-history-r3.
+Критичний HTTPS/PG юз-кейс охоплює cursor на однаковому timestamp,
+фільтри/валідацію, login/password/session lifecycle. Деталі й відтворення:
+[observation-history.md](docs/architecture/observation-history.md).
+
 # Зміна власного пароля: R2b
 
 API `/api/v1/auth/change-password` та React-форма інтегровані з PostgreSQL.

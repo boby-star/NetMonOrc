@@ -1,4 +1,4 @@
-// Package httpapi serves the implemented read-only part of the v1alpha1 API.
+// Package httpapi serves the implemented v1alpha1 browser and monitoring API.
 package httpapi
 
 import (
@@ -34,6 +34,7 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	history      HistoryLoad
 	auth         *auth.Service
 	tokenEnabled bool
 	monitor      string
@@ -98,6 +99,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/auth/") {
 		h.authRoutes(w, r)
+		return
+	}
+	if r.URL.Path == "/api/v1/monitors/"+h.monitor+"/observations" {
+		h.observations(w, r)
 		return
 	}
 	if !h.authorize(w, r) {

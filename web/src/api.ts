@@ -128,3 +128,56 @@ export async function changePassword(
     );
   return response.json() as Promise<Session>;
 }
+
+export interface ObservationRecord {
+  observationId: string;
+  monitorId: string;
+  checkId: string;
+  agentId: string;
+  networkZone: string;
+  configRevision: string;
+  executionStatus: string;
+  probeOutcome: string;
+  reasonCode?: string;
+  startedAt: string;
+  finishedAt: string;
+  receivedAt: string;
+  durationMs: number;
+  diagnosticSessionId?: string;
+  diagnosticTaskId?: string;
+}
+export interface ObservationPage {
+  items: ObservationRecord[];
+  nextCursor: string | null;
+}
+export async function loadHistory(
+  monitor: string,
+  zone: string,
+  cursor: string | null,
+  signal: AbortSignal,
+): Promise<ObservationPage> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (zone) params.set("zone", zone);
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(
+    `/api/v1/monitors/${encodeURIComponent(monitor)}/observations?${params}`,
+    {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+    },
+  );
+  if (response.status === 401)
+    throw new AccessError("Сесію завершено. Увійдіть повторно.");
+  if (response.status === 429)
+    throw new Error("Сервер зайнятий. Повторіть оновлення історії.");
+  if (!response.ok)
+    throw new Error(`Історія тимчасово недоступна (${response.status}).`);
+  const page = (await response.json()) as ObservationPage;
+  if (
+    !Array.isArray(page.items) ||
+    (page.nextCursor !== null && typeof page.nextCursor !== "string")
+  )
+    throw new Error("Некоректна відповідь історії.");
+  return page;
+}

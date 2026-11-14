@@ -233,6 +233,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		handler.SetHistoryLoader(store.ReadObservations)
 		httpServer = httpapi.NewServer(*httpListen, handler)
 	}
 	errors := make(chan error, 4)

@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS nmo_identity_audit(id bigserial PRIMARY KEY,username 
 CREATE TABLE IF NOT EXISTS nmo_sessions(agent_id text PRIMARY KEY,generation bigint NOT NULL,applied_revision text NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS nmo_assignments(agent_id text NOT NULL,revision text NOT NULL,zone text NOT NULL,monitor text NOT NULL,PRIMARY KEY(agent_id,revision,zone,monitor));
 CREATE TABLE IF NOT EXISTS nmo_observations(id text PRIMARY KEY,agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,check_id text NOT NULL,finished_at timestamptz NOT NULL,received_at timestamptz NOT NULL DEFAULT now(),payload jsonb NOT NULL,payload_hash bytea NOT NULL);
+CREATE INDEX IF NOT EXISTS nmo_observations_history ON nmo_observations(monitor,finished_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS nmo_observations_live ON nmo_observations(monitor,revision,agent_id,check_id,finished_at DESC,id DESC);
 CREATE TABLE IF NOT EXISTS nmo_assessments(monitor text PRIMARY KEY,revision text NOT NULL,evaluated_at timestamptz NOT NULL,payload jsonb NOT NULL);
 ALTER TABLE nmo_observations ADD COLUMN IF NOT EXISTS diagnostic_task_id text NOT NULL DEFAULT '';
