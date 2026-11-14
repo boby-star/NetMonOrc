@@ -110,6 +110,18 @@ elif c['mode']=='configuration':
     code,body,_=request('POST','/api/v1/config/apply',batch,csrf=c['csrf']);assert code==202
     op=json.loads(body);assert op['state']=='accepted' and op['result']['desiredCommitted']
     print(json.dumps({'revision':op['result']['targets'][0]['effectiveRevision'],'original':original,'operationId':op['id'],'batch':batch}))
+elif c['mode']=='profile':
+    cookie=c['cookie']
+    code,body,_=request('GET','/api/v1/resources/DiagnosticProfile/web-lab');assert code==200
+    resource=json.loads(body);original=resource['manifest']
+    import copy,uuid
+    manifest=copy.deepcopy(c.get('manifest',original))
+    if 'manifest' not in c:manifest['spec']['actions'][0]['costUnits']=2
+    batch={'manifests':[manifest],'expectedVersions':{'DiagnosticProfile/web-lab':resource['resourceVersion']},'requestId':str(uuid.uuid4())}
+    code,body,_=request('POST','/api/v1/config/plan',batch,csrf=c['csrf']);assert code==200
+    preview=json.loads(body);dependents=[d for d in preview['diffs'] if d['kind']=='Monitor' and d['name']=='research-web']
+    assert len(dependents)==1 and dependents[0]['action']=='reconcile'
+    print(json.dumps({'revision':dependents[0]['effectiveRevision'],'original':original,'batch':batch}))
 elif c['mode']=='operation':
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/operations/'+c['operationId']);assert code==200
@@ -199,6 +211,31 @@ def verify(lab):
     lab.inject('http')
     lab.wait(lambda:int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))>before,'new automatic diagnostic started after re-enable')
     lab.inject('healthy');lab.wait(lambda:lab.assessment().get('state')=='healthy','service recovered after re-enabled diagnostic')
+    # Profile-only apply must wait for the unchanged dependent Monitor manifest
+    # to receive a new execution revision and actual Agent acknowledgements.
+    def cli_profile(manifest=None):
+        args={**common,**first,'mode':'profile'}
+        if manifest is not None:args['manifest']=manifest
+        prepared=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps(args).encode()))
+        op=json.loads(lab.compose('exec','-T','controller',*cli,'apply','--context-file','/tmp/cli/context.json','-f','-','--wait','--timeout','45s',input=json.dumps(prepared['batch']).encode()))
+        assert op['state']=='completed' and len(op['result']['targets'])==2
+        assert all(t['ready'] for t in op['result']['targets'])
+        assert any(t['kind']=='Monitor' and t.get('implicit') for t in op['result']['targets'])
+        return prepared
+    def get_monitor():
+        return json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','Monitor','research-web'))
+    original_monitor=get_monitor()
+    updated_profile=cli_profile()
+    lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==updated_profile['revision'],'profile-only change reconciled dependent Monitor')
+    dependency=get_monitor()
+    assert dependency['resourceVersion']==original_monitor['resourceVersion'] and dependency['generation']==original_monitor['generation']
+    stored_profile=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','DiagnosticProfile','web-lab'))
+    assert stored_profile['manifest']['spec']['actions'][0]['costUnits']==2
+    previous=lab.assessment()['at'];lab.compose('restart','controller')
+    lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('revision')==updated_profile['revision'] and lab.assessment().get('state')=='healthy','database profile survives Controller restart')
+    lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
+    recovered_profile=cli_profile(updated_profile['original'])
+    lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==recovered_profile['revision'],'original profile restored through apply')
     def agent_status():
         return json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','agents','branch'))
     assert agent_status()['onlineState']=='online'
@@ -209,7 +246,7 @@ def verify(lab):
     lab.wait(lambda:lab.assessment().get('state')=='healthy','regular monitoring restored after Agent reconnect')
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

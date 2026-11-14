@@ -14,10 +14,11 @@ import {
 const states = {
   accepted: "Бажану конфігурацію збережено",
   running: "Застосування плану",
-  completed: "Потрібні агенти підтвердили план",
+  completed: "Застосування завершено",
   failed: "Операція не завершила застосування",
 };
 const reasons: Record<string, string> = {
+  profile_catalogued: "Профіль збережено в каталозі",
   awaiting_reconciliation: "Очікує узгодження",
   controller_not_selected: "Monitor не вибрано Controller",
   awaiting_controller_revision: "Очікує нову ревізію Controller",
@@ -84,6 +85,7 @@ export function BatchApply({
       const key = manifest.kind + "/" + manifest.metadata.name;
       const expected =
         current &&
+        current.resource.manifest.kind === manifest.kind &&
         current.resource.manifest.metadata.name === manifest.metadata.name
           ? current.resource.resourceVersion
           : null;
@@ -163,7 +165,7 @@ export function BatchApply({
       {canWrite && (
         <>
           <p>
-            До 20 Monitor в одному JSON-пакеті. Для наявного ресурсу задайте
+            До 20 ресурсів Monitor і DiagnosticProfile в одному JSON-пакеті. Для наявного ресурсу задайте
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>
@@ -223,7 +225,7 @@ export function BatchApply({
           <ul>
             {selected.result.targets.map((t) => (
               <li key={t.uid}>
-                {t.kind}/{t.name}: {reasons[t.reason] ?? t.reason}
+                {t.kind}/{t.name}{t.implicit ? " (залежний ресурс)" : ""}: {reasons[t.reason] ?? t.reason}
                 <br />
                 <small>
                   Версія {t.resourceVersion} · {t.effectiveRevision}

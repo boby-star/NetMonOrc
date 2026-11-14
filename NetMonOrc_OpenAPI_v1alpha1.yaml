@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor CRUD/status/revisions та config validate/plan. Додано атомарний Monitor batch apply та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Інші kind та решта маршрутів ще не реалізовані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Решта kind та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -506,7 +506,7 @@ paths:
       tags:
       - Resources
       summary: Список DSL-ресурсів
-      description: Повний контракт для всіх kind; поточний зріз реалізує Monitor. Інші kind повертають 422. Monitor підтримує limit 1..200, cursor за name ASC і labelSelector key=value через кому; фільтр state поки не реалізований.
+      description: Повний контракт для всіх kind; поточний зріз реалізує Monitor і DiagnosticProfile. Решта kind повертають 422. Обидва підтримують limit 1..200, cursor за name ASC і labelSelector key=value через кому; фільтр state поки не реалізований.
       operationId: listResources
       x-netmonorc-rbac: viewer
       parameters:
@@ -573,7 +573,7 @@ paths:
       tags:
       - Resources
       summary: Створити DSL-ресурс
-      description: Create-only; body.kind має збігатися з URL; status заборонено. Поточний Monitor проходить суворий compiler підтриманого DSL-профілю. Повертає ETag; наявна назва — 409. Новий невибраний Monitor має pending до вибору Controller.
+      description: Create-only; body.kind має збігатися з URL; status заборонено. Monitor і DiagnosticProfile проходять суворі compilers підтриманого DSL-профілю. Повертає ETag; наявна назва — 409. Новий невибраний Monitor має pending до вибору Controller.
       operationId: createResource
       x-netmonorc-rbac: admin
       parameters:
@@ -619,7 +619,7 @@ paths:
       tags:
       - Resources
       summary: Отримати DSL-ресурс
-      description: Повертає manifest/status, uid, generation і opaque resourceVersion; ETag для write. active у status означає завантажений план Controller, а не healthy мережевого ресурсу.
+      description: Повертає manifest/status, uid, generation і opaque resourceVersion; ETag для write. DiagnosticProfile має status stored; це запис каталогу, а не доказ виконання. active у status означає завантажений план Controller, а не healthy мережевого ресурсу.
       operationId: getResource
       x-netmonorc-rbac: viewer
       parameters:
@@ -662,7 +662,7 @@ paths:
       tags:
       - Resources
       summary: Повністю замінити ресурс
-      description: Full spec/metadata replace; required If-Match, kind/name збігаються; без PATCH. Для активного Monitor збережена нова effective revision спричиняє кероване reconciliation Controller та перепідключення Agents. generation змінюється лише за зміни spec; resourceVersion — за кожного прийнятого PUT.
+      description: Full spec/metadata replace; required If-Match, kind/name збігаються; без PATCH. Для активного Monitor збережена нова effective revision спричиняє кероване reconciliation Controller та перепідключення Agents. generation змінюється лише за зміни spec; resourceVersion — за кожного прийнятого PUT. Зміна DiagnosticProfile атомарно оновлює effective revision залежних Monitor без зміни їхніх manifest/resourceVersion; видалення профілю з увімкненими посиланнями дає 409.
       operationId: replaceResource
       x-netmonorc-rbac: admin
       parameters:
@@ -825,7 +825,7 @@ paths:
       tags:
       - Configuration
       summary: Валідація набору маніфестів
-      description: No mutation; поточний зріз компілює 1..20 Monitor маніфестів (body ≤1 MiB), CEL і доступний зовнішній DiagnosticProfile. Непідтримані kind/поля або невідомий profileRef дають valid=false з errors. Live Agent не потрібний.
+      description: No mutation; поточний зріз компілює 1..20 маніфестів Monitor/DiagnosticProfile (body ≤1 MiB), CEL і посилання в об’єднаному каталозі БД та пакета незалежно від порядку документів. Непідтримані kind/поля або невідомий enabled profileRef дають valid=false з errors. Live Agent не потрібний.
       operationId: validateConfiguration
       x-netmonorc-rbac: admin
       security:
@@ -869,7 +869,7 @@ paths:
       tags:
       - Configuration
       summary: План застосування
-      description: No mutation; поточний зріз повертає create/replace/unchanged diff, поточний resourceVersion, effective revision та deterministic planId. Реальний placement лишається fixed roster; placements=[] із явним warning. Це preview, не config/apply чи reservation.
+      description: No mutation; поточний зріз повертає create/replace/unchanged diff та reconcile для неявно залежних Monitor, поточний resourceVersion, effective revision та deterministic planId. Реальний placement лишається fixed roster; placements=[] із явним warning. Це preview, не config/apply чи reservation.
       operationId: planConfiguration
       x-netmonorc-rbac: admin
       security:
@@ -914,14 +914,15 @@ paths:
       - Configuration
       summary: Застосувати конфігурацію
       description: >-
-        Атомарний desired upsert 1..20 Monitor; без prune. Для наявного ресурсу
+        Атомарний desired upsert 1..20 Monitor/DiagnosticProfile; без prune. Для наявного ресурсу
         потрібен expectedVersions[kind/name] (без нього 428, stale 412), null
         або пропуск для нового означає create-only (конфлікт 409).
         requestId — необов'язковий idempotency key у межах user ID на 24 години:
         той самий typed/canonical JSON body повертає існуючу Operation без
         повторного upsert; інший body з тим самим ключем — 409 IDEMPOTENCY_KEY_REUSED.
         Повертає 202 та Location статусу. accepted означає commit desired;
-        completed — підтвердження потрібних актуальних assignments агентами,
+        completed — каталогізація профілів і підтвердження потрібних актуальних assignments агентами,
+        включно з неявно залежними Monitor;
         не healthy ресурсу. Невибрані Monitor очікують Controller; superseded
         targets завершують незавершену операцію з failed/CONFIG_SUPERSEDED.
       operationId: applyConfiguration
@@ -2458,7 +2459,7 @@ components:
       properties:
         state:
           type: string
-          description: Поточний зріз — active або pending стан плану, окремо від Assessment state.
+          description: Поточний зріз — active/pending для Monitor або stored для DiagnosticProfile, окремо від Assessment state.
         desiredRevision:
           type: string
         assignedRevisions:
@@ -2764,6 +2765,7 @@ components:
         uid: {type: string, format: uuid}
         resourceVersion: {type: string}
         effectiveRevision: {type: string}
+        implicit: {type: boolean, description: "Залежний Monitor із новою effective revision без зміни власного manifest/resourceVersion."}
         ready: {type: boolean}
         reason: {type: string}
     EnrollmentCreate:

@@ -28,6 +28,7 @@ type ApplyTarget struct {
 	UID               string `json:"uid"`
 	ResourceVersion   string `json:"resourceVersion"`
 	EffectiveRevision string `json:"effectiveRevision"`
+	Implicit          bool   `json:"implicit,omitempty"`
 	Ready             bool   `json:"ready"`
 	Reason            string `json:"reason"`
 }
@@ -84,16 +85,8 @@ func (s *Service) Apply(ctx context.Context, actor auth.AdminCredential, batch B
 			return Operation{}, ErrInvalid
 		}
 	}
-	if !s.Validate(batch).Valid {
-		return Operation{}, ErrInvalid
+	if _, _, err := s.resolve(ctx, batch); err != nil {
+		return Operation{}, err
 	}
-	revisions := map[string]string{}
-	for _, m := range batch.Manifests {
-		p, err := s.Registry.Compile(m)
-		if err != nil {
-			return Operation{}, ErrInvalid
-		}
-		revisions[m.Kind+"/"+m.Metadata.Name] = p.Revision
-	}
-	return s.Repo.ApplyResources(ctx, actor, batch, revisions, digest)
+	return s.Repo.ApplyResources(ctx, actor, batch, s.Registry, digest)
 }

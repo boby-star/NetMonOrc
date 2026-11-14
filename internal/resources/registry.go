@@ -21,6 +21,7 @@ type Registry struct {
 	Active           string
 	Zones            []string
 	Diagnostic       *diagnostics.Profile
+	Profiles         map[string]diagnostics.Profile
 	StaticComparison bool
 }
 
@@ -61,18 +62,13 @@ func DecodeYAML(data []byte) (Manifest, error) {
 	return Decode(b)
 }
 func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
-	if m.APIVersion != "netmonorc.io/v1alpha1" || m.Kind != "Monitor" || !namePattern.MatchString(m.Metadata.Name) {
-		return monitor.Plan{}, fmt.Errorf("this registry supports v1alpha1 Monitor only")
+	if m.Kind != "Monitor" {
+		return monitor.Plan{}, fmt.Errorf("Monitor required")
 	}
-	for key, value := range m.Metadata.Labels {
-		if !labelKey.MatchString(key) || utf8.RuneCountInString(key) > 63 || utf8.RuneCountInString(value) > 63 || strings.ToLower(value) != value {
-			return monitor.Plan{}, fmt.Errorf("invalid metadata label")
-		}
+	if err := validateMetadata(m); err != nil {
+		return monitor.Plan{}, err
 	}
-	// Metadata belongs to the resource store; only execution-relevant fields feed IR.
-	input := m
-	input.Metadata = Metadata{Name: m.Metadata.Name}
-	data, err := json.Marshal(input)
+	data, err := executionJSON(m)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
@@ -83,17 +79,41 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if p.Name == r.Active && !slices.Equal(p.Zones, r.Zones) {
 		return p, fmt.Errorf("active Monitor must retain the Controller's fixed zones")
 	}
-	if p.Diagnostics != nil && p.Diagnostics.Enabled {
-		if r.Diagnostic == nil {
-			return p, fmt.Errorf("referenced DiagnosticProfile is unavailable")
+	if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
+		profile, found := r.Profiles[p.Diagnostics.ProfileRef]
+		if !found && r.Diagnostic != nil && r.Diagnostic.Name == p.Diagnostics.ProfileRef {
+			profile = *r.Diagnostic
+			found = true
 		}
-		p, err = config.ResolveDiagnostics(p, *r.Diagnostic)
-		if err != nil {
-			return p, err
+		if !found && p.Diagnostics.Enabled {
+			return p, fmt.Errorf("referenced DiagnosticProfile %s is unavailable", p.Diagnostics.ProfileRef)
 		}
+		if found {
+			p, err = config.ResolveDiagnosticReference(p, profile)
+			if err != nil {
+				return p, err
+			}
+		}
+
 	}
 	if r.StaticComparison && p.Name == r.Active {
 		p, err = config.WithStaticComparison(p)
 	}
 	return p, err
+}
+
+func validateMetadata(m Manifest) error {
+	if m.APIVersion != "netmonorc.io/v1alpha1" || !Supported(m.Kind) || !namePattern.MatchString(m.Metadata.Name) {
+		return fmt.Errorf("supported v1alpha1 kind and resource name required")
+	}
+	for key, value := range m.Metadata.Labels {
+		if !labelKey.MatchString(key) || utf8.RuneCountInString(key) > 63 || utf8.RuneCountInString(value) > 63 || strings.ToLower(value) != value {
+			return fmt.Errorf("invalid metadata label")
+		}
+	}
+	return nil
+}
+func executionJSON(m Manifest) ([]byte, error) {
+	m.Metadata = Metadata{Name: m.Metadata.Name}
+	return json.Marshal(m)
 }

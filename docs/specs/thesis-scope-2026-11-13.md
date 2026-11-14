@@ -19,21 +19,21 @@ REST/React прямо доручені користувачем; записка 
 
 | ID | Підстава | Вимога до технічного проєкту | Поточна реалізація | Критерій завершення |
 |---|---|---|---|---|
-| T01 | §1.4, §2.1 | Декларативні Target/Monitor/CheckProfile, YAML refs, параметри, compiler/IR | Inline Monitor і DiagnosticProfile; refs неповні | Typed registry, closed schema, expansion без колізій, validation до network |
+| T01 | §1.4, §2.1 | Декларативні Target/Monitor/CheckProfile, YAML refs, параметри, compiler/IR | R11: registry Monitor/DiagnosticProfile, mixed refs; решта refs неповні | Typed registry, closed schema, expansion без колізій, validation до network |
 | T02 | §2.1 | Кілька replicas перевірки на різних Agent | Один fixed Agent на зону | Окремі planned/applied/observed slots; без вигаданої зони; partial вимкнений |
 | T03 | §2.1–2.2, табл.2.2 | All/any/quorum, majority від planned N | Для N=1 лише вироджений випадок | Table-driven межі missing/negative/conflict; raw докази й coverage окремі |
 | T04 | §2.1 | Зони й Controller-owned failure domains, capabilities, дозволи, навантаження | Fixed roster; diagnostic placement; domain=zone | Regular placement fixed/roundRobin/leastLoaded, без припущення незалежності |
 | T05 | §2.1–2.2 | Групи ресурсів і залежності | Не інтегровані | Чинні ResourceGroup/Dependency з DSL; DAG validation, weighted/coverage; без автоматичної RCA |
 | T06 | §1.4, §2.1 | ICMP/TCP/DNS/HTTP/HTTPS через exporter | Є в обмеженому IP-literal профілі | Різні targets/runners; TLS/egress; hostname policy тільки після контролю resolved IP |
 | T07 | §2.1–2.2 | Typed extraction, CEL, required, H/Q, TTL, maxSkew | Є для single replica | Зберегти інваріанти при expansion і кількох replicas; не усереднювати values за здогадкою |
-| T08 | §2.1 | Effective revision, rollout, idempotency | Hash, fencing, spool, ACK є | Reconciliation всіх залежних Monitor після зміни reusable policy |
+| T08 | §2.1 | Effective revision, rollout, idempotency | R11: hash/fencing/spool/ACK, залежні DiagnosticProfile revisions та implicit apply targets | Reconciliation всіх залежних Monitor після зміни reusable policy |
 | T09 | §2.3 | Adaptive pair action×Agent, Gain/Cost, eligibility, budget, inconclusive | Є для одного Monitor | Той самий каталог/бюджети для режимів; multi-Monitor storm limits |
 | T10 | §1.4, §2.3 | Static/Fixed/Adaptive порівняння | Є серії 30+9 runs | Повторення для розширених placements/replicas; не приховувати хибні класи |
 | T11 | §1.4 | Алерти та один webhook | Є FSM/outbox/retry | Зберегти durable semantics при API CRUD, revisions і rule changes |
-| T12 | Пряме доручення | REST API за існуючим OpenAPI | R1 реалізує один read endpoint | Typed DTO, paging/filtering, ETag/If-Match для versioned ресурсів, unified errors |
-| T13 | ТЗ + пряме доручення | Auth/RBAC, sessions/PAT, CSRF, audit | R1 лише bootstrap token читання | Persisted users, admin/viewer/scopes, expiry/revocation, cookie CSRF, audit |
-| T14 | Пряме доручення | React + TypeScript панель | R1: читання Assessment | Resources/Agents/Observations/Diagnostics/Alerts, серверна логіка, зрозумілий coverage |
-| T15 | ТЗ + новий обсяг | CRUD/validate/plan/apply, CLI parity | Не інтегровано | Одна серверна логіка для CLI/UI; атомарний desired, reconciliation/applied status |
+| T12 | Пряме доручення | REST API за існуючим OpenAPI | R1–R11: Assessment/history, users/PAT, Monitor/DiagnosticProfile CRUD, apply/operations, Agent snapshots; решта routes відкриті | Typed DTO, paging/filtering, ETag/If-Match для versioned ресурсів, unified errors |
+| T13 | ТЗ + пряме доручення | Auth/RBAC, sessions/PAT, CSRF, audit | Sessions/PAT, users admin/viewer, CSRF, password rotation, revocation та audit реалізовані; enrollment окремо | Persisted users, admin/viewer/scopes, expiry/revocation, cookie CSRF, audit |
+| T14 | Пряме доручення | React + TypeScript панель | Assessment/history, users/PAT, resource editor/catalog, batch progress, Agent snapshots; diagnostics/alerts management відкриті | Resources/Agents/Observations/Diagnostics/Alerts, серверна логіка, зрозумілий coverage |
+| T15 | ТЗ + новий обсяг | CRUD/validate/plan/apply, CLI parity | R11: Monitor/DiagnosticProfile CRUD/validate/plan/apply, remote CLI, Agent ACK; решта kind відкриті | Одна серверна логіка для CLI/UI; атомарний desired, reconciliation/applied status |
 | T16 | §1.4 | Відтворюваний стенд | Compose, export/package/backup є | Контейнерна доставка React/API, демо ролей і mutating flows, acceptance matrix |
 
 Умовні правила й extraction в записці є вимогами власного проєкту. SNMP,

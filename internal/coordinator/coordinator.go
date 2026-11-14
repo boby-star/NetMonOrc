@@ -34,13 +34,8 @@ func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store
 	if p.Diagnostics == nil || !p.Diagnostics.Enabled || p.Diagnostics.ProfileHash == "" || p.Diagnostics.ProfileRef != profile.Name {
 		return nil, fmt.Errorf("resolved enabled diagnostics required")
 	}
-	if profile.Budget.MaxEstimatedBytes != 0 {
-		return nil, fmt.Errorf("live diagnostic byte estimates are not measured; byte budget unsupported")
-	}
-	for _, a := range profile.Actions {
-		if a.Check.Timeout > 15*time.Second {
-			return nil, fmt.Errorf("research diagnostic timeout must be <=15s to fit a renewed 30s lease with startup/clock bounds")
-		}
+	if err := diagnostics.ValidateLiveProfile(profile); err != nil {
+		return nil, err
 	}
 	t, e := diagnostics.CompileTrigger(p.Diagnostics.When)
 	if e != nil {

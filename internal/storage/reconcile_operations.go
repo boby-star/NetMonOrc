@@ -74,7 +74,7 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 			target := &op.Result.Targets[i]
 			target.Ready = false
 			target.Reason = "controller_not_selected"
-			current, e := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind='Monitor' AND name=$1`, target.Name))
+			current, e := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind=$2 AND name=$1`, target.Name, target.Kind))
 			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 				return e
 			}
@@ -85,7 +85,11 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 				allReady = false
 				break
 			}
-			if target.Name == active {
+			if target.Kind == "DiagnosticProfile" {
+				target.Ready = true
+				target.Reason = "profile_catalogued"
+			}
+			if target.Kind == "Monitor" && target.Name == active {
 				target.Reason = "awaiting_controller_revision"
 				if target.EffectiveRevision == revision {
 					loaded = true

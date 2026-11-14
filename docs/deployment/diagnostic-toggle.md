@@ -20,8 +20,8 @@ Incident budget/retry/confirmation і правила planner не змінені
 Дослідницький --diagnostic-comparison-static як і раніше вимагає enabled,
 розгорнутий профіль: вимкнення binding у цьому режимі відхиляється. Public
 manual diagnostics API ще не реалізований; enabled=false не отримує bypass
-через доступність каталогу. Profile CRUD та багатопрофільний каталог — наступні
-етапи; цей зріз використовує один встановлений локальний profile.
+через доступність каталогу. У R11 додано [Profile CRUD та каталог PostgreSQL](diagnostic-profiles.md);
+локальний файл тепер лише початковий імпорт.
 
 Перевірено Compose-сценарій: CLI apply --wait вимикає binding, сервіс отримує
 контрольований HTTP fault, Assessment стає down, кількість diagnostic runs не

@@ -430,14 +430,29 @@ async function resourceResponse(
 }
 export async function monitorResource(
   name: string,
+  kind = "Monitor",
 ): Promise<VersionedResource> {
   return resourceResponse(
-    await fetch(`/api/v1/resources/Monitor/${encodeURIComponent(name)}`, {
+    await fetch(`/api/v1/resources/${encodeURIComponent(kind)}/${encodeURIComponent(name)}`, {
       credentials: "same-origin",
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     }),
   );
+}
+export async function resourceCatalog(
+  kind: string,
+  cursor: string | null = null,
+): Promise<{ items: MonitorResource[]; nextCursor: string | null }> {
+  const query = new URLSearchParams({ limit: "20" });
+  if (cursor) query.set("cursor", cursor);
+  const response = await fetch(`/api/v1/resources/${encodeURIComponent(kind)}?${query}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json();
 }
 export async function checkConfiguration(
   session: Session,
@@ -479,7 +494,7 @@ export async function saveMonitor(
   current: VersionedResource | null,
 ): Promise<VersionedResource> {
   const path =
-    "/api/v1/resources/Monitor" +
+    "/api/v1/resources/" + encodeURIComponent(manifest.kind) +
     (current
       ? "/" + encodeURIComponent(current.resource.manifest.metadata.name)
       : "");
@@ -502,7 +517,7 @@ export async function deleteMonitor(
   current: VersionedResource,
 ): Promise<void> {
   const response = await fetch(
-    `/api/v1/resources/Monitor/${encodeURIComponent(current.resource.manifest.metadata.name)}`,
+    `/api/v1/resources/${encodeURIComponent(current.resource.manifest.kind)}/${encodeURIComponent(current.resource.manifest.metadata.name)}`,
     {
       method: "DELETE",
       credentials: "same-origin",
@@ -519,6 +534,7 @@ export interface ConfigBatch {
   requestId?: string;
 }
 export interface ApplyTarget {
+  implicit?: boolean;
   kind: string;
   name: string;
   uid: string;

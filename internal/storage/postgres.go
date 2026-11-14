@@ -43,6 +43,7 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	defer tx.Rollback(ctx)
 	_, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(781301);
 CREATE TABLE IF NOT EXISTS nmo_resources(kind text NOT NULL DEFAULT 'Monitor',name text NOT NULL,uid text NOT NULL UNIQUE,version bigint NOT NULL DEFAULT 1,generation bigint NOT NULL DEFAULT 1,manifest jsonb NOT NULL,effective_revision text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(kind,name));
+CREATE TABLE IF NOT EXISTS nmo_resource_bootstrap(kind text NOT NULL,name text NOT NULL,PRIMARY KEY(kind,name));
 CREATE TABLE IF NOT EXISTS nmo_resource_revisions(uid text NOT NULL,version bigint NOT NULL,generation bigint NOT NULL,manifest jsonb NOT NULL,changed_at timestamptz NOT NULL DEFAULT now(),actor text NOT NULL,PRIMARY KEY(uid,version));
 CREATE TABLE IF NOT EXISTS nmo_operations(id text PRIMARY KEY,actor_id text NOT NULL,request_key text,request_hash bytea NOT NULL,idem_expires_at timestamptz NOT NULL,state text NOT NULL,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz,updated_at timestamptz NOT NULL DEFAULT now(),payload jsonb NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS nmo_operation_request ON nmo_operations(actor_id,request_key) WHERE request_key IS NOT NULL;

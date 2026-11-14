@@ -73,7 +73,7 @@ func (s *Store) RecoverApply(ctx context.Context, actor auth.AdminCredential, ke
 	}
 	return op, found, tx.Commit(ctx)
 }
-func (s *Store) ApplyResources(ctx context.Context, actor auth.AdminCredential, batch resources.Batch, revisions map[string]string, digest []byte) (resources.Operation, error) {
+func (s *Store) ApplyResources(ctx context.Context, actor auth.AdminCredential, batch resources.Batch, registry resources.Registry, digest []byte) (resources.Operation, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return resources.Operation{}, err
@@ -93,14 +93,19 @@ func (s *Store) ApplyResources(ctx context.Context, actor auth.AdminCredential, 
 	if found {
 		return prior, tx.Commit(ctx)
 	}
+	_, compiled, err := resolveCatalogTx(ctx, tx, registry, batch.Manifests)
+	if err != nil {
+		return resources.Operation{}, err
+	}
+	explicit := map[string]bool{}
 	result := resources.ApplyResult{DesiredCommitted: true, Targets: []resources.ApplyTarget{}}
 	for _, m := range batch.Manifests {
 		key := m.Kind + "/" + m.Metadata.Name
-		revision, compiled := revisions[key]
-		if !compiled || m.Kind != "Monitor" {
+		entry, valid := compiled[key]
+		if !valid || !resources.Supported(m.Kind) {
 			return resources.Operation{}, resources.ErrInvalid
 		}
-		current, e := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind='Monitor' AND name=$1 FOR UPDATE`, m.Metadata.Name))
+		current, e := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind=$2 AND name=$1 FOR UPDATE`, m.Metadata.Name, m.Kind))
 		exists := e == nil
 		if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 			return resources.Operation{}, e
@@ -115,12 +120,18 @@ func (s *Store) ApplyResources(ctx context.Context, actor auth.AdminCredential, 
 		if expected != nil && (!exists || current.ResourceVersion != *expected) {
 			return resources.Operation{}, resources.ErrVersion
 		}
-		v, e := saveResourceTx(ctx, tx, m, revision, current, exists, username)
+		v, e := saveResourceTx(ctx, tx, m, entry.Revision, current, exists, username)
 		if e != nil {
 			return resources.Operation{}, e
 		}
-		result.Targets = append(result.Targets, resources.ApplyTarget{Kind: m.Kind, Name: m.Metadata.Name, UID: v.UID, ResourceVersion: v.ResourceVersion, EffectiveRevision: revision, Reason: "awaiting_reconciliation"})
+		explicit[key] = true
+		result.Targets = append(result.Targets, resources.ApplyTarget{Kind: m.Kind, Name: m.Metadata.Name, UID: v.UID, ResourceVersion: v.ResourceVersion, EffectiveRevision: entry.Revision, Reason: "awaiting_reconciliation"})
 	}
+	affected, e := refreshDependents(ctx, tx, compiled, explicit)
+	if e != nil {
+		return resources.Operation{}, e
+	}
+	result.Targets = append(result.Targets, affected...)
 	id, err := eventID()
 	if err != nil {
 		return resources.Operation{}, err

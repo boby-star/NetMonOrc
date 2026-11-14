@@ -59,13 +59,19 @@ type Revision struct {
 	Actor           string    `json:"actor"`
 }
 type Repository interface {
+	Catalog(context.Context) ([]Manifest, error)
+	ResourceKind(context.Context, string, string) (View, bool, error)
+	ResourcesKind(context.Context, string, string, string, int) ([]View, error)
+	ResourceHistoryKind(context.Context, string, string, string, int) ([]Revision, error)
+	DeleteResourceKind(context.Context, auth.AdminCredential, string, string, string, Registry) error
+
 	Resource(context.Context, string) (View, bool, error)
 	Resources(context.Context, string, string, int) ([]View, error)
-	SaveResource(context.Context, auth.AdminCredential, Manifest, string, *string) (View, error)
+	SaveResource(context.Context, auth.AdminCredential, Manifest, Registry, *string) (View, error)
 	DeleteResource(context.Context, auth.AdminCredential, string, string) error
 	ResourceHistory(context.Context, string, string, int) ([]Revision, error)
 	RecoverApply(context.Context, auth.AdminCredential, string, []byte) (Operation, bool, error)
-	ApplyResources(context.Context, auth.AdminCredential, Batch, map[string]string, []byte) (Operation, error)
+	ApplyResources(context.Context, auth.AdminCredential, Batch, Registry, []byte) (Operation, error)
 	Operation(context.Context, string) (Operation, bool, error)
 	Operations(context.Context, string, string, int) ([]Operation, error)
 }

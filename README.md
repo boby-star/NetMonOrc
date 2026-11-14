@@ -17,6 +17,8 @@ Admin-панель підтримує [керування користувача
 і читання Monitor/операцій через PAT.
 [diagnostics.enabled](docs/deployment/diagnostic-toggle.md) перемикається
 через apply зі збереженням регулярного моніторингу.
+[Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
+React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
 [Огляд агентів](docs/deployment/agent-snapshots.md) доступний у REST, React
 та CLI get agents із поточних mTLS-сесій.
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),

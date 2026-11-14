@@ -63,18 +63,20 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires Monitor|operations|agents [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires Monitor|DiagnosticProfile|operations|agents [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
 		case "Monitor":
 			route = "/api/v1/resources/Monitor"
+		case "DiagnosticProfile":
+			route = "/api/v1/resources/DiagnosticProfile"
 		case "operations":
 			route = "/api/v1/operations"
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get Monitor|operations|agents")
+			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|operations|agents")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))

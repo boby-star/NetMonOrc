@@ -98,31 +98,6 @@ func run() error {
 				return e
 			}
 			var profile diagnostics.Profile
-			if *profilePath != "" {
-				data, err := os.ReadFile(*profilePath)
-				if err != nil {
-					return err
-				}
-				profile, err = config.CompileDiagnostics(data)
-				if err != nil {
-					return err
-				}
-			}
-			if p.Diagnostics != nil && p.Diagnostics.Enabled {
-				if *profilePath == "" {
-					return fmt.Errorf("enabled diagnostics require diagnostic-profile")
-				}
-				p, e = config.ResolveDiagnostics(p, profile)
-				if e != nil {
-					return e
-				}
-			}
-			if *staticComparison {
-				p, e = config.WithStaticComparison(p)
-				if e != nil {
-					return e
-				}
-			}
 			b, e = os.ReadFile(*database)
 			if e != nil {
 				return e
@@ -137,25 +112,33 @@ func run() error {
 
 			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison}
 			if *profilePath != "" {
-				registry.Diagnostic = &profile
-			}
-			seedPlan, e := registry.Compile(bootstrap)
-			if e != nil {
-				return e
-			}
-			managed, e := store.SeedResource(ctx, bootstrap, seedPlan.Revision)
-			if e != nil {
-				return e
-			}
-			p, e = registry.Compile(managed.Manifest)
-			if e != nil {
-				return e
-			}
-			if e = store.RefreshResourceRevision(ctx, p.Name, managed.ResourceVersion, p.Revision); e != nil {
-				if stderrors.Is(e, resources.ErrVersion) {
-					return errReconcile
+				data, err := os.ReadFile(*profilePath)
+				if err != nil {
+					return err
 				}
-				return e
+				manifest, err := resources.DecodeYAML(data)
+				if err != nil {
+					return err
+				}
+				result, err := registry.CompileResource(manifest)
+				if err != nil {
+					return err
+				}
+				if _, err = store.SeedResource(ctx, manifest, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
+					return err
+				}
+			}
+			if _, err := store.SeedResource(ctx, bootstrap, "", registry); err != nil {
+				return err
+			}
+			loaded, compiled, err := store.LoadCompiledMonitor(ctx, p.Name, registry)
+			if err != nil {
+				return err
+			}
+			registry = loaded
+			p = *compiled.Monitor
+			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
+				profile = registry.Profiles[p.Diagnostics.ProfileRef]
 			}
 			resourceService := resources.New(store, registry)
 			var alertRule *alerting.Evaluator

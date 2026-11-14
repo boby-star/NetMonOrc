@@ -172,7 +172,11 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(op)
 			return
 		}
-		validation := h.resources.Validate(batch)
+		validation, validateErr := h.resources.Validate(ctx, batch)
+		if validateErr != nil {
+			resourceError(w, validateErr)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v1/config/validate" {
 			_ = json.NewEncoder(w).Encode(validation)
@@ -191,12 +195,12 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/resources/"), "/")
-	if len(parts) < 1 || parts[0] != "Monitor" {
-		failure(w, 422, "UNSUPPORTED_KIND", "This slice manages Monitor resources only")
+	if len(parts) < 1 || !resources.Supported(parts[0]) {
+		failure(w, 422, "UNSUPPORTED_KIND", "This registry manages Monitor and DiagnosticProfile resources")
 		return
 	}
 	if r.Method == "GET" && len(parts) == 1 {
-		rows, e := h.resources.Repo.Resources(ctx, params.Get("cursor"), params.Get("labelSelector"), limit)
+		rows, e := h.resources.Repo.ResourcesKind(ctx, parts[0], params.Get("cursor"), params.Get("labelSelector"), limit)
 		if e != nil {
 			resourceError(w, e)
 			return
@@ -225,7 +229,7 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 				failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")
 				return
 			}
-			v, found, e := h.resources.Repo.Resource(ctx, name)
+			v, found, e := h.resources.Repo.ResourceKind(ctx, parts[0], name)
 			if e != nil {
 				resourceError(w, e)
 				return
@@ -242,7 +246,7 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 				failure(w, 400, "INVALID_ARGUMENT", "No labelSelector for revisions")
 				return
 			}
-			rows, e := h.resources.Repo.ResourceHistory(ctx, name, params.Get("cursor"), limit)
+			rows, e := h.resources.Repo.ResourceHistoryKind(ctx, parts[0], name, params.Get("cursor"), limit)
 			if e != nil {
 				resourceError(w, e)
 				return
@@ -270,7 +274,7 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(parts) == 2 && r.Method == "GET" {
-		v, found, e := h.resources.Repo.Resource(ctx, name)
+		v, found, e := h.resources.Repo.ResourceKind(ctx, parts[0], name)
 		if e != nil {
 			resourceError(w, e)
 			return
@@ -301,16 +305,11 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 		if !resourceJSON(w, r, &m) {
 			return
 		}
-		if m.Kind != "Monitor" || (name != "" && m.Metadata.Name != name) {
+		if m.Kind != parts[0] || (name != "" && m.Metadata.Name != name) {
 			failure(w, 422, "IDENTITY_MISMATCH", "Manifest kind/name must match route")
 			return
 		}
-		compiled, e := h.resources.Registry.Compile(m)
-		if e != nil {
-			failure(w, 422, "INVALID_MANIFEST", e.Error())
-			return
-		}
-		v, e := h.resources.Repo.SaveResource(ctx, actor, m, compiled.Revision, expected)
+		v, e := h.resources.Repo.SaveResource(ctx, actor, m, h.resources.Registry, expected)
 		if e != nil {
 			resourceError(w, e)
 			return
@@ -318,7 +317,7 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 		status := 200
 		if r.Method == "POST" {
 			status = 201
-			w.Header().Set("Location", "/api/v1/resources/Monitor/"+m.Metadata.Name)
+			w.Header().Set("Location", "/api/v1/resources/"+m.Kind+"/"+m.Metadata.Name)
 		}
 		resourceView(w, status, h.resources.Status(v, h.expectedRevision))
 		return
@@ -328,11 +327,11 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			return
 		}
-		if name == h.resources.Registry.Active {
+		if parts[0] == "Monitor" && name == h.resources.Registry.Active {
 			resourceError(w, resources.ErrConflict)
 			return
 		}
-		if e := h.resources.Repo.DeleteResource(ctx, actor, name, version); e != nil {
+		if e := h.resources.Repo.DeleteResourceKind(ctx, actor, parts[0], name, version, h.resources.Registry); e != nil {
 			resourceError(w, e)
 			return
 		}

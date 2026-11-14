@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 )
 
 type Service struct {
@@ -28,6 +30,10 @@ func (s *Service) Admit() bool {
 }
 func (s *Service) Release() { <-s.slots }
 func (s *Service) Status(v View, activeRevision string) View {
+	if v.Manifest.Kind == "DiagnosticProfile" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "profile_catalogued"}}}
+		return v
+	}
 	status := &Status{State: "pending", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Reconciled", Status: "False", Reason: "controller_not_selected"}}}
 	if v.Manifest.Metadata.Name == s.Registry.Active {
 		status.Conditions[0].Reason = "revision_pending"
@@ -57,34 +63,40 @@ type Validation struct {
 	NormalizedSummary map[string]any `json:"normalizedSummary"`
 }
 
-func (s *Service) Validate(batch Batch) Validation {
-	result := Validation{Valid: true, Errors: []Detail{}, Warnings: []Detail{}, NormalizedSummary: map[string]any{}}
+func (s *Service) resolve(ctx context.Context, batch Batch) (Registry, map[string]Compiled, error) {
 	if len(batch.Manifests) < 1 || len(batch.Manifests) > 20 {
-		result.Valid = false
-		result.Errors = append(result.Errors, Detail{Code: "BATCH_LIMIT", Message: "expected 1..20 Monitor manifests"})
-		return result
+		return s.Registry, nil, ErrInvalid
 	}
-	seen := map[string]bool{}
+	current, err := s.Repo.Catalog(ctx)
+	if err != nil {
+		return s.Registry, nil, err
+	}
+	registry, compiled, err := ResolveCatalog(s.Registry, current, batch.Manifests)
+	if err != nil {
+		return registry, nil, fmt.Errorf("%w: %s", ErrInvalid, err)
+	}
+	return registry, compiled, nil
+}
+func (s *Service) Validate(ctx context.Context, batch Batch) (Validation, error) {
+	result := Validation{Valid: true, Errors: []Detail{}, Warnings: []Detail{}, NormalizedSummary: map[string]any{}}
+	_, compiled, err := s.resolve(ctx, batch)
+	if err != nil {
+		if !errors.Is(err, ErrInvalid) {
+			return result, err
+		}
+		result.Valid = false
+		result.Errors = append(result.Errors, Detail{Code: "INVALID_MANIFEST", Message: err.Error()})
+		return result, nil
+	}
 	revisions := map[string]string{}
-	for i, m := range batch.Manifests {
-		key := m.Kind + "/" + m.Metadata.Name
-		p, err := s.Registry.Compile(m)
-		if seen[key] {
-			err = fmt.Errorf("duplicate resource in batch")
-		}
-		seen[key] = true
-		if err != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, Detail{Code: "INVALID_MANIFEST", Message: err.Error(), Path: fmt.Sprintf("manifests[%d]", i)})
-			continue
-		}
-		revisions[key] = p.Revision
-		if m.Metadata.Name != s.Registry.Active {
-			result.Warnings = append(result.Warnings, Detail{Code: "MONITOR_NOT_SELECTED", Message: key + " requires selection by Controller configuration"})
+	for _, m := range batch.Manifests {
+		revisions[Key(m)] = compiled[Key(m)].Revision
+		if m.Kind == "Monitor" && m.Metadata.Name != s.Registry.Active {
+			result.Warnings = append(result.Warnings, Detail{Code: "MONITOR_NOT_SELECTED", Message: Key(m) + " requires selection by Controller configuration"})
 		}
 	}
 	result.NormalizedSummary["effectiveRevisions"] = revisions
-	return result
+	return result, nil
 }
 
 type Diff struct {
@@ -102,13 +114,20 @@ type Plan struct {
 }
 
 func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
-	v := s.Validate(batch)
+	v, err := s.Validate(ctx, batch)
+	if err != nil {
+		return Plan{}, err
+	}
 	if !v.Valid {
 		return Plan{}, ErrInvalid
 	}
+	_, compiled, err := s.resolve(ctx, batch)
+	if err != nil {
+		return Plan{}, err
+	}
 	plan := Plan{Diffs: []Diff{}, Placements: []any{}, Warnings: v.Warnings}
 	for _, m := range batch.Manifests {
-		current, found, err := s.Repo.Resource(ctx, m.Metadata.Name)
+		current, found, err := s.Repo.ResourceKind(ctx, m.Kind, m.Metadata.Name)
 		if err != nil {
 			return plan, err
 		}
@@ -120,8 +139,8 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 				return plan, ErrVersion
 			}
 		}
-		compiled, _ := s.Registry.Compile(m)
-		diff := Diff{Kind: m.Kind, Name: m.Metadata.Name, Action: "create", EffectiveRevision: compiled.Revision}
+		result := compiled[Key(m)]
+		diff := Diff{Kind: m.Kind, Name: m.Metadata.Name, Action: "create", EffectiveRevision: result.Revision}
 		if found {
 			version := current.ResourceVersion
 			diff.ResourceVersion = &version
@@ -133,6 +152,28 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 			}
 		}
 		plan.Diffs = append(plan.Diffs, diff)
+	}
+	explicit := map[string]bool{}
+	for _, m := range batch.Manifests {
+		explicit[Key(m)] = true
+	}
+	keys := []string{}
+	for key, entry := range compiled {
+		if !explicit[key] && entry.Monitor != nil {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		entry := compiled[key]
+		current, found, err := s.Repo.ResourceKind(ctx, "Monitor", entry.Monitor.Name)
+		if err != nil {
+			return plan, err
+		}
+		if found && current.Revision != entry.Revision {
+			version := current.ResourceVersion
+			plan.Diffs = append(plan.Diffs, Diff{Kind: "Monitor", Name: entry.Monitor.Name, Action: "reconcile", ResourceVersion: &version, EffectiveRevision: entry.Revision})
+		}
 	}
 	// Actual placement is the fixed roster; a dry-run does not invent live capacity.
 	plan.Warnings = append(plan.Warnings, Detail{Code: "FIXED_ROSTER", Message: "Placement remains the configured fixed Agent roster; unselected Monitors await Controller selection"})

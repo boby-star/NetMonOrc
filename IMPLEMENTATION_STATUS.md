@@ -1,3 +1,17 @@
+# DiagnosticProfile registry та залежні ревізії: R11
+
+Додано CRUD/status/revisions профілів через REST, React і CLI get;
+PostgreSQL є джерелом актуальної конфігурації. Mixed apply перевіряє весь
+об’єднаний граф у транзакції, незалежно від порядку документів. Зміна профілю
+оновлює effective revision залежних Monitor без PUT їхніх маніфестів.
+Операція включає implicit targets і чекає потрібних Agent ACK. Bootstrap
+не перезаписує профілі й не відновлює видалені записи. Enabled references
+захищають видалення; live runtime limits збережені.
+Деталі й перевірки: [diagnostic-profiles.md](docs/deployment/diagnostic-profiles.md).
+Залишаються multi-Monitor execution, решта DSL kind, динамічний placement,
+enrollment, повні diagnostic/alert management API та решта розширеного обсягу.
+Записи нижче описують попередні етапи, а не актуальний перелік пропусків.
+
 # Read-only Agent snapshots: R10
 
 GET agents/get-by-ID, React-таблиця та CLI get agents читають fixed roster
