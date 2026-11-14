@@ -15,6 +15,8 @@ Admin-панель підтримує [керування користувача
 пакети, idempotency та підтвердження застосування агентами.
 [Remote CLI](docs/deployment/remote-cli.md) має validate/plan/apply --wait
 і читання Monitor/операцій через PAT.
+[diagnostics.enabled](docs/deployment/diagnostic-toggle.md) перемикається
+через apply зі збереженням регулярного моніторингу.
 [Вхід і bootstrap адміністратора](docs/deployment/browser-sessions.md),
 [історія та пагінація](docs/architecture/observation-history.md),
 [перший етап REST](docs/architecture/rest-react-r1.md). Історичні відсотки

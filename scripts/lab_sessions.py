@@ -177,9 +177,23 @@ def verify(lab):
     lab.wait(lambda:operation_status(restored)['state']=='completed','restored apply confirmed by Agents')
     assert lab.sql("SELECT count(*) FROM nmo_assessments a JOIN nmo_observations o ON o.monitor=a.monitor WHERE a.monitor='research-web' AND o.revision<>a.revision AND o.id IN (SELECT jsonb_array_elements_text(z->'evidence') FROM jsonb_array_elements(a.payload->'zones') z)")=='0'
 
+    import copy
+    before=int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))
+    disabled=copy.deepcopy(changed['original']);disabled['spec']['diagnostics']['enabled']=False
+    off=cli_configuration(disabled)
+    lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==off['revision'],'diagnostics disabled with regular checks preserved')
+    lab.inject('http')
+    lab.wait(lambda:lab.assessment().get('state')=='down' and lab.assessment().get('revision')==off['revision'],'fault assessed while diagnostics disabled')
+    assert int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))==before
+    lab.inject('healthy');lab.wait(lambda:lab.assessment().get('state')=='healthy','regular service recovered with diagnostics disabled')
+    enabled=cli_configuration(changed['original'])
+    lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==enabled['revision'],'diagnostics re-enabled through apply')
+    lab.inject('http')
+    lab.wait(lambda:int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))>before,'new automatic diagnostic started after re-enable')
+    lab.inject('healthy');lab.wait(lambda:lab.assessment().get('state')=='healthy','service recovered after re-enabled diagnostic')
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':

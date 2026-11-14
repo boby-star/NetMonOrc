@@ -91,8 +91,6 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		if err != nil {
 			return p, err
 		}
-	} else if p.Name == r.Active && r.Diagnostic != nil {
-		return p, fmt.Errorf("disable diagnostic-profile in Controller configuration before disabling its Monitor binding")
 	}
 	if r.StaticComparison && p.Name == r.Active {
 		p, err = config.WithStaticComparison(p)

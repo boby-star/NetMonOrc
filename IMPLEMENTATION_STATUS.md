@@ -1,3 +1,12 @@
+# Динамічне diagnostics.enabled: R9
+
+Catalog profile availability відділено від дозволу запуску. PUT/apply активного
+Monitor може вимкнути та повторно ввімкнути diagnostics, зберігаючи regular
+checks та revision isolation. Static comparison guard збережений.
+Окремий Compose/CLI сценарій підтвердив: fault при disabled не створює runs;
+після re-enable fault запускає діагностику. Формули planner/budgets не змінені.
+Деталі: [diagnostic-toggle.md](docs/deployment/diagnostic-toggle.md).
+
 # CLI remote configuration workflow: R8
 
 Додані validate --remote, plan, apply, apply --wait, get Monitor/operations.

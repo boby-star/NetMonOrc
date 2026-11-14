@@ -97,10 +97,7 @@ func run() error {
 				return e
 			}
 			var profile diagnostics.Profile
-			if p.Diagnostics != nil && p.Diagnostics.Enabled {
-				if *profilePath == "" {
-					return fmt.Errorf("enabled diagnostics require diagnostic-profile")
-				}
+			if *profilePath != "" {
 				data, err := os.ReadFile(*profilePath)
 				if err != nil {
 					return err
@@ -109,12 +106,15 @@ func run() error {
 				if err != nil {
 					return err
 				}
-				p, err = config.ResolveDiagnostics(p, profile)
-				if err != nil {
-					return err
+			}
+			if p.Diagnostics != nil && p.Diagnostics.Enabled {
+				if *profilePath == "" {
+					return fmt.Errorf("enabled diagnostics require diagnostic-profile")
 				}
-			} else if *profilePath != "" {
-				return fmt.Errorf("diagnostics disabled; profile cannot trigger a run")
+				p, e = config.ResolveDiagnostics(p, profile)
+				if e != nil {
+					return e
+				}
 			}
 			if *staticComparison {
 				p, e = config.WithStaticComparison(p)
@@ -135,7 +135,7 @@ func run() error {
 			defer store.Close()
 
 			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison}
-			if p.Diagnostics != nil && p.Diagnostics.Enabled {
+			if *profilePath != "" {
 				registry.Diagnostic = &profile
 			}
 			seedPlan, e := registry.Compile(bootstrap)

@@ -99,9 +99,8 @@ Registry підтримує лише вже реалізований Monitor DSL
 useProfiles, інші kind та регулярні replicas ще не додаються неявно. Зони
 активного Monitor мають відповідати незмінному fixed roster. Увімкнена
 діагностика потребує наявного зовнішнього DiagnosticProfile; зміни його
-прив'язки повинні бути сумісні з flags Controller. Перехід enabled→disabled активного binding із заданим --diagnostic-profile
-поки відхиляється: перемикання цього запускового режиму потребує окремого
-узгодженого переходу bootstrap/flags/desired state, який у цьому зрізі не реалізований.
+прив'язки повинні бути сумісні з flags Controller. У R9 enabled можна змінювати через Monitor: наявність profile catalog не
+активує діагностику. Деталі: [diagnostic-toggle.md](diagnostic-toggle.md).
 
 Валідація і планування не є повною реалізацією config/apply. Реальне застосування
 цього зрізу виконується одиночним PUT активного Monitor. Загальні dependency
