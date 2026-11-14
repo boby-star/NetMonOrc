@@ -5,6 +5,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,22 +13,26 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/boby-star/NetMonOrc/internal/storage"
 	"github.com/boby-star/NetMonOrc/internal/transport"
 )
 
 type Coordinator struct {
-	Plan       monitor.Plan
-	Profile    diagnostics.Profile
-	Server     *transport.Server
-	Store      *storage.Store
-	ReportPath string
-	trigger    diagnostics.Trigger
-	mode       string
-	mu         sync.Mutex
-	running    bool
-	workers    sync.WaitGroup
-	errors     chan error
+	Plan         monitor.Plan
+	Profile      diagnostics.Profile
+	Server       *transport.Server
+	Store        *storage.Store
+	ReportPath   string
+	trigger      diagnostics.Trigger
+	mu           sync.Mutex
+	running      bool
+	runID        string
+	cancel       context.CancelFunc
+	assessment   monitor.Assessment
+	observations []monitor.Observation
+	workers      sync.WaitGroup
+	errors       chan error
 }
 
 func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store *storage.Store, path string) (*Coordinator, error) {
@@ -41,11 +46,7 @@ func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store
 	if e != nil {
 		return nil, e
 	}
-	mode := profile.Mode
-	if p.Diagnostics.ComparisonStatic {
-		mode = "static"
-	}
-	return &Coordinator{mode: mode, Plan: p, Profile: profile, Server: s, Store: store, ReportPath: path, trigger: t, errors: make(chan error, 1)}, nil
+	return &Coordinator{Plan: p, Profile: profile, Server: s, Store: store, ReportPath: path, trigger: t, errors: make(chan error, 1)}, nil
 }
 func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observations []monitor.Observation) error {
 	select {
@@ -54,9 +55,10 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 	default:
 	}
 	c.mu.Lock()
-	running := c.running
-	c.mu.Unlock()
-	if running {
+	defer c.mu.Unlock()
+	c.assessment = a
+	c.observations = append([]monitor.Observation(nil), observations...)
+	if c.running {
 		return nil
 	}
 	if a.State == "healthy" {
@@ -86,31 +88,54 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 	id, e := c.Store.StartDiagnostic(dbctx, c.Plan, c.Profile)
 	done()
 	if e != nil {
+		if errors.Is(e, resources.ErrConflict) {
+			return nil
+		}
 		return e
 	}
 	if id == "" {
 		return nil
 	}
-	initial := diagnostics.MatchBaseline(c.Plan, c.Profile, observations, agents, time.Now())
-	c.mu.Lock()
+	c.launch(ctx, id, c.Plan, c.Profile, agents, a, observations, started)
+	return nil
+}
+
+// launch is called with mu held. Work belongs to the runtime, never the HTTP request.
+func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Plan, profile diagnostics.Profile, agents []diagnostics.Executor, a monitor.Assessment, observations []monitor.Observation, started time.Time) {
+	ctx, cancel := context.WithCancel(parent)
+	initial := diagnostics.MatchBaseline(plan, profile, observations, agents, time.Now())
 	c.running = true
-	c.mu.Unlock()
+	c.runID = id
+	c.cancel = cancel
 	c.workers.Add(1)
 	go func() {
 		defer c.workers.Done()
-		defer func() { c.mu.Lock(); c.running = false; c.mu.Unlock() }()
-		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: c.Plan}
+		defer cancel()
+		defer func() {
+			c.mu.Lock()
+			if c.runID == id {
+				c.running = false
+				c.runID = ""
+				c.cancel = nil
+			}
+			c.mu.Unlock()
+		}()
+		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: plan}
 		engine := diagnostics.Engine{TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
 			return agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
 		}}
-		result, e := engine.Run(ctx, c.Profile, c.mode, agents, &diagnostics.Ledger{StartedAt: started}, initial, a.State)
+		mode := profile.Mode
+		if plan.Diagnostics.ComparisonStatic {
+			mode = "static"
+		}
+		result, e := engine.Run(ctx, profile, mode, agents, &diagnostics.Ledger{StartedAt: started}, initial, a.State)
 		if e != nil {
 			result.Status = "inconclusive"
 			result.Reason = "planner_error"
 		}
 		persist, finish := context.WithTimeout(context.Background(), 5*time.Second)
 		defer finish()
-		if err := c.Store.FinishDiagnostic(persist, id, result); err != nil {
+		if err := c.Store.FinishDiagnostic(persist, id, result); err != nil && !errors.Is(err, storage.ErrDiagnosticTerminal) {
 			c.fail(err)
 			return
 		}
@@ -118,8 +143,16 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 			c.fail(err)
 		}
 	}()
-	return nil
 }
+
+func (c *Coordinator) CancelRun(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.runID == id && c.cancel != nil {
+		c.cancel()
+	}
+}
+
 func (c *Coordinator) fail(e error) {
 	select {
 	case c.errors <- e:

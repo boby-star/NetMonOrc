@@ -1,0 +1,2 @@
+netmonorc-research:local sha256:648742b3fe4798b5e45568071393b3e1e6c0df1f83cfa16e44dd36ed0ac44a12
+netmonorc-lab-fixture:local sha256:8efb2a3df6931154a989d80fcd4d48889dc216055896f548546bf8b0c05344ec

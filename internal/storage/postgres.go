@@ -67,6 +67,7 @@ ALTER TABLE nmo_observations ADD COLUMN IF NOT EXISTS diagnostic_task_id text NO
 CREATE TABLE IF NOT EXISTS nmo_incidents(monitor text PRIMARY KEY,episode_id text NOT NULL DEFAULT '',run_id text NOT NULL DEFAULT '',last_finished timestamptz);
 CREATE TABLE IF NOT EXISTS nmo_diagnostic_runs(id text PRIMARY KEY,episode_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,profile_hash text NOT NULL,mode text NOT NULL,max_checks integer NOT NULL,used_checks integer NOT NULL DEFAULT 0,deadline timestamptz NOT NULL,state text NOT NULL,reason text NOT NULL DEFAULT '',report jsonb,started_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz);
 ALTER TABLE nmo_diagnostic_runs ADD COLUMN IF NOT EXISTS profile_ref text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS nmo_diagnostic_requests(actor_id text NOT NULL,request_key text NOT NULL,request_hash bytea NOT NULL,run_id text NOT NULL REFERENCES nmo_diagnostic_runs(id),expires_at timestamptz NOT NULL,PRIMARY KEY(actor_id,request_key));
 CREATE INDEX IF NOT EXISTS nmo_diagnostic_runs_history ON nmo_diagnostic_runs(started_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS nmo_diagnostic_runs_monitor ON nmo_diagnostic_runs(monitor,started_at DESC,id DESC);
 CREATE TABLE IF NOT EXISTS nmo_alerts(logical_key text PRIMARY KEY,payload jsonb NOT NULL);

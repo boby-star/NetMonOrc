@@ -23,6 +23,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/coordinator"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
+	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/httpapi"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -263,6 +264,50 @@ func run() error {
 				}
 				handler.SetHistoryLoader(store.ReadObservations)
 				handler.SetDiagnostics(store)
+				loadSession := func(c context.Context, id string) (diagnosticview.Session, error) {
+					v, found, e := store.DiagnosticSession(c, id)
+					if e != nil {
+						return v, e
+					}
+					if !found {
+						return v, resources.ErrNotFound
+					}
+					return v, nil
+				}
+				handler.SetDiagnosticCommands(func(c context.Context, actor auth.AdminCredential, name string, request diagnosticview.Start) (diagnosticview.Session, error) {
+					var empty diagnosticview.Session
+					if name != p.Name {
+						return empty, resources.ErrNotFound
+					}
+					request.Monitor = name
+					request, e := coordinator.NormalizeStart(request)
+					if e != nil {
+						return empty, e
+					}
+					id, e := store.RecoverDiagnosticStart(c, actor, request)
+					if e != nil {
+						return empty, e
+					}
+					if id != "" {
+						return loadSession(c, id)
+					}
+					if diagnostic == nil {
+						return empty, resources.ErrConflict
+					}
+					id, e = diagnostic.StartManual(ctx, c, actor, request)
+					if e != nil {
+						return empty, e
+					}
+					return loadSession(c, id)
+				}, func(c context.Context, actor auth.AdminCredential, id string) (diagnosticview.Session, error) {
+					if e := store.CancelDiagnostic(c, actor, id); e != nil {
+						return diagnosticview.Session{}, e
+					}
+					if diagnostic != nil {
+						diagnostic.CancelRun(id)
+					}
+					return loadSession(c, id)
+				})
 				handler.SetResources(resourceService, p.Revision)
 				handler.SetAgents(func() []agentstatus.View { return agentServer.AgentStatuses(time.Now()) })
 				httpServer = httpapi.NewServer(*httpListen, handler)

@@ -51,3 +51,10 @@ type Reader interface {
 	DiagnosticSession(context.Context, string) (Session, bool, error)
 	DiagnosticTasks(context.Context, string, string, int) ([]Task, error)
 }
+
+type Start struct {
+	Monitor    string `json:"-"`
+	ProfileRef string `json:"profileRef"`
+	Reason     string `json:"reason,omitempty"`
+	RequestID  string `json:"requestId,omitempty"`
+}

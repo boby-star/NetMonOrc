@@ -705,3 +705,20 @@ export function diagnosticTasks(id: string, cursor: string | null): Promise<{ite
   if (cursor) query.set("cursor", cursor);
   return diagnosticRead(`/api/v1/diagnostics/${encodeURIComponent(id)}/tasks?${query}`);
 }
+
+export async function startDiagnostic(session: Session, monitor: string, profileRef: string, requestId: string): Promise<DiagnosticSession> {
+  const response = await fetch(`/api/v1/monitors/${encodeURIComponent(monitor)}/diagnostics`, {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken },
+    body: JSON.stringify({ profileRef, reason: "manual", requestId }), signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`Запуск не підтверджено (${response.status}). Оновіть стан; для відновлення повторіть незмінний запит.`);
+  return response.json();
+}
+export async function cancelDiagnostic(session: Session, id: string): Promise<DiagnosticSession> {
+  const response = await fetch(`/api/v1/diagnostics/${encodeURIComponent(id)}/cancel`, {
+    method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": session.csrfToken }, signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`Скасування не підтверджено (${response.status}). Оновіть стан сесії.`);
+  return response.json();
+}

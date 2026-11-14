@@ -100,8 +100,8 @@ func testDiagnosticViews(t *testing.T, ctx context.Context, s *Store, server *ht
 	if code, _ = request("GET", "/api/v1/diagnostics/missing/tasks", ""); code != 404 {
 		t.Fatal("missing session tasks", code)
 	}
-	if code, _ = request("POST", "/api/v1/diagnostics/diag-view-b/cancel", ""); code != 405 {
-		t.Fatal("unimplemented mutation accepted", code)
+	if code, _ = request("POST", "/api/v1/diagnostics/diag-view-b/cancel", ""); code != 403 {
+		t.Fatal("mutation without CSRF accepted", code)
 	}
 	var raw string
 	parsed, _ := url.Parse(server.URL)

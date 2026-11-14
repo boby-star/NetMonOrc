@@ -3,7 +3,7 @@ info:
   title: NetMonOrc HTTP API
   version: v1alpha1
   description: Повний контракт REST API і enrollment для NetMonOrc; точні поля kind-specific manifest — DSL-SPEC-001.
-    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Додано читання діагностичних сесій і фізичних задач. Решта kind та решта маршрутів ще не реалізовані.
+    Реалізовано HTTPS Assessment/history, парольні cookie-сесії, зміну пароля та scoped personal API tokens. Додано admin Users з ETag, Monitor/DiagnosticProfile CRUD/status/revisions та config validate/plan. Додано атомарний mixed batch apply з оновленням ревізій залежних Monitor та durable operations з готовністю за ACK агентів. Додано read-only GET agents та get-by-ID зі snapshot чинних mTLS-сесій. Додано читання діагностичних сесій і фізичних задач, ручний start/cancel із durable admission та idempotency. Решта kind та решта маршрутів ще не реалізовані.
 servers:
 - url: https://master.example.com
   description: Змінити на реальну HTTPS адресу Master
@@ -1670,7 +1670,21 @@ paths:
       tags:
       - Diagnostics
       summary: Запустити діагностику
-      description: Manual fixed/adaptive profile, budget+one-episode-per-Monitor, idempotency.
+      description: >-
+        Admin + diagnostics:run; cookie mutations require CSRF. Поточний runtime
+        виконує один активний Monitor; enabled=false забороняє новий ручний запуск.
+        Явний profileRef вибирає валідований профіль каталогу БД; звичайний режим
+        відповідає його fixed/adaptive, research static comparison зберігається.
+        Потрібні актуальний Assessment, effective revision і придатний Agent.
+        Бюджет/cooldown та incident admission спільні з автоматичними тригерами.
+        Episode триває до актуального healthy з повним coverage; reconnect,
+        revision і cancel його не скидають. Ручний запуск на healthy має окремий
+        episode з чинним cooldown. Конфлікт admission/rollout — 409.
+        requestId — per-user idempotency key на 24h; той самий monitor і
+        нормалізований body повертають існуючу сесію без повторного запуску,
+        інший body — 409 IDEMPOTENCY_KEY_REUSED. Recovery можливий після
+        restart і після вимкнення diagnostics; він лише повертає історичну сесію.
+        Робота належить runtime, не часу життя HTTP-запиту.
       operationId: startDiagnostics
       x-netmonorc-rbac: admin
       parameters:
@@ -1792,7 +1806,13 @@ paths:
       tags:
       - Diagnostics
       summary: Скасувати діагностику
-      description: Best-effort TaskCancel, terminal cancelled, не скидає spent budget.
+      description: >-
+        Admin + diagnostics:run; cookie mutations require CSRF, body відсутнє.
+        Транзакційно фіксує cancelled, unfinished tasks і last_finished, після
+        чого надсилає best-effort TaskCancel. Budget/episode не скидаються.
+        Пізній валідний Observation зберігається як історичний; terminal cancelled
+        не перезаписується planner чи receipt. Повтор cancelled — 202;
+        completed/inconclusive — 409; невідомий ID — 404.
       operationId: cancelDiagnostics
       x-netmonorc-rbac: admin
       parameters:
@@ -3049,6 +3069,7 @@ components:
       type: object
       required:
       - profileRef
+      additionalProperties: false
       properties:
         profileRef:
           type: string
@@ -3060,6 +3081,8 @@ components:
           default: manual
         requestId:
           type: string
+          maxLength: 128
+          description: До 128 байтів UTF-8, без control characters; збережіть для безпечного retry протягом 24h.
     DiagnosticSession:
       type: object
       required:

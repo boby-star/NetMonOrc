@@ -244,6 +244,7 @@ type ControllerFrame struct {
 	//	*ControllerFrame_Assignment
 	//	*ControllerFrame_ObservationAck
 	//	*ControllerFrame_DiagnosticTask
+	//	*ControllerFrame_TaskCancel
 	Payload       isControllerFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -350,6 +351,15 @@ func (x *ControllerFrame) GetDiagnosticTask() *DiagnosticTask {
 	return nil
 }
 
+func (x *ControllerFrame) GetTaskCancel() *TaskCancel {
+	if x != nil {
+		if x, ok := x.Payload.(*ControllerFrame_TaskCancel); ok {
+			return x.TaskCancel
+		}
+	}
+	return nil
+}
+
 type isControllerFrame_Payload interface {
 	isControllerFrame_Payload()
 }
@@ -370,6 +380,10 @@ type ControllerFrame_DiagnosticTask struct {
 	DiagnosticTask *DiagnosticTask `protobuf:"bytes,13,opt,name=diagnostic_task,json=diagnosticTask,proto3,oneof"`
 }
 
+type ControllerFrame_TaskCancel struct {
+	TaskCancel *TaskCancel `protobuf:"bytes,14,opt,name=task_cancel,json=taskCancel,proto3,oneof"`
+}
+
 func (*ControllerFrame_HelloAccepted) isControllerFrame_Payload() {}
 
 func (*ControllerFrame_Assignment) isControllerFrame_Payload() {}
@@ -377,6 +391,8 @@ func (*ControllerFrame_Assignment) isControllerFrame_Payload() {}
 func (*ControllerFrame_ObservationAck) isControllerFrame_Payload() {}
 
 func (*ControllerFrame_DiagnosticTask) isControllerFrame_Payload() {}
+
+func (*ControllerFrame_TaskCancel) isControllerFrame_Payload() {}
 
 type AgentHello struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1224,6 +1240,58 @@ func (x *TaskReceipt) GetReason() string {
 	return ""
 }
 
+type TaskCancel struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskCancel) Reset() {
+	*x = TaskCancel{}
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskCancel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskCancel) ProtoMessage() {}
+
+func (x *TaskCancel) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskCancel.ProtoReflect.Descriptor instead.
+func (*TaskCancel) Descriptor() ([]byte, []int) {
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *TaskCancel) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *TaskCancel) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_proto_netmonorc_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
@@ -1242,7 +1310,7 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\x11observation_batch\x18\f \x01(\v2$.netmonorc.agent.v1.ObservationBatchH\x00R\x10observationBatch\x12=\n" +
 	"\theartbeat\x18\r \x01(\v2\x1d.netmonorc.agent.v1.HeartbeatH\x00R\theartbeat\x12D\n" +
 	"\ftask_receipt\x18\x0e \x01(\v2\x1f.netmonorc.agent.v1.TaskReceiptH\x00R\vtaskReceiptB\t\n" +
-	"\apayload\"\xe0\x03\n" +
+	"\apayload\"\xa3\x04\n" +
 	"\x0fControllerFrame\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x1d\n" +
@@ -1255,7 +1323,9 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"assignment\x18\v \x01(\v2$.netmonorc.agent.v1.ConfigAssignmentH\x00R\n" +
 	"assignment\x12M\n" +
 	"\x0fobservation_ack\x18\f \x01(\v2\".netmonorc.agent.v1.ObservationAckH\x00R\x0eobservationAck\x12M\n" +
-	"\x0fdiagnostic_task\x18\r \x01(\v2\".netmonorc.agent.v1.DiagnosticTaskH\x00R\x0ediagnosticTaskB\t\n" +
+	"\x0fdiagnostic_task\x18\r \x01(\v2\".netmonorc.agent.v1.DiagnosticTaskH\x00R\x0ediagnosticTask\x12A\n" +
+	"\vtask_cancel\x18\x0e \x01(\v2\x1e.netmonorc.agent.v1.TaskCancelH\x00R\n" +
+	"taskCancelB\t\n" +
 	"\apayload\"U\n" +
 	"\n" +
 	"AgentHello\x12#\n" +
@@ -1333,7 +1403,11 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\vTaskReceipt\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1a\n" +
 	"\baccepted\x18\x02 \x01(\bR\baccepted\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason2b\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"=\n" +
+	"\n" +
+	"TaskCancel\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason2b\n" +
 	"\fAgentService\x12R\n" +
 	"\aConnect\x12\x1e.netmonorc.agent.v1.AgentFrame\x1a#.netmonorc.agent.v1.ControllerFrame(\x010\x01BAZ?github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1;agentv1b\x06proto3"
 
@@ -1350,7 +1424,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_netmonorc_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(ObservationReceipt_Status)(0), // 0: netmonorc.agent.v1.ObservationReceipt.Status
 	(*AgentFrame)(nil),             // 1: netmonorc.agent.v1.AgentFrame
@@ -1367,8 +1441,9 @@ var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(*Heartbeat)(nil),              // 12: netmonorc.agent.v1.Heartbeat
 	(*DiagnosticTask)(nil),         // 13: netmonorc.agent.v1.DiagnosticTask
 	(*TaskReceipt)(nil),            // 14: netmonorc.agent.v1.TaskReceipt
-	nil,                            // 15: netmonorc.agent.v1.Observation.ExtractionStatusEntry
-	nil,                            // 16: netmonorc.agent.v1.Observation.ValuesEntry
+	(*TaskCancel)(nil),             // 15: netmonorc.agent.v1.TaskCancel
+	nil,                            // 16: netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	nil,                            // 17: netmonorc.agent.v1.Observation.ValuesEntry
 }
 var file_proto_netmonorc_agent_v1_agent_proto_depIdxs = []int32{
 	3,  // 0: netmonorc.agent.v1.AgentFrame.hello:type_name -> netmonorc.agent.v1.AgentHello
@@ -1380,19 +1455,20 @@ var file_proto_netmonorc_agent_v1_agent_proto_depIdxs = []int32{
 	5,  // 6: netmonorc.agent.v1.ControllerFrame.assignment:type_name -> netmonorc.agent.v1.ConfigAssignment
 	11, // 7: netmonorc.agent.v1.ControllerFrame.observation_ack:type_name -> netmonorc.agent.v1.ObservationAck
 	13, // 8: netmonorc.agent.v1.ControllerFrame.diagnostic_task:type_name -> netmonorc.agent.v1.DiagnosticTask
-	15, // 9: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
-	16, // 10: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
-	7,  // 11: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
-	0,  // 12: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
-	10, // 13: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
-	8,  // 14: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
-	1,  // 15: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
-	2,  // 16: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
-	16, // [16:17] is the sub-list for method output_type
-	15, // [15:16] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	15, // 9: netmonorc.agent.v1.ControllerFrame.task_cancel:type_name -> netmonorc.agent.v1.TaskCancel
+	16, // 10: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	17, // 11: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
+	7,  // 12: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
+	0,  // 13: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
+	10, // 14: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
+	8,  // 15: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
+	1,  // 16: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
+	2,  // 17: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
+	17, // [17:18] is the sub-list for method output_type
+	16, // [16:17] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_proto_netmonorc_agent_v1_agent_proto_init() }
@@ -1412,6 +1488,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 		(*ControllerFrame_Assignment)(nil),
 		(*ControllerFrame_ObservationAck)(nil),
 		(*ControllerFrame_DiagnosticTask)(nil),
+		(*ControllerFrame_TaskCancel)(nil),
 	}
 	file_proto_netmonorc_agent_v1_agent_proto_msgTypes[7].OneofWrappers = []any{
 		(*ScalarValue_StringValue)(nil),
@@ -1425,7 +1502,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_netmonorc_agent_v1_agent_proto_rawDesc), len(file_proto_netmonorc_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

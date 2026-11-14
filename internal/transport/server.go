@@ -182,6 +182,14 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		case <-ctx.Done():
 			return status.Error(codes.Aborted, "session ended or superseded")
 		case req := <-jobs:
+			if req.cancel != nil {
+				f := frame(id)
+				f.Payload = &pb.ControllerFrame_TaskCancel{TaskCancel: req.cancel}
+				if e = stream.Send(f); e != nil {
+					return e
+				}
+				continue
+			}
 			if req.ctx.Err() != nil {
 				continue
 			}

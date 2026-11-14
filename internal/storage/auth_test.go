@@ -129,6 +129,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	testApplyUseCases(t, ctx, s, server, client, view)
 	testProfileResources(t, ctx, s, server, client, view)
 	testDiagnosticViews(t, ctx, s, server, client)
+	testDiagnosticControl(t, ctx, s, server, client)
 	// Equal database timestamps require ID tie-breaking, including sub-microsecond payload times.
 	finished := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
 	for _, id := range []string{"history-a", "history-b", "history-c"} {

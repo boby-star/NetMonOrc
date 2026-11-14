@@ -108,6 +108,8 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 	defer conn.Close()
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
+	var taskID string
+	var taskCancel context.CancelFunc
 	var workers sync.WaitGroup
 	defer func() { cancel(); workers.Wait() }()
 	stream, e := pb.NewAgentServiceClient(conn).Connect(child)
@@ -115,7 +117,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	if e = stream.Send(f); e != nil {
 		return e
 	}
@@ -226,6 +228,12 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 				applied = true
 				continue
 			}
+			if message := f.GetTaskCancel(); message != nil {
+				if message.TaskId == taskID && taskCancel != nil {
+					taskCancel()
+				}
+				continue
+			}
 			if task := f.GetDiagnosticTask(); task != nil {
 				receipt := &pb.TaskReceipt{TaskId: task.TaskId, Reason: "invalid_or_busy"}
 				var a *assignment
@@ -257,11 +265,15 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 					return e
 				}
 				if receipt.Accepted {
+					taskContext, stopTask := context.WithCancel(child)
+					taskID = task.TaskId
+					taskCancel = stopTask
 					workers.Add(1)
 					go func() {
 						defer workers.Done()
+						defer stopTask()
 						defer st.diagnosticBusy.Store(false)
-						if err := executeTask(child, task, a, c, deadline, st, spool, id, blackbox, allowed); err != nil {
+						if err := executeTask(taskContext, task, a, c, deadline, st, spool, id, blackbox, allowed); err != nil {
 							select {
 							case st.fatal <- err:
 							default:

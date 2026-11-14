@@ -15,8 +15,9 @@ import (
 )
 
 type taskRequest struct {
-	ctx  context.Context
-	task *pb.DiagnosticTask
+	cancel *pb.TaskCancel
+	ctx    context.Context
+	task   *pb.DiagnosticTask
 }
 type taskWaiter struct {
 	agent  string
@@ -79,6 +80,14 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	if err = s.Store.ReserveDiagnostic(ctx, t); err != nil {
 		return unknown, err
 	}
+	defer func() {
+		if ctx.Err() != nil {
+			select {
+			case session.tasks <- taskRequest{ctx: context.Background(), cancel: &pb.TaskCancel{TaskId: id, Reason: "controller_cancelled"}}:
+			default:
+			}
+		}
+	}()
 	result := make(chan diagnostics.Outcome, 1)
 	s.mu.Lock()
 	if s.tasks == nil {
@@ -89,7 +98,7 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	defer func() { s.mu.Lock(); delete(s.tasks, id); s.mu.Unlock() }()
 	task := &pb.DiagnosticTask{TaskId: id, SessionId: r.RunID, Revision: r.Plan.Revision, CompiledCheck: data, ExpiresAtUnixMilli: deadline.UnixMilli(), AttemptNo: uint32(a.AttemptNo)}
 	select {
-	case session.tasks <- taskRequest{ctx, task}:
+	case session.tasks <- taskRequest{ctx: ctx, task: task}:
 	case <-ctx.Done():
 		return unknown, ctx.Err()
 	}

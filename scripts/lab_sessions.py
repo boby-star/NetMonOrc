@@ -84,7 +84,7 @@ if c['mode']=='login':
     cookie=viewer_cookie
     code,_,_=request('GET','/api/v1/auth/me');assert code==401
     cookie=admin_cookie
-    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read'],'expiresAt':None},csrf=view['csrfToken'])
+    code,body,_=request('POST','/api/v1/auth/tokens',{'name':'live-cli','scopes':['resources:read','resources:write','agents:read','diagnostics:read','diagnostics:run'],'expiresAt':None},csrf=view['csrfToken'])
     assert code==201
     api=json.loads(body);assert api['token'].startswith('nmo_pat_') and api['expiresAt'] is None
     code,body,_=request('GET','/api/v1/auth/me',bearer=api['token']);assert code==200
@@ -111,6 +111,15 @@ elif c['mode']=='configuration':
     code,body,_=request('POST','/api/v1/config/apply',batch,csrf=c['csrf']);assert code==202
     op=json.loads(body);assert op['state']=='accepted' and op['result']['desiredCommitted']
     print(json.dumps({'revision':op['result']['targets'][0]['effectiveRevision'],'original':original,'operationId':op['id'],'batch':batch}))
+elif c['mode']=='control-prepare':
+    cookie=c['cookie']
+    code,_,_=request('POST','/api/v1/resources/DiagnosticProfile',c['profile'],csrf=c['csrf']);assert code==201
+    code,_,_=request('POST','/api/v1/monitors/research-web/diagnostics',{'profileRef':'manual-slow','requestId':'no-csrf'});assert code==403
+    print(json.dumps({'prepared':True}))
+elif c['mode']=='control-disabled':
+    cookie=c['cookie']
+    code,_,_=request('POST','/api/v1/monitors/research-web/diagnostics',{'profileRef':'web-lab','requestId':'disabled-manual'},csrf=c['csrf']);assert code==409
+    print(json.dumps({'disabledRejected':True}))
 elif c['mode']=='profile':
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/resources/DiagnosticProfile/web-lab');assert code==200
@@ -203,6 +212,7 @@ def verify(lab):
     disabled=copy.deepcopy(changed['original']);disabled['spec']['diagnostics']['enabled']=False
     off=cli_configuration(disabled)
     lab.wait(lambda:lab.assessment().get('state')=='healthy' and lab.assessment().get('revision')==off['revision'],'diagnostics disabled with regular checks preserved')
+    checked=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'control-disabled'}).encode()));assert checked['disabledRejected']
     lab.inject('http')
     lab.wait(lambda:lab.assessment().get('state')=='down' and lab.assessment().get('revision')==off['revision'],'fault assessed while diagnostics disabled')
     assert int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))==before
@@ -256,14 +266,50 @@ def verify(lab):
     assert tasks['items'] and len(tasks['items'])==detail['budgetUsed']['additionalChecks']
     assert all(t['sessionId']==diagnostic['id'] and t['attemptNo']>=1 and 'check_spec' not in t for t in tasks['items'])
     assert all(observation in detail['evidenceIds'] for t in tasks['items'] for observation in t['observationIds'])
+    profile={'apiVersion':'netmonorc.io/v1alpha1','kind':'DiagnosticProfile','metadata':{'name':'manual-slow'},'spec':{
+        'mode':'fixed','budget':{'maxAdditionalChecks':1,'maxDuration':'60s','maxParallel':1},
+        'actions':[{'id':'slow-http','check':{'type':'http','runner':'native-http','timeout':'15s','config':{'url':'http://198.18.0.80:8080/slow','expectedStatus':[200]}},'placement':{'agentRefs':['dc'],'zones':['server'],'strategy':'fixed'}}],
+        'fixed':{'steps':[{'id':'slow-step','actionRef':'slow-http'}]}}}
+    prepared=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'control-prepare','profile':profile}).encode()));assert prepared['prepared']
+    request_id='manual-'+secrets.token_hex(12)
+    runs_before=int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))
+    import subprocess
+    admitted=None
+    def manual_start():
+        nonlocal admitted
+        try:
+            admitted=json.loads(lab.compose('exec','-T','controller',*cli,'diagnostics','run','--context-file','/tmp/cli/context.json','--profile','manual-slow','--request-id',request_id,'research-web'))
+            return True
+        except subprocess.CalledProcessError:return False
+    lab.wait(manual_start,'bounded manual run admitted after healthy/cooldown')
+    assert admitted['mode']=='fixed' and admitted['profileRef']=='manual-slow'
+    run_id=admitted['id']
+    lab.wait(lambda:lab.sql("SELECT count(*) FROM nmo_diagnostic_tasks WHERE run_id='"+run_id+"' AND state='accepted'")=='1','slow physical probe accepted by Agent')
+    cancelled=json.loads(lab.compose('exec','-T','controller',*cli,'diagnostics','cancel','--context-file','/tmp/cli/context.json',run_id))
+    assert cancelled['state']=='cancelled' and cancelled['budgetUsed']['additionalChecks']==1
+    lab.wait(lambda:lab.sql("SELECT count(*) FROM nmo_observations o JOIN nmo_diagnostic_tasks t ON t.id=o.diagnostic_task_id WHERE t.run_id='"+run_id+"'")=='1','TaskCancel stops the 12s probe before its normal response',seconds=8)
+    assert lab.sql("SELECT state FROM nmo_diagnostic_tasks WHERE run_id='"+run_id+"'")=='cancelled'
+    assert int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))==runs_before+1
+    previous=lab.assessment()['at'];lab.compose('restart','controller')
+    lab.wait(lambda:lab.assessment().get('at','')>previous and lab.assessment().get('state')=='healthy','fresh regular assessment after cancel/restart')
+    lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
+    def agents_rejoined():
+        agents=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','agents'))['items']
+        return len(agents)==2 and all(a['onlineState']=='online' and a['appliedRevision'] and a['lastHeartbeat'] and a['maxConcurrentProbes']==2 for a in agents)
+    lab.wait(agents_rejoined,'Agent heartbeat and revision proof restored after manual-replay restart')
+    assert manual_start() and admitted['id']==run_id and admitted['state']=='cancelled'
+    assert int(lab.sql('SELECT count(*) FROM nmo_diagnostic_runs'))==runs_before+1
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
     result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
-    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+    result.update({'status':'passed','trustedTLS':True,'secureHttpOnlySameSiteCookie':True,'bootstrapIdempotent':True,'loginCrossOriginRejected':True,'wrongPasswordRejected':True,'cookieReadsAssessment':True,'passwordChangeRotatesSession':True,'patSurvivesRestartAndRevokes':True,'cliLoginWhoamiLogout':True,'userCreateRBACAndETag':True,'monitorCRUDAndReconciliation':True,'atomicApplyReplayAndCompletion':True,'cliRemoteValidatePlanApplyWait':True,'cliGetOperation':True,'manualDiagnosticStartAndCancel':True,'taskCancelStopsPhysicalProbe':True,'manualStartReplaySurvivesRestart':True,'disabledManualStartRejected':True,'diagnosticHistoryRESTAndCLI':True,'diagnosticPhysicalTasksAndBudget':True,'diagnosticReadScopeEnforced':True,'profileCRUDAndCLI':True,'profileOnlyApplyWaitsForDependentACK':True,'profileDependencyPreservesManifestVersion':True,'databaseProfileSurvivesRestart':True,'profileRestoreViaApply':True,'agentSessionAPIAndCLI':True,'agentDisconnectReconnectSnapshot':True,'agentReadScopeEnforced':True,'diagnosticToggleViaApply':True,'disabledDiagnosticsSuppressRuns':True,'reEnabledDiagnosticsTriggerRuns':True,'operationReadyAfterAgentACK':True,'desiredConfigSurvivesRestart':True,'liveEvidenceRevisionIsolated':True,'disabledCredentialsStayRevoked':True,'lastAdminProtected':True,'oldPasswordRejected':True,'historyPaginationAndZoneFilter':True,'browserInteractionTested':False,'credentialsDiscarded':True})
     return result
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');a=p.parse_args()
-    result=verify(Lab(a.project,a.prefix))
+    try:
+        result=verify(Lab(a.project,a.prefix))
+    except __import__('subprocess').CalledProcessError as e:
+        raise SystemExit('Integration subprocess failed: '+e.stderr.decode(errors='replace')[-1200:])
     import os
     target=Path(a.output);target.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
     fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)

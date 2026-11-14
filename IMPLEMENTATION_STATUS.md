@@ -1,3 +1,16 @@
+# Ручний запуск і скасування діагностики: R13
+
+Підключені чинні POST start/cancel до Controller, React і CLI. Manual/auto
+використовують спільні coordinator та durable incident/budget/cooldown.
+Додано per-user 24h start idempotency; новий start за disabled/rollout заборонено.
+Additive TaskCancel перериває поточну Agent probe best-effort. Cancelled state
+і витрачений budget зберігаються за late receipt/result/planner completion.
+Документація: [diagnostic-control.md](docs/deployment/diagnostic-control.md).
+Критичний PG/HTTPS та Compose slow-probe сценарії описані в доказах етапу.
+Межі, що лишаються: multi-Monitor/placement/replicas, решта reusable DSL kind,
+ResourceGroup/Dependency, enrollment і повне керування alerts/webhook.
+Нижче — історія попередніх етапів.
+
 # Історія діагностичних сесій: R12
 
 Підключені GET diagnostics/list/get/tasks, scope diagnostics:read, bounded

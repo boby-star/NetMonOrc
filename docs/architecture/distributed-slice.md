@@ -20,7 +20,7 @@ Controller і Agent — окремі Go-процеси. Controller залиша�
   Enrollment, автоматична ротація та API відкликання ще не реалізовані.
 - `.proto` містить початкову підмножину ТЗ §9: Connect, Hello,
   ConfigAssignment/Applied, ObservationBatch/Ack. Додано Heartbeat/load
-  та DiagnosticTask/TaskReceipt; результати задач ідуть ObservationBatch.
+  та DiagnosticTask/TaskReceipt, best-effort TaskCancel (R13); результати задач ідуть ObservationBatch.
   CertificateRenewal і решта повного agent protocol відсутні.
 - Підтримується одна версія `v1alpha1`; IR передається як JSON у bytes
   типізованого Protobuf envelope з checksum і effective revision.

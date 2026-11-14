@@ -334,7 +334,7 @@ function App() {
           <Agents key={session.userId} />
         )}
         {session?.scopes.includes("diagnostics:read") && connection && (
-          <Diagnostics key={session.userId + connection.monitor} monitor={connection.monitor} />
+          <Diagnostics key={session.userId + connection.monitor} monitor={connection.monitor} session={session} />
         )}
         {session && <Tokens key={session.userId} session={session} />}
         {session && connection && (

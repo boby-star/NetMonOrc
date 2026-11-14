@@ -5,6 +5,7 @@ import socket
 import socketserver
 import struct
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 STATE = Path('/state/mode.json')
@@ -15,6 +16,8 @@ def mode():
 class HTTP(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
+            if self.path == "/slow":
+                time.sleep(12)  # Fixed private fixture for in-flight cancellation.
             state = mode()
             body = b'queue_depth=0 ready=true\n'
             self.send_response(state['http_status'])

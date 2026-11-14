@@ -37,6 +37,8 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	diagnosticStart  DiagnosticStartCommand
+	diagnosticCancel DiagnosticCancelCommand
 	diagnostics      diagnosticview.Reader
 	agents           func() []agentstatus.View
 	resources        *resources.Service
@@ -102,6 +104,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
 		h.static(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/monitors/") && strings.HasSuffix(r.URL.Path, "/diagnostics") || (strings.HasPrefix(r.URL.Path, "/api/v1/diagnostics/") && strings.HasSuffix(r.URL.Path, "/cancel") && r.Method == "POST") {
+		h.diagnosticCommandRoutes(w, r)
 		return
 	}
 	if r.URL.Path == "/api/v1/diagnostics" || strings.HasPrefix(r.URL.Path, "/api/v1/diagnostics/") {

@@ -29,6 +29,7 @@ message ControllerFrame {
     ConfigAssignment assignment = 11;
     ObservationAck observation_ack = 12;
     DiagnosticTask diagnostic_task = 13;
+    TaskCancel task_cancel = 14;
   }
 }
 message AgentHello { string agent_version = 1; repeated string capabilities = 2; }
@@ -93,3 +94,5 @@ message TaskReceipt {
   bool accepted = 2;
   string reason = 3;
 }
+
+message TaskCancel { string task_id = 1; string reason = 2; }

@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { diagnosticSessions, diagnosticSession, diagnosticTasks,
+import { useRef, useState } from "react";
+import { startDiagnostic, cancelDiagnostic, type Session, diagnosticSessions, diagnosticSession, diagnosticTasks,
   type DiagnosticSession, type DiagnosticTask, type DiagnosticPage } from "./api";
 
-export function Diagnostics({ monitor }: { monitor: string }) {
+export function Diagnostics({ monitor, session }: { monitor: string; session: Session }) {
+  const [profile, setProfile] = useState("");
+  const request = useRef<{ profile: string; id: string } | null>(null);
+  const canRun = session.role === "admin" && session.scopes.includes("diagnostics:run");
   const [page, setPage] = useState<DiagnosticPage | null>(null);
   const [selected, setSelected] = useState<DiagnosticSession | null>(null);
   const [tasks, setTasks] = useState<DiagnosticTask[]>([]);
@@ -26,9 +29,34 @@ export function Diagnostics({ monitor }: { monitor: string }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Сесія недоступна."); }
     finally { setBusy(false); }
   }
+  async function run() {
+    setBusy(true); setError("");
+    if (!request.current || request.current.profile !== profile)
+      request.current = { profile, id: crypto.randomUUID() };
+    try {
+      const started = await startDiagnostic(session, monitor, profile, request.current.id);
+      setSelected(started); setTasks([]); setTaskCursor(null);
+    } catch (e) { setError(e instanceof Error ? e.message : "Запуск не підтверджено."); }
+    finally { setBusy(false); }
+  }
+  async function cancel() {
+    if (!selected) return;
+    setBusy(true); setError("");
+    try { setSelected(await cancelDiagnostic(session, selected.id)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Скасування не підтверджено."); }
+    finally { setBusy(false); }
+  }
   return <section>
     <h2>Діагностичні сесії</h2>
     <p>Збережені результати для {monitor}. Стан діагностики не замінює оцінку доступності ресурсу.</p>
+    {canRun && <form onSubmit={e => { e.preventDefault(); void run(); }}>
+      <label>Профіль для ручного запуску
+        <input value={profile} required disabled={busy} onChange={e => { setProfile(e.target.value); request.current = null; }} />
+      </label>
+      <button disabled={busy || !profile}>Запустити / відновити запит</button>
+      <button type="button" disabled={busy} onClick={() => { request.current = null; setError(""); }}>Новий запит</button>
+      <small>Повтор зберігає ID запиту. Новий запуск також підпорядкований enabled, incident budget і cooldown.</small>
+    </form>}
     <form onSubmit={e => { e.preventDefault(); void list(null); }}>
       <label>Стан сесії
         <select value={state} disabled={busy} onChange={e => { setState(e.target.value); setPage(null); }}>
@@ -56,6 +84,7 @@ export function Diagnostics({ monitor }: { monitor: string }) {
     </>}
     {selected && <div>
       <h3>Сесія {selected.id}</h3>
+      {canRun && selected.state === "running" && <button type="button" disabled={busy} onClick={() => void cancel()}>Скасувати сесію</button>}
       <p>{selected.profileRef ?? "Історичний профіль не збережено"} · {selected.mode} · {selected.state}</p>
       <p>Початок: {selected.startedAt}<br/>Завершення: {selected.finishedAt ?? "ще не завершено"}<br/>Причина: {selected.stopReason ?? "ще не визначена"}</p>
       <p>Сумісні гіпотези: {selected.remainingHypotheses === undefined ? "остаточний звіт відсутній" : selected.remainingHypotheses.join(", ") || "немає"}</p>

@@ -50,45 +50,9 @@ func (s *Store) ControllerAlive(ctx context.Context) error {
 // StartDiagnostic admits one session per incident. Reconnects, new revisions
 // and terminal sessions keep the same incident until healthy/full coverage.
 func (s *Store) StartDiagnostic(ctx context.Context, p monitor.Plan, profile diagnostics.Profile) (string, error) {
-	tx, e := s.pool.Begin(ctx)
-	if e != nil {
-		return "", e
-	}
-	defer tx.Rollback(ctx)
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_incidents(monitor) VALUES($1) ON CONFLICT DO NOTHING`, p.Name)
-	if e != nil {
-		return "", e
-	}
-	var episode, run string
-	var last *time.Time
-	e = tx.QueryRow(ctx, `SELECT episode_id,run_id,last_finished FROM nmo_incidents WHERE monitor=$1 FOR UPDATE`, p.Name).Scan(&episode, &run, &last)
-	if e != nil {
-		return "", e
-	}
-	if run != "" || (last != nil && time.Since(*last) < p.Diagnostics.Cooldown) {
-		return "", nil
-	}
-	if episode == "" {
-		episode = newID()
-	}
-	run = newID()
-	if episode == "" || run == "" {
-		return "", fmt.Errorf("random identity unavailable")
-	}
-	mode := profile.Mode
-	if p.Diagnostics.ComparisonStatic {
-		mode = "static"
-	}
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,profile_ref,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration), profile.Name)
-	if e != nil {
-		return "", e
-	}
-	_, e = tx.Exec(ctx, `UPDATE nmo_incidents SET episode_id=$2,run_id=$3 WHERE monitor=$1`, p.Name, episode, run)
-	if e != nil {
-		return "", e
-	}
-	return run, tx.Commit(ctx)
+	return s.admitDiagnostic(ctx, p, profile, nil)
 }
+
 func (s *Store) CloseDiagnosticEpisode(ctx context.Context, a monitor.Assessment) error {
 	if a.State != "healthy" || len(a.Zones) == 0 {
 		return nil
@@ -116,7 +80,7 @@ func (s *Store) FinishDiagnostic(ctx context.Context, id string, r diagnostics.R
 		return e
 	}
 	if tag.RowsAffected() != 1 {
-		return fmt.Errorf("diagnostic run is fenced")
+		return ErrDiagnosticTerminal
 	}
 	_, e = tx.Exec(ctx, `UPDATE nmo_incidents SET last_finished=now() WHERE run_id=$1`, id)
 	if e != nil {
@@ -194,7 +158,13 @@ func (s *Store) DiagnosticReceipt(ctx context.Context, task, agent string, gener
 		return e
 	}
 	if tag.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected task receipt")
+		var cancelled bool
+		if e = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_diagnostic_tasks t JOIN nmo_sessions s ON s.agent_id=t.agent_id WHERE t.id=$1 AND t.agent_id=$2 AND s.generation=$3 AND t.state='cancelled')`, task, agent, generation).Scan(&cancelled); e != nil {
+			return e
+		}
+		if !cancelled {
+			return fmt.Errorf("unexpected task receipt")
+		}
 	}
 	return nil
 }
@@ -208,7 +178,7 @@ func validateDiagnosticObservation(ctx context.Context, tx pgx.Tx, o monitor.Obs
 	if o.ID != o.DiagnosticTaskID || check != o.Check || agent != o.Agent || zone != o.Zone || revision != o.Revision || name != o.Monitor || state == "rejected" || o.StartedAt.After(deadline) || o.FinishedAt.After(deadline.Add(5*time.Second)) {
 		return fmt.Errorf("diagnostic result does not match its reservation")
 	}
-	_, e = tx.Exec(ctx, `UPDATE nmo_diagnostic_tasks SET state='finished' WHERE id=$1`, o.DiagnosticTaskID)
+	_, e = tx.Exec(ctx, `UPDATE nmo_diagnostic_tasks SET state='finished' WHERE id=$1 AND state<>'cancelled'`, o.DiagnosticTaskID)
 	return e
 }
 

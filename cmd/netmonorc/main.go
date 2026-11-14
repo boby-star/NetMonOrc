@@ -27,7 +27,10 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: netmonorc login|logout|whoami|validate|plan|apply|get|probe|assess [flags]")
+		return fmt.Errorf("usage: netmonorc login|logout|whoami|validate|plan|apply|get|diagnostics|probe|assess [flags]")
+	}
+	if args[0] == "diagnostics" {
+		return diagnosticCommand(args)
 	}
 	if args[0] == "login" || args[0] == "logout" || args[0] == "whoami" {
 		return authCommand(args)

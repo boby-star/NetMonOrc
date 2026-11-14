@@ -55,7 +55,8 @@ netmonorc get --context-file /private/context.json --tasks --limit 20 diagnostic
 
 Сервер підтримує monitor/time фільтри; спеціальних CLI flags для них цей
 етап не додає. `--cursor` продовжує поточну вибірку; flags стоять перед kind.
-Ручний POST start і POST cancel ще не підключено; read panel не імітує їх.
+У R13 підключено [ручний start/cancel](diagnostic-control.md);
+історичний read model цього етапу збережено.
 
 ## Перевірка
 
