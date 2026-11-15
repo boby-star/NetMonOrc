@@ -382,7 +382,7 @@ def verify(lab):
     lab.wait(agents_rejoined,'Agent proofs restored after webhook-test restart')
     overview=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','dashboard'))
     assert overview['monitorStates']['healthy']==1 and overview['coverageStates']['sufficient']==1 and overview['agentCounts']['online']==2 and overview['firingAlerts']==0 and overview['recentDiagnostics'] and overview['observedAt']
-    evidence_id=lab.sql("SELECT id FROM nmo_observations WHERE diagnostic_task_id IS NULL ORDER BY received_at DESC LIMIT 1").strip()
+    evidence_id=lab.sql("SELECT id FROM nmo_observations WHERE diagnostic_task_id='' ORDER BY received_at DESC LIMIT 1").strip()
     evidence=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','observations',evidence_id))
     assert evidence['observationId']==evidence_id and evidence['configRevision'] and evidence['receivedAt']
     lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
