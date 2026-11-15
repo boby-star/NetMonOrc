@@ -66,3 +66,12 @@ func TestTargetClosedSchemaAndPassiveLogical(t *testing.T) {
 		t.Fatal("target defaults differ from DSL")
 	}
 }
+
+func TestTargetHostnameKeepsAbsoluteDNSName(t *testing.T) {
+	for _, input := range []string{"API.Example.COM", "API.Example.COM."} {
+		address, err := normalizeTargetAddress(input)
+		if err != nil || address != strings.ToLower(input) {
+			t.Fatal("hostname resolution semantics changed", input, address, err)
+		}
+	}
+}

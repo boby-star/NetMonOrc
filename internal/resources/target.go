@@ -47,7 +47,9 @@ func normalizeTargetAddress(value string) (string, error) {
 			return "", fmt.Errorf("Target.address requires an IP or hostname")
 		}
 	}
-	return strings.ToLower(hostname), nil
+	// Preserve the terminal dot: an absolute DNS name must not become a
+	// search-domain-dependent name during normalization.
+	return strings.ToLower(value), nil
 }
 func compileTarget(m Manifest) (TargetSpec, error) {
 	var wire struct {
