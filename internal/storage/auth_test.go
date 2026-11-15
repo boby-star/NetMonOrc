@@ -132,6 +132,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	testApplyUseCases(t, ctx, s, server, client, view)
 	testProfileResources(t, ctx, s, server, client, view)
 	testTargetResources(t, ctx, s, server, client, view)
+	testCheckProfileResources(t, ctx, s, server, client, view)
 	testAlertRuleResources(t, ctx, s, server, client, view)
 	testDiagnosticViews(t, ctx, s, server, client)
 	testDiagnosticControl(t, ctx, s, server, client)

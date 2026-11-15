@@ -33,6 +33,16 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 			return fmt.Errorf("invalid Target binding")
 		}
 	}
+	if len(p.CheckProfiles) > 100 {
+		return fmt.Errorf("too many CheckProfile bindings")
+	}
+	for _, binding := range p.CheckProfiles {
+		hash, err := hex.DecodeString(binding.Hash)
+		parameters, parameterErr := hex.DecodeString(binding.ParametersHash)
+		if !namePattern.MatchString(binding.Ref) || !idPattern.MatchString(binding.As) || err != nil || parameterErr != nil || len(hash) != 32 || len(parameters) != 32 {
+			return fmt.Errorf("invalid CheckProfile binding")
+		}
+	}
 	if d := p.Diagnostics; d != nil {
 		if d.ComparisonStatic && !d.Enabled {
 			return fmt.Errorf("static comparison requires enabled diagnostics")

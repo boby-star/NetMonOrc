@@ -20,6 +20,7 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
+	CheckProfiles    map[string]CheckProfile
 	Active           string
 	AlertChannel     string
 	Targets          map[string]TargetSpec
@@ -45,7 +46,7 @@ func Decode(data []byte) (Manifest, error) {
 	if err := d.Decode(&m); err != nil {
 		return m, fmt.Errorf("invalid resource envelope: %w", err)
 	}
-	if d.Decode(new(any)) != io.EOF {
+	if d.Decode(new(yaml.Node)) != io.EOF {
 		return m, fmt.Errorf("one resource required")
 	}
 	return m, nil
@@ -54,15 +55,15 @@ func DecodeYAML(data []byte) (Manifest, error) {
 	if len(data) > 1<<20 {
 		return Manifest{}, fmt.Errorf("resource exceeds 1 MiB")
 	}
-	var node any
+	var node yaml.Node
 	d := yaml.NewDecoder(bytes.NewReader(data))
 	if err := d.Decode(&node); err != nil {
 		return Manifest{}, err
 	}
-	if d.Decode(new(any)) != io.EOF {
+	if d.Decode(new(yaml.Node)) != io.EOF {
 		return Manifest{}, fmt.Errorf("one resource required")
 	}
-	b, err := json.Marshal(node)
+	b, err := YAMLJSON(&node)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("JSON-compatible resource required")
 	}
@@ -75,7 +76,11 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err := validateMetadata(m); err != nil {
 		return monitor.Plan{}, err
 	}
-	resolved, targetRef, targetHash, err := r.resolveTarget(m)
+	expanded, profileBindings, err := r.expandProfiles(m)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
+	resolved, targetRef, targetHash, err := r.resolveTarget(expanded)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
@@ -89,6 +94,12 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	}
 	if targetRef != "" {
 		p, err = config.ResolveTargetReference(p, targetRef, targetHash)
+		if err != nil {
+			return p, err
+		}
+	}
+	if len(profileBindings) > 0 {
+		p, err = config.ResolveCheckProfiles(p, profileBindings)
 		if err != nil {
 			return p, err
 		}

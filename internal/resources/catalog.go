@@ -16,17 +16,18 @@ const MaxCatalogBytes = 8 << 20
 const MaxCatalogResources = 4096
 
 type Compiled struct {
-	Revision string
-	Monitor  *monitor.Plan
-	Profile  *diagnostics.Profile
-	Rule     *alerting.Rule
-	Endpoint *webhook.Endpoint
-	Target   *TargetSpec
+	Revision     string
+	Monitor      *monitor.Plan
+	Profile      *diagnostics.Profile
+	Rule         *alerting.Rule
+	Endpoint     *webhook.Endpoint
+	Target       *TargetSpec
+	CheckProfile *CheckProfile
 }
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target"
+	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -58,6 +59,7 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	registry := base
 	registry.Diagnostic = nil
+	registry.CheckProfiles = map[string]CheckProfile{}
 	registry.Targets = map[string]TargetSpec{}
 	registry.Webhooks = map[string]webhook.Endpoint{}
 	registry.Profiles = map[string]diagnostics.Profile{}
@@ -91,6 +93,18 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 			return base, nil, fmt.Errorf("%s: %w", key, err)
 		}
 		registry.Targets[m.Metadata.Name] = *result.Target
+		compiled[key] = result
+	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "CheckProfile" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.CheckProfiles[m.Metadata.Name] = *result.CheckProfile
 		compiled[key] = result
 	}
 	activeEndpoints := 0
@@ -148,6 +162,13 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	if err := validateMetadata(m); err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "CheckProfile" {
+		profile, err := compileCheckProfile(m)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: profile.Hash(), CheckProfile: &profile}, nil
 	}
 	if m.Kind == "Target" {
 		target, err := compileTarget(m)

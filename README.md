@@ -19,6 +19,8 @@ Admin-панель підтримує [керування користувача
 через apply зі збереженням регулярного моніторингу.
 [Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
 React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
+[CheckProfile і useProfiles](docs/deployment/check-profiles.md): типізовані шаблони
+перевірок, безпечне розгортання й залежні ревізії Monitor.
 [Спільні Target і targetRef](docs/deployment/targets.md): декларативні цілі,
 залежні ревізії Monitor та підтвердження нової конфігурації агентами.
 [Налаштування WebhookEndpoint](docs/deployment/webhook-resources.md) у REST/CLI/React:

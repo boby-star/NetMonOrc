@@ -1,3 +1,16 @@
+# CheckProfile та типізоване розгортання перевірок: R22
+
+CheckProfile CRUD/history/status, useProfiles, типізовані параметри/defaults,
+as__id expansion, CLI та React підключені. Тільки whole-scalar config substitution;
+зіткнення/наддовгі ID відхиляються. Hash профілю й bindings входять до IR;
+profile-only changes оновлюють залежні Monitor без зміни manifest version.
+Desired apply чекає залежні Agent ACK. YAML numbers не втрачають типи;
+JSONB round trip не змінює declared-float hash.
+Документація: [check-profiles.md](docs/deployment/check-profiles.md).
+Відкриті: reusable policies, multi-Monitor placement/replicas, groups/dependencies,
+enrollment, UID lifecycle та фінальна acceptance/performance звірка.
+Повний v1alpha1 не завершений.
+
 # Спільні цілі та наскрізні залежні ревізії: R21
 
 Target CRUD/history/status, Monitor.targetRef, mixed apply, CLI і React

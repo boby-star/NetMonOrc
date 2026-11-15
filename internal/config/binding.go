@@ -143,3 +143,27 @@ func ResolveTargetReference(p monitor.Plan, ref, hash string) (monitor.Plan, err
 	p.Revision = hex.EncodeToString(sum[:])
 	return p, nil
 }
+
+// ResolveCheckProfiles includes template and bound-parameter provenance even
+// when an updated parameter does not change a particular generated field.
+func ResolveCheckProfiles(p monitor.Plan, bindings []monitor.CheckProfileBinding) (monitor.Plan, error) {
+	p.CheckProfiles = append([]monitor.CheckProfileBinding(nil), bindings...)
+	sort.Slice(p.CheckProfiles, func(i, j int) bool {
+		a, b := p.CheckProfiles[i], p.CheckProfiles[j]
+		if a.As != b.As {
+			return a.As < b.As
+		}
+		return a.Ref < b.Ref
+	})
+	p.Revision = ""
+	data, err := json.Marshal(p)
+	if err != nil {
+		return p, err
+	}
+	if len(data) > (1<<20)-4096 {
+		return p, fmt.Errorf("resolved plan too large")
+	}
+	sum := sha256.Sum256(data)
+	p.Revision = hex.EncodeToString(sum[:])
+	return p, nil
+}

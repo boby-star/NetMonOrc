@@ -208,6 +208,15 @@ func (s *Store) DeleteResourceKind(ctx context.Context, actor auth.AdminCredenti
 	if v.ResourceVersion != expected {
 		return resources.ErrVersion
 	}
+	if kind == "CheckProfile" {
+		var refs bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources r CROSS JOIN LATERAL jsonb_array_elements(COALESCE(r.manifest->'spec'->'useProfiles','[]')) u WHERE r.kind='Monitor' AND u->>'ref'=$1)`, name).Scan(&refs); err != nil {
+			return err
+		}
+		if refs {
+			return resources.ErrConflict
+		}
+	}
 	if kind == "Target" {
 		var refs bool
 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='Monitor' AND manifest->'spec'->>'targetRef'=$1)`, name).Scan(&refs); err != nil {

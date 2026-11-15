@@ -22,10 +22,18 @@ type Check struct {
 	Required         bool
 }
 
+type CheckProfileBinding struct {
+	Ref            string
+	As             string
+	Hash           string
+	ParametersHash string
+}
+
 type Plan struct {
-	TargetRef     string             `json:",omitempty"`
-	TargetHash    string             `json:",omitempty"`
-	Diagnostics   *DiagnosticBinding `json:",omitempty"`
+	CheckProfiles []CheckProfileBinding `json:",omitempty"`
+	TargetRef     string                `json:",omitempty"`
+	TargetHash    string                `json:",omitempty"`
+	Diagnostics   *DiagnosticBinding    `json:",omitempty"`
 	Rules         []AssessmentRule
 	Name          string
 	TargetAddress string

@@ -74,10 +74,12 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
+		case "CheckProfile":
+			route = "/api/v1/resources/CheckProfile"
 		case "Target":
 			route = "/api/v1/resources/Target"
 		case "Monitor":
@@ -109,7 +111,7 @@ func remoteCommand(args []string) error {
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
+			return fmt.Errorf("this CLI supports remote get CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))
@@ -222,7 +224,7 @@ func parseBatch(data []byte) (resources.Batch, error) {
 	d := yaml.NewDecoder(bytes.NewReader(data))
 	batch := resources.Batch{}
 	for {
-		var document any
+		var document yaml.Node
 		err := d.Decode(&document)
 		if err == io.EOF {
 			break
@@ -230,7 +232,7 @@ func parseBatch(data []byte) (resources.Batch, error) {
 		if err != nil {
 			return batch, fmt.Errorf("invalid YAML/JSON input")
 		}
-		encoded, err := json.Marshal(document)
+		encoded, err := resources.YAMLJSON(&document)
 		if err != nil {
 			return batch, fmt.Errorf("JSON-compatible YAML required")
 		}
@@ -247,7 +249,7 @@ func parseBatch(data []byte) (resources.Batch, error) {
 			if err = decoder.Decode(&batch); err != nil {
 				return batch, fmt.Errorf("invalid ConfigBatch")
 			}
-			if d.Decode(new(any)) != io.EOF {
+			if d.Decode(new(yaml.Node)) != io.EOF {
 				return batch, fmt.Errorf("one ConfigBatch document required")
 			}
 			break
