@@ -52,6 +52,7 @@ type Handler struct {
 	resources        *resources.Service
 	expectedRevision string
 	history          HistoryLoad
+	observation      ObservationLoad
 	auth             *auth.Service
 	tokenEnabled     bool
 	monitor          string
@@ -160,6 +161,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/v1/monitors/"+h.monitor+"/observations" {
 		h.observations(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/observations/") {
+		h.observationDetail(w, r)
 		return
 	}
 	if !h.authorize(w, r) {

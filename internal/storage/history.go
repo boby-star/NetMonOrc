@@ -3,7 +3,10 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
+
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -46,4 +49,24 @@ func historyTime(t time.Time) any {
 		return nil
 	}
 	return t
+}
+
+// ReadObservation returns historical evidence by its immutable ID. Reading it
+// does not make an old revision eligible for current assessment.
+func (s *Store) ReadObservation(ctx context.Context, id string) (monitor.ObservationRecord, bool, error) {
+	var record monitor.ObservationRecord
+	var data []byte
+	err := s.pool.QueryRow(ctx, `SELECT o.payload,o.received_at,o.finished_at,COALESCE(t.run_id,'')
+ FROM nmo_observations o LEFT JOIN nmo_diagnostic_tasks t ON t.id=o.diagnostic_task_id
+ WHERE o.id=$1`, id).Scan(&data, &record.ReceivedAt, &record.SortFinishedAt, &record.DiagnosticSessionID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return record, false, nil
+	}
+	if err != nil {
+		return record, false, err
+	}
+	if err = json.Unmarshal(data, &record.Observation); err != nil {
+		return record, false, err
+	}
+	return record, true, nil
 }

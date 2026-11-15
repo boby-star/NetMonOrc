@@ -1552,7 +1552,10 @@ paths:
       tags:
       - Monitoring
       summary: Деталі одного Observation
-      description: Повний дозволений нормалізований результат без сирого HTTP body/secret.
+      description: >-
+        Збережений нормалізований результат за immutable ID, включно з історичними
+        ревізіями та diagnostic provenance, без сирого HTTP body/secret.
+        Потрібен resources:read; query parameters не підтримуються.
       operationId: getObservation
       x-netmonorc-rbac: viewer
       parameters:

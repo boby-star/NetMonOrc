@@ -265,6 +265,7 @@ func run() error {
 					return err
 				}
 				handler.SetHistoryLoader(store.ReadObservations)
+				handler.SetObservationLoader(store.ReadObservation)
 				handler.SetDiagnostics(store)
 				endpointHash := ""
 				if alertRule != nil {

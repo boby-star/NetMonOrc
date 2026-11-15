@@ -47,3 +47,10 @@ python3 scripts/identity_smoke.py
 Перевіряє keyset для однакових timestamp, фільтр, відсутність дублікатів,
 некоректні параметри та всі критичні зміни пароля/сесії. Кліки в браузері
 не автоматизовані.
+
+
+## R18: деталі за ID
+
+Додано наявний у OpenAPI маршрут `GET /api/v1/observations/{id}`,
+CLI та переглядач із історії React. Обидва API використовують спільну
+проєкцію Observation DTO. [Контракт і перевірки](../deployment/observation-detail.md).

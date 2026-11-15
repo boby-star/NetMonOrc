@@ -143,6 +143,7 @@ export interface ObservationRecord {
   finishedAt: string;
   receivedAt: string;
   durationMs: number;
+  values?: Record<string, string | number | boolean>;
   diagnosticSessionId?: string;
   diagnosticTaskId?: string;
 }
@@ -808,4 +809,16 @@ export interface DashboardSummary {
 }
 export function dashboardSummary(): Promise<DashboardSummary> {
   return alertRead("/api/v1/dashboard/summary", "Оглядова панель");
+}
+
+export async function loadObservation(id: string, signal: AbortSignal): Promise<ObservationRecord> {
+  const response = await fetch(`/api/v1/observations/${encodeURIComponent(id)}`, {
+    credentials: "same-origin", cache: "no-store",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+  });
+  if (response.status === 401) throw new AccessError("Сесію завершено. Увійдіть повторно.");
+  if (response.status === 403) throw new Error("Немає права читання спостережень.");
+  if (response.status === 404) throw new Error("Спостереження вже недоступне.");
+  if (!response.ok) throw new Error(`Доказ тимчасово недоступний (${response.status}).`);
+  return response.json() as Promise<ObservationRecord>;
 }

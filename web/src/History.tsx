@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { loadHistory, type ObservationPage } from "./api";
+import { loadHistory, loadObservation, type ObservationRecord, type ObservationPage } from "./api";
 
 // Raw observations remain history; this component never calculates resource state.
 export function History({ monitor }: { monitor: string }) {
+  const [selected, setSelected] = useState<string | null>(null);
   const [zone, setZone] = useState("");
   const [filter, setFilter] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
@@ -116,6 +117,8 @@ export function History({ monitor }: { monitor: string }) {
                         )}
                       </td>
                       <td>
+                        <button type="button" onClick={() => setSelected(o.observationId)}>Відкрити доказ</button>
+                        <br />
                         <code>{o.observationId}</code>
                         <br />
                         <small title={o.configRevision}>
@@ -146,10 +149,47 @@ export function History({ monitor }: { monitor: string }) {
           </div>
         </>
       )}
+      {selected && <ObservationDetail key={selected} id={selected} close={() => setSelected(null)} />}
       <small>
         Execution failure і негативний probe показані окремо. Історія не
         доводить актуальність даних для поточної оцінки.
       </small>
     </section>
   );
+}
+
+function ObservationDetail({ id, close }: { id: string; close: () => void }) {
+  const [record, setRecord] = useState<ObservationRecord | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    void loadObservation(id, controller.signal).then(value => {
+      if (active) setRecord(value);
+    }).catch(e => {
+      if (active) setError(e instanceof Error ? e.message : "Доказ недоступний.");
+    });
+    return () => { active = false; controller.abort(); };
+  }, [id]);
+  return <aside aria-label="Деталі спостереження">
+    <h3>Доказ перевірки</h3>
+    <button type="button" onClick={close}>Закрити доказ</button>
+    {error && <p role="alert" className="error">{error}</p>}
+    {!record && !error && <p role="status">Завантаження…</p>}
+    {record && <>
+      <p>Це збережений результат перевірки. Його ревізія та час можуть відрізнятися від поточної оцінки ресурсу.</p>
+      <dl>
+        <dt>ID спостереження</dt><dd><code>{record.observationId}</code></dd>
+        <dt>Monitor / перевірка</dt><dd>{record.monitorId} / {record.checkId}</dd>
+        <dt>Агент / зона</dt><dd>{record.agentId} / {record.networkZone}</dd>
+        <dt>Ревізія конфігурації</dt><dd><code>{record.configRevision}</code></dd>
+        <dt>Виконання / результат probe</dt><dd>{record.executionStatus} / {record.probeOutcome}</dd>
+        <dt>Причина</dt><dd>{record.reasonCode || "—"}</dd>
+        <dt>Початок / завершення / приймання</dt><dd>{record.startedAt} / {record.finishedAt} / {record.receivedAt}</dd>
+        <dt>Тривалість</dt><dd>{record.durationMs.toFixed(1)} мс</dd>
+        <dt>Діагностична сесія / завдання</dt><dd>{record.diagnosticSessionId || "—"} / {record.diagnosticTaskId || "—"}</dd>
+      </dl>
+      {record.values && <table><caption>Витягнуті значення</caption><thead><tr><th>Поле</th><th>Значення</th></tr></thead><tbody>{Object.entries(record.values).map(([name,value]) => <tr key={name}><td>{name}</td><td><code>{String(value)}</code></td></tr>)}</tbody></table>}
+    </>}
+  </aside>;
 }

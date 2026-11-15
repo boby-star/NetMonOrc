@@ -10,10 +10,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 )
+
+type ObservationLoad func(context.Context, string) (monitor.ObservationRecord, bool, error)
+
+func (h *Handler) SetObservationLoader(load ObservationLoad) { h.observation = load }
 
 type HistoryLoad func(context.Context, monitor.HistoryQuery) ([]monitor.ObservationRecord, error)
 
@@ -153,14 +158,59 @@ func (h *Handler) observations(w http.ResponseWriter, r *http.Request) {
 		rows = rows[:q.Limit]
 	}
 	for _, record := range rows {
-		o := record.Observation
-		page.Items = append(page.Items, ObservationView{
-			ObservationID: o.ID, MonitorID: o.Monitor, CheckID: o.Check, AgentID: o.Agent, NetworkZone: o.Zone,
-			ConfigRevision: o.Revision, ExecutionStatus: o.Execution, ProbeOutcome: o.Outcome, ReasonCode: o.Reason,
-			StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, ReceivedAt: record.ReceivedAt, DurationMs: float64(o.FinishedAt.Sub(o.StartedAt)) / float64(time.Millisecond),
-			Values: o.Values, DiagnosticSessionID: record.DiagnosticSessionID, DiagnosticTaskID: o.DiagnosticTaskID,
-		})
+		page.Items = append(page.Items, observationView(record))
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(page)
+}
+
+func observationView(record monitor.ObservationRecord) ObservationView {
+	o := record.Observation
+	return ObservationView{
+		ObservationID: o.ID, MonitorID: o.Monitor, CheckID: o.Check, AgentID: o.Agent, NetworkZone: o.Zone,
+		ConfigRevision: o.Revision, ExecutionStatus: o.Execution, ProbeOutcome: o.Outcome, ReasonCode: o.Reason,
+		StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, ReceivedAt: record.ReceivedAt, DurationMs: float64(o.FinishedAt.Sub(o.StartedAt)) / float64(time.Millisecond),
+		Values: o.Values, DiagnosticSessionID: record.DiagnosticSessionID, DiagnosticTaskID: o.DiagnosticTaskID,
+	}
+}
+
+func (h *Handler) observationDetail(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeRead(w, r, false) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		failure(w, 405, "METHOD_NOT_ALLOWED", "GET required")
+		return
+	}
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/observations/")
+	if id == "" || len(id) > 128 || strings.ContainsAny(id, "/\\") || r.URL.RawQuery != "" {
+		failure(w, 400, "INVALID_ARGUMENT", "One observation ID and no query parameters required")
+		return
+	}
+	if h.observation == nil {
+		failure(w, 404, "NOT_FOUND", "Observation unavailable")
+		return
+	}
+	select {
+	case h.readSlots <- struct{}{}:
+		defer func() { <-h.readSlots }()
+	default:
+		w.Header().Set("Retry-After", "1")
+		failure(w, 429, "API_BUSY", "Monitoring reader busy")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	record, found, err := h.observation(ctx, id)
+	if err != nil {
+		failure(w, 503, "HISTORY_UNAVAILABLE", "Observation temporarily unavailable")
+		return
+	}
+	if !found {
+		failure(w, 404, "NOT_FOUND", "Observation not found")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(observationView(record))
 }

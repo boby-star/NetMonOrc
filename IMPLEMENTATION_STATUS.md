@@ -1,3 +1,13 @@
+# Наскрізний перегляд доказів: R18
+
+GET observations/{id}, CLI get observations ID та React «Відкрити доказ»
+підключені до збережених результатів PostgreSQL. Історія та detail мають
+спільну DTO проєкцію; збережені false/zero, стара ревізія та diagnostic
+provenance не втрачаються. resources:read обов'язковий, raw body/config
+не повертаються. Читання не впливає на live Assessment.
+Документація: [observation-detail.md](docs/deployment/observation-detail.md).
+Відкриті модулі повного v1alpha1 перераховані нижче; це не 100% реалізація.
+
 # Огляд реальних джерел моніторингу: R17
 
 GET dashboard/summary, React overview та CLI get dashboard підключено.

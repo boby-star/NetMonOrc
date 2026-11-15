@@ -56,6 +56,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 		t.Fatal(e)
 	}
 	h.SetHistoryLoader(s.ReadObservations)
+	h.SetObservationLoader(s.ReadObservation)
 	h.SetDiagnostics(s)
 	configureAlertViews(h, s)
 	configureDashboardTest(h, s)
@@ -140,6 +141,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	finished := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
 	for _, id := range []string{"history-a", "history-b", "history-c"} {
 		o := monitor.Observation{ID: id, Monitor: "service", Revision: "historical-revision", Check: "http", Agent: "test-agent", Zone: "west", StartedAt: finished.Add(-time.Second), FinishedAt: finished, Execution: "completed", Outcome: "failure"}
+		o.Values = map[string]monitor.Scalar{"queue_depth": {Kind: "integer", Integer: 0}, "ready": {Kind: "boolean", Boolean: false}}
 		if id == "history-a" {
 			o.Zone = "east"
 			o.Execution = "execution_failed"
@@ -187,6 +189,49 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	code, data, _ = request("GET", "/api/v1/monitors/service/observations?since="+url.QueryEscape(finished.Add(time.Second).Format(time.RFC3339Nano)), nil, "", "")
 	if code != 200 || json.Unmarshal(data, &page) != nil || len(page.Items) != 0 || page.NextCursor != nil {
 		t.Fatal("empty history must be a valid page", code)
+	}
+
+	// Link the existing historical diagnostic task to a normalized observation.
+	if _, err := s.pool.Exec(ctx, `UPDATE nmo_observations SET diagnostic_task_id='task-view-b',payload=jsonb_set(payload,'{diagnosticTaskID}','"task-view-b"') WHERE id='history-a'`); err != nil {
+		t.Fatal(err)
+	}
+	// Detail uses the same normalization as history, preserving false/zero values.
+	code, data, _ = request("GET", "/api/v1/observations/history-a", nil, "", "")
+	var detail httpapi.ObservationView
+	if code != 200 || json.Unmarshal(data, &detail) != nil || detail.ObservationID != "history-a" || detail.ConfigRevision != "historical-revision" || detail.DiagnosticSessionID != "diag-view-b" || detail.DiagnosticTaskID != "task-view-b" || detail.ExecutionStatus != "execution_failed" || detail.ProbeOutcome != "unknown" || detail.ReceivedAt.IsZero() || len(detail.Values) != 2 || detail.Values["ready"].Boolean || detail.Values["queue_depth"].Integer != 0 {
+		t.Fatal("historical detail lost evidence", code)
+	}
+	for path, want := range map[string]int{"/api/v1/observations/not-found": 404, "/api/v1/observations/history-a?zone=east": 400, "/api/v1/observations/": 400, "/api/v1/observations/history-a/extra": 400} {
+		if code, _, _ := request("GET", path, nil, "", ""); code != want {
+			t.Fatal("observation detail validation", path, code)
+		}
+	}
+	if code, _, _ := request("POST", "/api/v1/observations/history-a", nil, "", ""); code != 405 {
+		t.Fatal("detail accepted mutation", code)
+	}
+	var cookieValue string
+	parsedURL, _ := url.Parse(server.URL)
+	for _, c := range client.Jar.Cookies(parsedURL) {
+		if c.Name == "netmonorc_session" {
+			cookieValue = c.Value
+		}
+	}
+	limited, err := service.IssueToken(ctx, cookieValue, auth.APITokenCreate{Name: "observation-wrong-scope", Scopes: []string{"agents:read"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequest("GET", server.URL+"/api/v1/observations/history-a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+limited.Token)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 403 {
+		t.Fatal("detail scope bypass", resp.StatusCode)
 	}
 	// Password change must be atomic across all sessions and preserve CSRF protection.
 	_, otherSession, e := service.Login(ctx, username, password)
