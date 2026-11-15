@@ -7,7 +7,10 @@ roster, zone filter, distinctBy=none/zone, replicas у різних зонах �
 Необраний Agent ACK/heartbeat лишається online і може виконувати авторизовану
 діагностику. Regular replay захищено historical assignment permissions.
 Документація: [placement-policies.md](docs/deployment/placement-policies.md).
-Критичні Go/PG/HTTPS перевірки пройшли; live Compose R24 ще виконується.
+Критичні Go/PG/HTTPS перевірки та повний live Compose R24 пройшли:
+selected/idle, diagnostic на idle, Agent loss→unknown, pending без partial,
+policy-only revision та restart. React batch preview пройшов production build;
+DOM clicks не автоматизовані. Evidence: docs/experiments/placement-r24/.
 Відкриті: dynamic placement, same-zone replicas/full assessment modes,
 multi-Monitor execution, groups/dependencies, enrollment/cert lifecycle,
 UID lifecycle та фінальна acceptance/performance звірка.
