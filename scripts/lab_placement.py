@@ -7,8 +7,10 @@ import uuid
 
 def verify(lab, cli, common, first, client):
     def command(*args, value=None):
-        return json.loads(lab.compose('exec', '-T', 'controller', *cli, *args,
-                                     '--context-file', '/tmp/cli/context.json',
+        # Go flag parsing stops at positional args; diagnostics has a subcommand.
+        head = 2 if args[0] == 'diagnostics' else 1
+        parsed = [*args[:head], '--context-file', '/tmp/cli/context.json', *args[head:]]
+        return json.loads(lab.compose('exec', '-T', 'controller', *cli, *parsed,
                                      input=json.dumps(value).encode() if value is not None else None))
 
     def get(kind, name=None):
