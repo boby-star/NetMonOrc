@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import {
   applyConfiguration,
   validateBatch,
+  planBatchConfiguration,
   operation,
   operations,
   type Session,
   type VersionedResource,
   type ConfigBatch,
+  type ConfigPlan,
   type Operation,
   type OperationPage,
 } from "./api";
@@ -48,6 +50,7 @@ export function BatchApply({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [preview, setPreview] = useState<ConfigPlan | null>(null);
   const [selected, setSelected] = useState<Operation | null>(null);
   const [progressError, setProgressError] = useState("");
   const [page, setPage] = useState<OperationPage | null>(null);
@@ -89,6 +92,8 @@ export function BatchApply({
   }, [selected?.id, selected?.state]);
   function fill() {
     setError("");
+    setNotice("");
+    setPreview(null);
     try {
       const manifest = JSON.parse(draft);
       const key = manifest.kind + "/" + manifest.metadata.name;
@@ -113,18 +118,25 @@ export function BatchApply({
       setError("Спочатку перевірте JSON відкритого маніфесту.");
     }
   }
-  async function submit(validate: boolean) {
+  async function submit(action: "validate" | "plan" | "apply") {
     setBusy(true);
     setError("");
     setNotice("");
+    setPreview(null);
     try {
       const batch = JSON.parse(text) as ConfigBatch;
       if (!batch.requestId) {
         batch.requestId = crypto.randomUUID();
         setText(JSON.stringify(batch, null, 2));
       }
-      if (validate) {
+      if (action === "validate") {
         setNotice(JSON.stringify(await validateBatch(session, batch), null, 2));
+        return;
+      }
+      if (action === "plan") {
+        const plan = await planBatchConfiguration(session, batch);
+        setPreview(plan);
+        setNotice(JSON.stringify(plan, null, 2));
         return;
       }
       setSelected(null);
@@ -188,21 +200,32 @@ export function BatchApply({
               value={text}
               disabled={busy}
               spellCheck={false}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                setPreview(null);
+                setNotice("");
+              }}
             />
           </label>
           <div className="row">
             <button
               type="button"
               disabled={busy || !text}
-              onClick={() => void submit(true)}
+              onClick={() => void submit("validate")}
             >
               Перевірити пакет
             </button>
             <button
               type="button"
               disabled={busy || !text}
-              onClick={() => void submit(false)}
+              onClick={() => void submit("plan")}
+            >
+              Показати план пакета
+            </button>
+            <button
+              type="button"
+              disabled={busy || !text}
+              onClick={() => void submit("apply")}
             >
               Застосувати пакет
             </button>
@@ -218,6 +241,21 @@ export function BatchApply({
         <p role="alert" className="error">
           {error}
         </p>
+      )}
+      {preview && (preview.placements?.length ?? 0) > 0 && (
+        <div>
+          <h3>Заплановані точки перевірок</h3>
+          <ul>
+            {(preview.placements ?? []).map((placement) => (
+              <li key={placement.monitorId}>
+                {placement.monitorId}: {placement.pending
+                  ? `очікує ${placement.replicas} допустимих агентів; регулярні перевірки не запускаються`
+                  : placement.selectedAgents.map((agent) => `${agent.agentId} (${agent.networkZone})`).join(", ")}
+              </li>
+            ))}
+          </ul>
+          <small>Попередній план не підтверджує доступність агентів або стан сервісу.</small>
+        </div>
       )}
       {notice && <pre className="config-result">{notice}</pre>}
       {selected && (

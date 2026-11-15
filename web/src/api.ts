@@ -404,7 +404,13 @@ export interface ConfigPlan {
     effectiveRevision: string;
   }[];
   warnings: { code: string; message: string }[];
-  placements?: { monitorId: string; strategy: "fixed"; replicas: number; pending: boolean; selectedAgents: {agentId: string; networkZone: string}[] }[];
+  placements?: {
+    monitorId: string;
+    strategy: "fixed";
+    replicas: number;
+    pending: boolean;
+    selectedAgents: { agentId: string; networkZone: string }[];
+  }[];
 }
 function resourceError(status: number): Error {
   if (status === 412)
@@ -477,6 +483,12 @@ export async function planConfiguration(
   session: Session,
   manifest: ResourceManifest,
 ): Promise<ConfigPlan> {
+  return planBatchConfiguration(session, { manifests: [manifest] });
+}
+export async function planBatchConfiguration(
+  session: Session,
+  batch: ConfigBatch,
+): Promise<ConfigPlan> {
   const response = await fetch("/api/v1/config/plan", {
     method: "POST",
     credentials: "same-origin",
@@ -484,7 +496,7 @@ export async function planConfiguration(
       "Content-Type": "application/json",
       "X-CSRF-Token": session.csrfToken,
     },
-    body: JSON.stringify({ manifests: [manifest] }),
+    body: JSON.stringify(batch),
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw resourceError(response.status);

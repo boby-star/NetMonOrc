@@ -54,7 +54,9 @@ TaskAssignment може виконуватись за чинними бюдже�
 
 Новий optional Agent DTO field regularMonitoringAssigned показує бажане
 призначення, а не online-state чи здоров'я сервісу. Поле відображається у React
-та CLI. Plan.placements має типізований preview обраних identities/зон або
+та CLI. У React пакетне застосування має кнопку «Показати план пакета»: Monitor
+і нову policy можна переглянути разом до запису desired. Зміна тексту скидає
+старий preview. Plan.placements має типізований preview обраних identities/зон або
 pending; preview не доводить online-state, target reachability чи capacity.
 Operation completed означає ACK потрібних обраних Agent, не healthy сервісу.
 Generic resource status active означає controller_loaded; для недостатнього
