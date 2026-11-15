@@ -96,3 +96,8 @@ Live Compose workflow у scripts/lab_placement.py включено в lab_sessio
 selected/idle, diagnostic на idle Agent, відключення обраного джерела,
 pending без regular probes та restart. Фактичні результати запуску зберігаються
 окремо у docs/experiments; наявність сценарію сама по собі не є його проходженням.
+
+Для наступних вузьких ітерацій можна використати `lab_sessions.py --placement-only`
+на новому owned stand: той самий штатний bootstrap/login та R24 use cases,
+без повтору всіх попередніх workflows. PAT і cookie відкликаються наприкінці;
+результат явно містить scope=fixed-placement-only. Повний режим лишається default.

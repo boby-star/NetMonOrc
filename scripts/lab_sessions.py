@@ -191,7 +191,7 @@ else:
     print(json.dumps({'restartSessionRestored':True,'logoutRequiresCSRF':True,'revokedCookieRejected':True,'role':view['role'],'scopes':view['scopes']}))
 '''
 
-def verify(lab):
+def verify(lab, placement_only=False):
     lab.require()
     if lab.sql('SELECT count(*) FROM nmo_users')!='0':
         raise RuntimeError('session smoke requires a fresh disposable project; existing identities are preserved')
@@ -206,6 +206,14 @@ def verify(lab):
     lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
     identity=json.loads(lab.compose('exec','-T','controller',*cli,'whoami','--context-file','/tmp/cli/context.json'))
     assert identity['userId']==first['userId'] and identity['expiresAt'] is None
+    if placement_only:
+        from lab_placement import verify as verify_placement
+        placement_result=verify_placement(lab,cli,common,first,CLIENT)
+        lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
+        result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
+        result.update(placement_result)
+        result.update({'status':'passed','scope':'fixed-placement-only','trustedTLS':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+        return result
     validation=json.loads(lab.compose('exec','-T','controller',*cli,'validate','--remote','--context-file','/tmp/cli/context.json','-f','/run/netmonorc/monitor.yaml'))
     assert validation['valid']
     def cli_configuration(manifest=None):
@@ -535,13 +543,13 @@ def verify(lab):
     return result
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');p.add_argument('--placement-only',action='store_true',help='run only fixed placement plus required normal identity flow on a fresh stand');a=p.parse_args()
     try:
-        result=verify(Lab(a.project,a.prefix))
+        result=verify(Lab(a.project,a.prefix),a.placement_only)
     except __import__('subprocess').CalledProcessError as e:
         raise SystemExit('Integration subprocess failed: '+e.stderr.decode(errors='replace')[-1200:])
     import os
     target=Path(a.output);target.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
     fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as f:json.dump(result,f,indent=2);f.write('\n')
-    print('Verified real HTTPS identity/users/PAT/history, CLI, persisted sessions and revocation; secrets omitted.')
+    print('Verified '+result.get('scope','HTTPS identity/resources/CLI integration')+'; secrets omitted.')
