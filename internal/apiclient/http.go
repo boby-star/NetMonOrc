@@ -6,8 +6,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +17,26 @@ import (
 	"strings"
 	"time"
 )
+
+// RequestError sanitizes transport errors without exposing a URL or bearer.
+type RequestError struct{ Transient bool }
+
+func (*RequestError) Error() string {
+	return "HTTPS request failed; verify TLS trust, connectivity and deadline"
+}
+func transientTransport(err error) bool {
+	var verify *tls.CertificateVerificationError
+	var record tls.RecordHeaderError
+	if errors.As(err, &verify) || errors.As(err, &record) {
+		return false
+	}
+	var timeout net.Error
+	if errors.As(err, &timeout) && timeout.Timeout() {
+		return true
+	}
+	var op *net.OpError
+	return errors.As(err, &op) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed)
+}
 
 type APIError struct {
 	Status int
@@ -85,11 +107,14 @@ func (c *Client) VersionedJSON(ctx context.Context, method, path string, body an
 	}
 	response, err := c.http.Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("HTTPS request failed; verify TLS trust, connectivity and deadline")
+		return nil, "", &RequestError{Transient: transientTransport(err)}
 	}
 	defer response.Body.Close()
 	b, err := io.ReadAll(io.LimitReader(response.Body, (16<<20)+1))
-	if err != nil || len(b) > 16<<20 {
+	if err != nil {
+		return nil, "", &RequestError{Transient: transientTransport(err)}
+	}
+	if len(b) > 16<<20 {
 		return nil, "", fmt.Errorf("response too large or incomplete; reduce page size")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {

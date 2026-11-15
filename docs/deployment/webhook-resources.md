@@ -58,6 +58,11 @@ Controller вибирає єдиний активний endpoint із PostgreSQL
 залишаються в PostgreSQL. Зміна labels без зміни hash не потребує reload.
 Заміна вмісту локального secret file/CA потребує перезапуску Controller.
 
+CLI apply повторює незмінний пакет зі сталим requestId після тимчасового
+обриву з'єднання або 429/503 в межах заданого timeout. Серверна idempotency
+повертає ту саму operation після втрати відповіді. TLS trust/validation,
+авторизація та precondition errors не обходяться повторним запитом.
+
 Apply target ready означає, що чинний Controller завантажив відповідні UID/hash
 і успішно створив Sender для активного каналу. Тільки commit desired не завершує
 операцію. Це не підтвердження доступності одержувача: перевірка доставки —

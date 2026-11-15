@@ -165,7 +165,12 @@ func remoteCommand(args []string) error {
 		return fmt.Errorf("apply requires a stable requestId in ConfigBatch or --request-id; retain the identical batch for recovery")
 	}
 	route := "/api/v1/config/" + args[0]
-	response, err := client.JSON(ctx, "POST", route, batch)
+	var response []byte
+	if args[0] == "apply" {
+		response, err = client.Apply(ctx, batch)
+	} else {
+		response, err = client.JSON(ctx, "POST", route, batch)
+	}
 	if err != nil {
 		return err
 	}
