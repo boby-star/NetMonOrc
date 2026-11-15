@@ -1,0 +1,32 @@
+{
+  "restartSessionRestored": true,
+  "logoutRequiresCSRF": true,
+  "revokedCookieRejected": true,
+  "role": "admin",
+  "scopes": [
+    "resources:read",
+    "agents:read",
+    "diagnostics:read",
+    "alerts:read",
+    "resources:write",
+    "agents:manage",
+    "diagnostics:run",
+    "alerts:manage",
+    "system:admin"
+  ],
+  "groupCRUDAndMixedApply": true,
+  "groupCLIAndREST": true,
+  "unknownMemberNotHealthyOrDown": true,
+  "weightedUnknownExcludedWithDegradedCoverage": true,
+  "contextGroupHasNoHealth": true,
+  "selectorMembershipAndImplicitRevision": true,
+  "groupSourceVersionPreserved": true,
+  "groupsDoNotCreateProbes": true,
+  "groupCatalogSurvivesRestart": true,
+  "standbyMonitorStillNotExecuted": true,
+  "status": "passed",
+  "scope": "resource-groups-only",
+  "trustedTLS": true,
+  "browserInteractionTested": false,
+  "credentialsDiscarded": true
+}
