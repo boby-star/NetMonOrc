@@ -1,3 +1,17 @@
+# AssessmentPolicy refs та фактичний Target CEL context: R23
+
+AssessmentPolicy CRUD/history/status, assessmentRef, mixed apply, CLI та React
+підключені. Shared policy нормалізується й перевіряється чинним compiler;
+зміна залежності оновлює Monitor effective revision без зміни manifest version.
+Додано погоджені defaults для відсутнього assessment за відомого fixed roster.
+CEL отримує фактичні Target descriptors/labels; їхні зміни revision-fenced.
+Математичний профіль лишається all-required/all/weighted/unknown fallback;
+непідтримані режими відхиляються явно.
+Документація: [assessment-policies.md](docs/deployment/assessment-policies.md).
+Відкриті: PlacementPolicy, multi-Monitor/replicas, повні assessment modes,
+groups/dependencies, enrollment, UID lifecycle та фінальна звірка/експерименти.
+Повний v1alpha1 не завершений.
+
 # CheckProfile та типізоване розгортання перевірок: R22
 
 CheckProfile CRUD/history/status, useProfiles, типізовані параметри/defaults,

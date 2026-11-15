@@ -20,6 +20,8 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
+	TargetLabels     map[string]map[string]string
+	Assessments      map[string]AssessmentPolicy
 	CheckProfiles    map[string]CheckProfile
 	Active           string
 	AlertChannel     string
@@ -76,7 +78,11 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err := validateMetadata(m); err != nil {
 		return monitor.Plan{}, err
 	}
-	expanded, profileBindings, err := r.expandProfiles(m)
+	assessed, assessmentRef, assessmentHash, err := r.resolveAssessment(m)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
+	expanded, profileBindings, err := r.expandProfiles(assessed)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
@@ -93,13 +99,24 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		return p, err
 	}
 	if targetRef != "" {
-		p, err = config.ResolveTargetReference(p, targetRef, targetHash)
+		target := r.Targets[targetRef]
+		labels := map[string]string{}
+		for key, value := range r.TargetLabels[targetRef] {
+			labels[key] = value
+		}
+		p, err = config.ResolveTargetReference(p, targetRef, targetHash, monitor.TargetContext{Type: target.Type, NetworkZone: target.NetworkZone, Criticality: target.Criticality, Labels: labels})
 		if err != nil {
 			return p, err
 		}
 	}
 	if len(profileBindings) > 0 {
 		p, err = config.ResolveCheckProfiles(p, profileBindings)
+		if err != nil {
+			return p, err
+		}
+	}
+	if assessmentRef != "" {
+		p, err = config.ResolveAssessmentReference(p, assessmentRef, assessmentHash)
 		if err != nil {
 			return p, err
 		}

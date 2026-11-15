@@ -24,6 +24,16 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || len(p.Checks) == 0 || len(p.Checks) > 100 {
 		return fmt.Errorf("invalid plan revision or size")
 	}
+	if context := p.TargetContext; context != nil {
+		switch context.Type {
+		case "host", "network-device", "service", "endpoint", "logical":
+		default:
+			return fmt.Errorf("invalid Target context type")
+		}
+		if p.TargetRef == "" || context.Criticality < 1 || context.Criticality > 5 {
+			return fmt.Errorf("invalid Target context binding")
+		}
+	}
 	if (p.TargetRef == "") != (p.TargetHash == "") {
 		return fmt.Errorf("incomplete Target binding")
 	}
@@ -31,6 +41,15 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 		hash, err := hex.DecodeString(p.TargetHash)
 		if !namePattern.MatchString(p.TargetRef) || err != nil || len(hash) != 32 {
 			return fmt.Errorf("invalid Target binding")
+		}
+	}
+	if (p.AssessmentRef == "") != (p.AssessmentHash == "") {
+		return fmt.Errorf("incomplete AssessmentPolicy binding")
+	}
+	if p.AssessmentRef != "" {
+		hash, err := hex.DecodeString(p.AssessmentHash)
+		if !namePattern.MatchString(p.AssessmentRef) || err != nil || len(hash) != 32 {
+			return fmt.Errorf("invalid AssessmentPolicy binding")
 		}
 	}
 	if len(p.CheckProfiles) > 100 {

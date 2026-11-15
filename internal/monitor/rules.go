@@ -136,7 +136,16 @@ func (a *Assessor) applyRules(z *ZoneAssessment, latest map[string]Observation, 
 	if len(z.Evidence) == 0 {
 		coverage = "unknown"
 	}
-	activation := map[string]any{"checks": checks, "zone": ZoneView{Name: z.Zone, Coverage: coverage, Labels: map[string]string{}}, "target": TargetView{Address: a.plan.TargetAddress, Type: "endpoint", NetworkZone: "unspecified", Criticality: 3, Labels: map[string]string{}}}
+	target := TargetView{Address: a.plan.TargetAddress, Type: "endpoint", NetworkZone: "unspecified", Criticality: 3, Labels: map[string]string{}}
+	if context := a.plan.TargetContext; context != nil {
+		target.Type = context.Type
+		target.NetworkZone = context.NetworkZone
+		target.Criticality = context.Criticality
+		if context.Labels != nil {
+			target.Labels = context.Labels
+		}
+	}
+	activation := map[string]any{"checks": checks, "zone": ZoneView{Name: z.Zone, Coverage: coverage, Labels: map[string]string{}}, "target": target}
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
 	defer cancel()
 	for _, r := range a.rules {

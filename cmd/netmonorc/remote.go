@@ -74,10 +74,12 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
+		case "AssessmentPolicy":
+			route = "/api/v1/resources/AssessmentPolicy"
 		case "CheckProfile":
 			route = "/api/v1/resources/CheckProfile"
 		case "Target":
@@ -111,7 +113,7 @@ func remoteCommand(args []string) error {
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
+			return fmt.Errorf("this CLI supports remote get AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))

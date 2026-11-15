@@ -30,6 +30,10 @@ func (s *Service) Admit() bool {
 }
 func (s *Service) Release() { <-s.slots }
 func (s *Service) Status(v View, activeRevision string) View {
+	if v.Manifest.Kind == "AssessmentPolicy" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "assessment_policy_catalogued"}}}
+		return v
+	}
 	if v.Manifest.Kind == "CheckProfile" {
 		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "check_profile_catalogued"}}}
 		return v

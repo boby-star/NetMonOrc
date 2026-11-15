@@ -43,32 +43,34 @@ type checkSpec struct {
 	Config   yaml.Node     `yaml:"config"`
 }
 type assessmentSpec struct {
-	Rules []struct {
-		ID       string `yaml:"id"`
-		Priority *int   `yaml:"priority"`
-		When     string `yaml:"when"`
+	SameZoneAggregation string `yaml:"sameZoneAggregation" json:"sameZoneAggregation,omitempty"`
+	DefaultState        string `yaml:"defaultState" json:"defaultState,omitempty"`
+	Rules               []struct {
+		ID       string `yaml:"id" json:"id,omitempty"`
+		Priority *int   `yaml:"priority" json:"priority,omitempty"`
+		When     string `yaml:"when" json:"when,omitempty"`
 		Then     struct {
-			State  string `yaml:"state"`
-			Reason string `yaml:"reason"`
-		} `yaml:"then"`
-	} `yaml:"rules"`
-	RequiredZones   []string `yaml:"requiredZones"`
-	ZoneAggregation string   `yaml:"zoneAggregation"`
-	MinCoverage     *float64 `yaml:"minCoverage"`
+			State  string `yaml:"state" json:"state,omitempty"`
+			Reason string `yaml:"reason" json:"reason,omitempty"`
+		} `yaml:"then" json:"then,omitempty"`
+	} `yaml:"rules" json:"rules,omitempty"`
+	RequiredZones   []string `yaml:"requiredZones" json:"requiredZones,omitempty"`
+	ZoneAggregation string   `yaml:"zoneAggregation" json:"zoneAggregation,omitempty"`
+	MinCoverage     *float64 `yaml:"minCoverage" json:"minCoverage,omitempty"`
 	Freshness       struct {
-		MaxAge  string `yaml:"maxAge"`
-		MaxSkew string `yaml:"maxSkew"`
-	} `yaml:"freshness"`
+		MaxAge  string `yaml:"maxAge" json:"maxAge,omitempty"`
+		MaxSkew string `yaml:"maxSkew" json:"maxSkew,omitempty"`
+	} `yaml:"freshness" json:"freshness,omitempty"`
 	Checks []struct {
-		ID       string   `yaml:"id"`
-		Weight   *float64 `yaml:"weight"`
-		Required bool     `yaml:"required"`
-	} `yaml:"checks"`
+		ID       string   `yaml:"id" json:"id,omitempty"`
+		Weight   *float64 `yaml:"weight" json:"weight,omitempty"`
+		Required bool     `yaml:"required" json:"required,omitempty"`
+	} `yaml:"checks" json:"checks,omitempty"`
 	Weighted struct {
-		Enabled     *bool    `yaml:"enabled"`
-		HealthyMin  *float64 `yaml:"healthyMin"`
-		DegradedMin *float64 `yaml:"degradedMin"`
-	} `yaml:"weighted"`
+		Enabled     *bool    `yaml:"enabled" json:"enabled,omitempty"`
+		HealthyMin  *float64 `yaml:"healthyMin" json:"healthyMin,omitempty"`
+		DegradedMin *float64 `yaml:"degradedMin" json:"degradedMin,omitempty"`
+	} `yaml:"weighted" json:"weighted,omitempty"`
 }
 
 var namePattern = regexp.MustCompile(`^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -138,6 +140,12 @@ func Compile(data []byte) (monitor.Plan, error) {
 		}
 	}
 	a := m.Spec.Assessment
+	if a.SameZoneAggregation != "" && a.SameZoneAggregation != "all" {
+		return p, fmt.Errorf("only sameZoneAggregation=all is implemented")
+	}
+	if a.DefaultState != "" && a.DefaultState != "unknown" {
+		return p, fmt.Errorf("only defaultState=unknown is implemented")
+	}
 	if a.ZoneAggregation != "" && a.ZoneAggregation != "all-required" {
 		return p, fmt.Errorf("only all-required zoneAggregation is implemented")
 	}

@@ -23,11 +23,12 @@ type Compiled struct {
 	Endpoint     *webhook.Endpoint
 	Target       *TargetSpec
 	CheckProfile *CheckProfile
+	Assessment   *AssessmentPolicy
 }
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile"
+	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -59,8 +60,10 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	registry := base
 	registry.Diagnostic = nil
+	registry.Assessments = map[string]AssessmentPolicy{}
 	registry.CheckProfiles = map[string]CheckProfile{}
 	registry.Targets = map[string]TargetSpec{}
+	registry.TargetLabels = map[string]map[string]string{}
 	registry.Webhooks = map[string]webhook.Endpoint{}
 	registry.Profiles = map[string]diagnostics.Profile{}
 	compiled := map[string]Compiled{}
@@ -93,6 +96,7 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 			return base, nil, fmt.Errorf("%s: %w", key, err)
 		}
 		registry.Targets[m.Metadata.Name] = *result.Target
+		registry.TargetLabels[m.Metadata.Name] = m.Metadata.Labels
 		compiled[key] = result
 	}
 	for _, key := range keys {
@@ -105,6 +109,18 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 			return base, nil, fmt.Errorf("%s: %w", key, err)
 		}
 		registry.CheckProfiles[m.Metadata.Name] = *result.CheckProfile
+		compiled[key] = result
+	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "AssessmentPolicy" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.Assessments[m.Metadata.Name] = *result.Assessment
 		compiled[key] = result
 	}
 	activeEndpoints := 0
@@ -162,6 +178,13 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	if err := validateMetadata(m); err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "AssessmentPolicy" {
+		assessment, err := compileAssessmentPolicy(m)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: assessment.Hash(), Assessment: &assessment}, nil
 	}
 	if m.Kind == "CheckProfile" {
 		profile, err := compileCheckProfile(m)

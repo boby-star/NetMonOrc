@@ -85,6 +85,10 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 				allReady = false
 				break
 			}
+			if target.Kind == "AssessmentPolicy" {
+				target.Ready = true
+				target.Reason = "assessment_policy_catalogued"
+			}
 			if target.Kind == "CheckProfile" {
 				target.Ready = true
 				target.Reason = "check_profile_catalogued"

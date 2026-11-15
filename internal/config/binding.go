@@ -125,11 +125,15 @@ func DiagnosticProfileHash(profile diagnostics.Profile) (string, error) {
 
 // ResolveTargetReference makes changes to the normalized reusable target part
 // of the effective revision, without merging its labels or zone into Monitor.
-func ResolveTargetReference(p monitor.Plan, ref, hash string) (monitor.Plan, error) {
+func ResolveTargetReference(p monitor.Plan, ref, hash string, context ...monitor.TargetContext) (monitor.Plan, error) {
 	if !namePattern.MatchString(ref) || len(hash) != 64 {
 		return p, fmt.Errorf("invalid resolved Target identity")
 	}
 	p.TargetRef = ref
+	if len(context) > 0 {
+		snapshot := context[0]
+		p.TargetContext = &snapshot
+	}
 	p.TargetHash = hash
 	p.Revision = ""
 	data, err := json.Marshal(p)
