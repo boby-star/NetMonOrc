@@ -170,7 +170,17 @@ elif c['mode']=='rule-delete':
     route='/api/v1/resources/'+c.get('kind','AlertRule')+'/'+c['name']
     code,body,tag=request('GET',route,response_header='ETag');assert code==200 and tag
     code,_,_=request('DELETE',route,csrf=c['csrf'],if_match=tag);assert code==204
-    code,_,_=request('GET',route);assert code==404
+    # A Dependency delete may reconcile the active plan after its committed 204.
+    # Retry only the safe confirmation read, never the already accepted DELETE.
+    import time
+    for attempt in range(20):
+        try:
+            code,_,_=request('GET',route)
+            break
+        except (OSError,http.client.HTTPException):
+            if attempt==19:raise
+            time.sleep(.5)
+    assert code==404
     print(json.dumps({'deleted':True}))
 elif c['mode']=='profile':
     cookie=c['cookie']
