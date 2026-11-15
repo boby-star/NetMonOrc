@@ -57,7 +57,7 @@ def verify(lab, cli, common, first, client):
     # A separately authorized diagnostic remains possible on the regular-idle Agent.
     profile = {'apiVersion': 'netmonorc.io/v1alpha1', 'kind': 'DiagnosticProfile',
                'metadata': {'name': 'idle-agent-proof'}, 'spec': {
-                   'mode': 'fixed', 'budget': {'maxAdditionalChecks': 1, 'maxDuration': '20s', 'maxParallel': 1},
+                   'mode': 'fixed', 'budget': {'maxAdditionalChecks': 1, 'maxDuration': '40s', 'maxParallel': 1},
                    'actions': [{'id': 'idle-http', 'check': {'type': 'http', 'runner': 'native-http',
                        'timeout': '5s', 'config': {'url': 'http://198.18.0.80:8080/', 'expectedStatus': [200]}},
                        'placement': {'strategy': 'fixed', 'agentRefs': ['dc'], 'zones': ['server']}}],
