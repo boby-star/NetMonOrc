@@ -184,6 +184,7 @@ func parameterWitness(kind, field string) json.RawMessage {
 
 // substitute changes values only, never YAML structure, IDs, CEL or map keys.
 func substitute(raw json.RawMessage, parameters map[string]ProfileParameter, values map[string]monitor.Scalar, witness bool) (json.RawMessage, error) {
+	expandedBytes := len(raw)
 	var check map[string]json.RawMessage
 	if json.Unmarshal(raw, &check) != nil || check == nil {
 		return nil, fmt.Errorf("profile check requires an object")
@@ -218,6 +219,10 @@ func substitute(raw json.RawMessage, parameters map[string]ProfileParameter, val
 			data, err := json.Marshal(bound)
 			if err != nil {
 				return nil, err
+			}
+			expandedBytes += len(data)
+			if expandedBytes > 1<<20 {
+				return nil, fmt.Errorf("expanded check exceeds 1 MiB budget")
 			}
 			return json.RawMessage(data), nil
 		case map[string]any:
@@ -360,6 +365,7 @@ func (p CheckProfile) bind(usage profileUsage) ([]json.RawMessage, monitor.Check
 		values[param.Name] = v
 	}
 	result := []json.RawMessage{}
+	expandedBytes := 0
 	for _, raw := range p.Checks {
 		expanded, err := substitute(raw, definitions, values, false)
 		if err != nil {
@@ -375,6 +381,10 @@ func (p CheckProfile) bind(usage profileUsage) ([]json.RawMessage, monitor.Check
 		}
 		fields["id"], _ = json.Marshal(id)
 		expanded, _ = json.Marshal(fields)
+		expandedBytes += len(expanded)
+		if expandedBytes > 1<<20 {
+			return nil, monitor.CheckProfileBinding{}, fmt.Errorf("expanded profile exceeds 1 MiB budget")
+		}
 		result = append(result, expanded)
 	}
 	return result, monitor.CheckProfileBinding{Ref: usage.Ref, As: usage.As, Hash: p.Hash(), ParametersHash: valueHash(values)}, nil
@@ -405,6 +415,13 @@ func (r Registry) expandProfiles(m Manifest) (Manifest, []monitor.CheckProfileBi
 			return m, nil, fmt.Errorf("checks requires a list")
 		}
 	}
+	if len(checks) > 100 {
+		return m, nil, fmt.Errorf("at most 100 expanded checks supported")
+	}
+	expandedBytes := 0
+	for _, check := range checks {
+		expandedBytes += len(check)
+	}
 	bindings := []monitor.CheckProfileBinding{}
 	for i, usage := range usages {
 		if !namePattern.MatchString(usage.Ref) || !checkIdentifier.MatchString(usage.As) {
@@ -414,9 +431,18 @@ func (r Registry) expandProfiles(m Manifest) (Manifest, []monitor.CheckProfileBi
 		if !found {
 			return m, nil, fmt.Errorf("useProfiles[%d]: CheckProfile unavailable", i)
 		}
+		if len(checks)+len(profile.Checks) > 100 {
+			return m, nil, fmt.Errorf("useProfiles[%d] exceeds 100 expanded checks", i)
+		}
 		expanded, binding, err := profile.bind(usage)
 		if err != nil {
 			return m, nil, fmt.Errorf("useProfiles[%d]: %w", i, err)
+		}
+		for _, check := range expanded {
+			expandedBytes += len(check)
+		}
+		if expandedBytes > 1<<20 {
+			return m, nil, fmt.Errorf("expanded Monitor checks exceed 1 MiB budget")
 		}
 		checks = append(checks, expanded...)
 		bindings = append(bindings, binding)

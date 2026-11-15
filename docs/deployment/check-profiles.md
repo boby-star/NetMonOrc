@@ -51,6 +51,8 @@ IEEE 754 значення з числового scalar, включно з інт
 рядки не перетворюються на числа чи bool. Оголошений тип float відновлюється
 після нормалізації чисел у PostgreSQL JSONB. YAML/CLI зберігають відмінність
 між integer і float; duplicate keys, NaN/Inf, YAML merge і alias cycles відхиляються.
+Конкретний expanded check/profile/Monitor обмежений 1 MiB та загалом 100 checks;
+перевірка бюджету виконується під час розгортання, до створення великого IR.
 Розгортання YAML обмежене 64 рівнями й 65536 nodes, числовий scalar — 4096 символами.
 
 Лише ціла строкова форма ${params.name} всередині checks[].config може бути
@@ -73,7 +75,9 @@ CheckProfile і Monitor можна подавати одним mixed batch у б
 Нормалізовані hash профілю та bound parameters входять до Monitoring IR.
 CheckProfile-only update перераховує effective revision залежних Monitor,
 не змінюючи їхній source manifest/resourceVersion. Plan показує reconcile,
-apply додає implicit targets і чекає фактичних Agent ACK. Старі observations
+apply додає implicit targets і чекає фактичних Agent ACK.
+Monitor, які не вибрані поточним single-Monitor Controller, очікують вибору;
+пов’язана operation для них може залишатися pending. Старі observations
 залишаються історією, не відновлюють старий live assessment.
 
 Профіль із посиланнями захищений від видалення (409). CRUD/history/status,

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -138,5 +139,26 @@ func TestDeclaredFloatSurvivesJSONBIntegralNotation(t *testing.T) {
 	}
 	if _, err := parameterValue("float", json.RawMessage("1e999")); err == nil {
 		t.Fatal("nonfinite float accepted")
+	}
+}
+
+func TestProfileExpansionIsBoundedBeforeIRCompilation(t *testing.T) {
+	p, m := profileFixture(t)
+	var spec map[string]json.RawMessage
+	_ = json.Unmarshal(p.Spec, &spec)
+	var checks []map[string]any
+	for i := 0; i < 50; i++ {
+		checks = append(checks, map[string]any{"id": fmt.Sprintf("http_%d", i), "type": "http", "runner": "native-http", "interval": "10s", "timeout": "1s", "config": map[string]any{"url": "${params.url}"}})
+	}
+	spec["checks"], _ = json.Marshal(checks)
+	p.Spec, _ = json.Marshal(spec)
+	var monitorSpec map[string]json.RawMessage
+	_ = json.Unmarshal(m.Spec, &monitorSpec)
+	monitorSpec["useProfiles"], _ = json.Marshal([]any{map[string]any{"ref": "reusable-http", "as": "web", "parameters": map[string]any{"url": "https://127.0.0.1/" + strings.Repeat("a", 30000)}}})
+	delete(monitorSpec, "assessment")
+	monitorSpec["assessment"] = json.RawMessage(`{"requiredZones":["office"]}`)
+	m.Spec, _ = json.Marshal(monitorSpec)
+	if _, _, err := ResolveCatalog(Registry{}, nil, []Manifest{p, m}); err == nil || !strings.Contains(err.Error(), "budget") {
+		t.Fatal("expanded byte budget not enforced", err)
 	}
 }
