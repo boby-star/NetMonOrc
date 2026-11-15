@@ -152,6 +152,7 @@ export function Configuration({
             setError("");
             setName(e.target.value === "Monitor" ? monitor : "");
           }}>
+            <option value="Dependency">Dependency</option>
             <option value="ResourceGroup">ResourceGroup</option>
             <option value="PlacementPolicy">PlacementPolicy</option>
             <option value="AssessmentPolicy">AssessmentPolicy</option>

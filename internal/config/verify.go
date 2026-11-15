@@ -8,6 +8,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/dependency"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 )
 
@@ -23,6 +24,9 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 	sum := sha256.Sum256(b)
 	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || len(p.Checks) == 0 || len(p.Checks) > 100 {
 		return fmt.Errorf("invalid plan revision or size")
+	}
+	if err := dependency.ValidateGraph(p.Dependencies, nil); err != nil {
+		return err
 	}
 	if p.ZoneAggregation != "" && p.ZoneAggregation != "all-required" && p.ZoneAggregation != "any" {
 		return fmt.Errorf("invalid zone aggregation")

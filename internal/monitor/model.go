@@ -1,6 +1,9 @@
 package monitor
 
-import "time"
+import (
+	"github.com/boby-star/NetMonOrc/internal/dependency"
+	"time"
+)
 
 type Check struct {
 	BodyMatchesRegex string      `json:",omitempty"`
@@ -37,6 +40,7 @@ type TargetContext struct {
 }
 
 type Plan struct {
+	Dependencies    []dependency.Edge     `json:",omitempty"`
 	ZoneAggregation string                `json:",omitempty"`
 	FixedPlacement  *FixedPlacement       `json:",omitempty"`
 	TargetContext   *TargetContext        `json:",omitempty"`

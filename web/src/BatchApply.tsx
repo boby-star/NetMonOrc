@@ -20,6 +20,7 @@ const states = {
   failed: "Операція не завершила застосування",
 };
 const reasons: Record<string, string> = {
+  dependency_catalogued: "Зв’язок перевірено та збережено; стан ресурсів не успадковується",
   group_catalogued: "Групу перевірено та збережено; оцінка доступна окремо",
   profile_catalogued: "Профіль збережено в каталозі",
   awaiting_reconciliation: "Очікує узгодження",
@@ -187,7 +188,7 @@ export function BatchApply({
       {canWrite && (
         <>
           <p>
-            До 20 ресурсів ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
+            До 20 ресурсів Dependency, ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>

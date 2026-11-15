@@ -1,3 +1,16 @@
+# Dependency: перевірений граф і revisioned context (R27)
+
+Окремий Dependency має CRUD/history/status, mixed apply, CLI та React editor.
+Refs Target/Monitor, defaults, самопосилання та requires DAG перевіряються
+перед commit. Зв'язки входять у релевантний Monitoring IR; зміна context
+перебудовує effective revisions без зміни source Monitor version та чекає ACK.
+Hard/soft не переносить health. Referenced delete захищено. Критичні Go/PG/HTTPS
+перевірки й React build пройшли; live workflow ще виконується.
+Документація: docs/deployment/dependencies.md. Shorthand Monitor.dependencies
+не реалізовано через розбіжність DSL §4/§15.1; графічний DAG/RCA не додавався.
+Великі відкриті блоки: multi-Monitor execution, dynamic placement/replica voting,
+Agent lifecycle та фінальна acceptance/performance звірка.
+
 # ResourceGroup: похідні стани й membership (R26)
 
 ResourceGroup CRUD/history/status, members/labels selectors, context/derived,

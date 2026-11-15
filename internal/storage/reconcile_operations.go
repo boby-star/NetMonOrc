@@ -85,6 +85,10 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 				allReady = false
 				break
 			}
+			if target.Kind == "Dependency" {
+				target.Ready = true
+				target.Reason = "dependency_catalogued"
+			}
 			if target.Kind == "ResourceGroup" {
 				target.Ready = true
 				target.Reason = "group_catalogued"

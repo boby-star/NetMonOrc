@@ -110,6 +110,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	for _, c := range hello.GetHello().Capabilities {
 		capabilities[c] = true
 	}
+	if len(s.Plan.Dependencies) > 0 && !capabilities["context:dependencies"] {
+		return status.Error(codes.FailedPrecondition, "dependency context capability required")
+	}
 	if s.Plan.ZoneAggregation == "any" && !capabilities["assessment:zone-any"] {
 		return status.Error(codes.FailedPrecondition, "zone any assessment capability required")
 	}

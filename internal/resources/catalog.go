@@ -7,6 +7,7 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/config"
+	"github.com/boby-star/NetMonOrc/internal/dependency"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
@@ -17,6 +18,7 @@ const MaxCatalogBytes = 8 << 20
 const MaxCatalogResources = 4096
 
 type Compiled struct {
+	Dependency   *dependency.Edge
 	Group        *resourcegroup.Spec
 	GroupMembers []string
 	Revision     string
@@ -32,7 +34,7 @@ type Compiled struct {
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "ResourceGroup" || kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
+	return kind == "Dependency" || kind == "ResourceGroup" || kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -140,6 +142,26 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		registry.Placements[m.Metadata.Name] = *result.Placement
 		compiled[key] = result
 	}
+	registry.Dependencies = nil
+	known := map[string]bool{}
+	for key := range all {
+		known[key] = true
+	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "Dependency" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.Dependencies = append(registry.Dependencies, *result.Dependency)
+		compiled[key] = result
+	}
+	if err := dependency.ValidateGraph(registry.Dependencies, known); err != nil {
+		return base, nil, err
+	}
 	activeEndpoints := 0
 	for _, key := range keys {
 		m := all[key]
@@ -212,6 +234,13 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	if err := validateMetadata(m); err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "Dependency" {
+		edge, err := compileDependency(m)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Dependency: &edge, Revision: valueHash(edge.Spec)}, nil
 	}
 	if m.Kind == "ResourceGroup" {
 		g, err := compileGroup(m.Spec)

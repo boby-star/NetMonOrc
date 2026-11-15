@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/boby-star/NetMonOrc/internal/config"
+	"github.com/boby-star/NetMonOrc/internal/dependency"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"gopkg.in/yaml.v3"
@@ -20,6 +21,7 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
+	Dependencies     []dependency.Edge
 	Placements       map[string]PlacementPolicy
 	Roster           []monitor.Slot
 	TargetLabels     map[string]map[string]string
@@ -121,6 +123,14 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		if err != nil {
 			return p, err
 		}
+	}
+	roots := []dependency.Reference{{Kind: "Monitor", Name: p.Name}}
+	if p.TargetRef != "" {
+		roots = append(roots, dependency.Reference{Kind: "Target", Name: p.TargetRef})
+	}
+	p, err = config.ResolveDependencyContext(p, dependency.Context(r.Dependencies, roots...))
+	if err != nil {
+		return p, err
 	}
 	if len(profileBindings) > 0 {
 		p, err = config.ResolveCheckProfiles(p, profileBindings)

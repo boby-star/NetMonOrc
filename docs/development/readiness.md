@@ -16,7 +16,7 @@ R26 додає похідні/context ResourceGroup у межах описано
 |---|---|
 | Multi-Monitor execution | Кілька одночасних планів на Agent; ACK/replay/lease та оцінки окремих Monitor без взаємного fencing; узгоджені API/діагностика/бюджети |
 | Dynamic placement і replicas | leastLoaded/roundRobin, стабільні фізичні slots, all/any/quorum від planned N, контроль відсутніх результатів; partial лишається вимкненим |
-| Dependency і контекст діагностики | Нормативні refs, requires DAG validation, без автоматичного перенесення відмов між ресурсами |
+| Подальший dependency context | R27 закрив окремі Dependency refs/requires DAG/revisioned IR; лишилися неузгоджений shorthand та графічний перегляд, без автоматичного RCA |
 | Agent lifecycle | Enrollment/recovery/revocation, certificate rotation та UI/API керування; поточний trusted fixed roster цього не замінює |
 | Приймання й експлуатація | Browser user flows, installer/оновлення, фінальна звірка контрактів, backup/recovery та повторні дослідницькі/навантажувальні експерименти |
 

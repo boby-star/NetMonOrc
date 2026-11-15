@@ -31,6 +31,10 @@ func (s *Service) Admit() bool {
 }
 func (s *Service) Release() { <-s.slots }
 func (s *Service) Status(v View, activeRevision string) View {
+	if v.Manifest.Kind == "Dependency" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "dependency_catalogued"}}}
+		return v
+	}
 	if v.Manifest.Kind == "ResourceGroup" {
 		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "group_catalogued"}}}
 		return v
