@@ -23,6 +23,8 @@ type Check struct {
 }
 
 type Plan struct {
+	TargetRef     string             `json:",omitempty"`
+	TargetHash    string             `json:",omitempty"`
 	Diagnostics   *DiagnosticBinding `json:",omitempty"`
 	Rules         []AssessmentRule
 	Name          string

@@ -22,6 +22,7 @@ import (
 type Registry struct {
 	Active           string
 	AlertChannel     string
+	Targets          map[string]TargetSpec
 	ManagedWebhooks  bool
 	WebhookCIDRs     []netip.Prefix
 	Webhooks         map[string]webhook.Endpoint
@@ -74,13 +75,23 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err := validateMetadata(m); err != nil {
 		return monitor.Plan{}, err
 	}
-	data, err := executionJSON(m)
+	resolved, targetRef, targetHash, err := r.resolveTarget(m)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
+	data, err := executionJSON(resolved)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
 	p, err := config.Compile(data)
 	if err != nil {
 		return p, err
+	}
+	if targetRef != "" {
+		p, err = config.ResolveTargetReference(p, targetRef, targetHash)
+		if err != nil {
+			return p, err
+		}
 	}
 	if p.Name == r.Active && !slices.Equal(p.Zones, r.Zones) {
 		return p, fmt.Errorf("active Monitor must retain the Controller's fixed zones")

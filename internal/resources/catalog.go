@@ -21,11 +21,12 @@ type Compiled struct {
 	Profile  *diagnostics.Profile
 	Rule     *alerting.Rule
 	Endpoint *webhook.Endpoint
+	Target   *TargetSpec
 }
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint"
+	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -57,6 +58,7 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	registry := base
 	registry.Diagnostic = nil
+	registry.Targets = map[string]TargetSpec{}
 	registry.Webhooks = map[string]webhook.Endpoint{}
 	registry.Profiles = map[string]diagnostics.Profile{}
 	compiled := map[string]Compiled{}
@@ -78,6 +80,18 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 			registry.Profiles[m.Metadata.Name] = *result.Profile
 			compiled[key] = result
 		}
+	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "Target" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.Targets[m.Metadata.Name] = *result.Target
+		compiled[key] = result
 	}
 	activeEndpoints := 0
 	for _, key := range keys {
@@ -134,6 +148,13 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	if err := validateMetadata(m); err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "Target" {
+		target, err := compileTarget(m)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: target.Hash(), Target: &target}, nil
 	}
 	if m.Kind == "Monitor" {
 		p, err := r.Compile(m)

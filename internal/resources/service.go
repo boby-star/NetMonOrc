@@ -30,6 +30,10 @@ func (s *Service) Admit() bool {
 }
 func (s *Service) Release() { <-s.slots }
 func (s *Service) Status(v View, activeRevision string) View {
+	if v.Manifest.Kind == "Target" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "target_catalogued"}}}
+		return v
+	}
 	if v.Manifest.Kind == "DiagnosticProfile" {
 		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "profile_catalogued"}}}
 		return v

@@ -19,6 +19,8 @@ Admin-панель підтримує [керування користувача
 через apply зі збереженням регулярного моніторингу.
 [Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
 React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
+[Спільні Target і targetRef](docs/deployment/targets.md): декларативні цілі,
+залежні ревізії Monitor та підтвердження нової конфігурації агентами.
 [Налаштування WebhookEndpoint](docs/deployment/webhook-resources.md) у REST/CLI/React:
 збережена конфігурація, один активний канал і застосування з перевіркою credentials.
 [Керування AlertRule](docs/deployment/alert-rules.md): REST/CLI/React, mixed apply

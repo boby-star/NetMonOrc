@@ -152,6 +152,7 @@ export function Configuration({
             setError("");
             setName(e.target.value === "Monitor" ? monitor : "");
           }}>
+            <option value="Target">Target</option>
             <option value="Monitor">Monitor</option>
             <option value="DiagnosticProfile">DiagnosticProfile</option>
             <option value="AlertRule">AlertRule</option>

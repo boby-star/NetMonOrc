@@ -24,6 +24,15 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || len(p.Checks) == 0 || len(p.Checks) > 100 {
 		return fmt.Errorf("invalid plan revision or size")
 	}
+	if (p.TargetRef == "") != (p.TargetHash == "") {
+		return fmt.Errorf("incomplete Target binding")
+	}
+	if p.TargetRef != "" {
+		hash, err := hex.DecodeString(p.TargetHash)
+		if !namePattern.MatchString(p.TargetRef) || err != nil || len(hash) != 32 {
+			return fmt.Errorf("invalid Target binding")
+		}
+	}
 	if d := p.Diagnostics; d != nil {
 		if d.ComparisonStatic && !d.Enabled {
 			return fmt.Errorf("static comparison requires enabled diagnostics")

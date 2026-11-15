@@ -186,7 +186,7 @@ func testResourceUseCases(t *testing.T, ctx context.Context, s *Store, server *h
 	if code, _, _ := request("PUT", "/api/v1/resources/Monitor/standby", m, specTag, session.CSRFToken); code != 412 {
 		t.Fatal("old identity ETag reused", code)
 	}
-	if code, _, _ := request("GET", "/api/v1/resources/Target", nil, "", ""); code != 422 {
+	if code, _, _ := request("GET", "/api/v1/resources/ResourceGroup", nil, "", ""); code != 422 {
 		t.Fatal("unsupported kind advertised", code)
 	}
 	// A fresh persisted result is still ineligible if it belongs to a former desired revision.

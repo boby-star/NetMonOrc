@@ -122,3 +122,24 @@ func DiagnosticProfileHash(profile diagnostics.Profile) (string, error) {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
 }
+
+// ResolveTargetReference makes changes to the normalized reusable target part
+// of the effective revision, without merging its labels or zone into Monitor.
+func ResolveTargetReference(p monitor.Plan, ref, hash string) (monitor.Plan, error) {
+	if !namePattern.MatchString(ref) || len(hash) != 64 {
+		return p, fmt.Errorf("invalid resolved Target identity")
+	}
+	p.TargetRef = ref
+	p.TargetHash = hash
+	p.Revision = ""
+	data, err := json.Marshal(p)
+	if err != nil {
+		return p, err
+	}
+	if len(data) > (1<<20)-4096 {
+		return p, fmt.Errorf("resolved plan too large")
+	}
+	sum := sha256.Sum256(data)
+	p.Revision = hex.EncodeToString(sum[:])
+	return p, nil
+}

@@ -1,3 +1,15 @@
+# Спільні цілі та наскрізні залежні ревізії: R21
+
+Target CRUD/history/status, Monitor.targetRef, mixed apply, CLI і React
+підключено. Нормалізований Target hash входить в IR/effective revision;
+Target-only зміни перераховують залежні Monitor без зміни їх manifest version.
+Apply очікує залежні Agent ACK; стара оцінка fenced. Passive logical Target
+не створює probes і не оголошується healthy.
+Документація: [targets.md](docs/deployment/targets.md).
+Відкриті: CheckProfile/policies, multi-Monitor placement/replicas,
+groups/dependencies, enrollment, UID lifecycle і фінальна звірка/експерименти.
+Повний v1alpha1 не завершений.
+
 # Збережена конфігурація webhook: R20
 
 WebhookEndpoint CRUD/history/status, validate/plan/mixed apply, CLI та React
