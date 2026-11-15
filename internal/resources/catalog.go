@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -17,10 +18,13 @@ type Compiled struct {
 	Revision string
 	Monitor  *monitor.Plan
 	Profile  *diagnostics.Profile
+	Rule     *alerting.Rule
 }
 
-func Key(m Manifest) string      { return m.Kind + "/" + m.Metadata.Name }
-func Supported(kind string) bool { return kind == "Monitor" || kind == "DiagnosticProfile" }
+func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
+func Supported(kind string) bool {
+	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule"
+}
 
 // ResolveCatalog validates the proposed complete desired graph, independently
 // of document order. It performs no I/O and does not mutate the supplied registry.
@@ -82,6 +86,23 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 			compiled[key] = result
 		}
 	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "AlertRule" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		if _, found := compiled["Monitor/"+result.Rule.Monitor]; !found {
+			return base, nil, fmt.Errorf("%s: monitorRef is unavailable", key)
+		}
+		if registry.AlertChannel == "" || result.Rule.Channel != registry.AlertChannel {
+			return base, nil, fmt.Errorf("%s: channelRef is not the configured webhook", key)
+		}
+		compiled[key] = result
+	}
 	return registry, compiled, nil
 }
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
@@ -98,6 +119,17 @@ func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	data, err := executionJSON(m)
 	if err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "AlertRule" {
+		rule, err := config.CompileAlert(data)
+		if err != nil {
+			return Compiled{}, err
+		}
+		evaluator, err := alerting.New(rule)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: evaluator.Hash, Rule: &rule}, nil
 	}
 	profile, err := config.CompileDiagnostics(data)
 	if err != nil {

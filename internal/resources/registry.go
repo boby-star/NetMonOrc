@@ -19,6 +19,7 @@ import (
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
 	Active           string
+	AlertChannel     string
 	Zones            []string
 	Diagnostic       *diagnostics.Profile
 	Profiles         map[string]diagnostics.Profile

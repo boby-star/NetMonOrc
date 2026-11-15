@@ -1,3 +1,14 @@
+# Керування правилами алертів і runtime integration: R19
+
+AlertRule CRUD/history/status, validate/plan/mixed apply, CLI та React editor
+підключені до PostgreSQL. Runtime виконує кілька правил вибраного Monitor;
+CEL кешується за UID/hash. Старі rule/Monitor revisions fenced у транзакції
+FSM/outbox. Apply готовий після оцінювання, не лише commit desired.
+Документація: [alert-rules.md](docs/deployment/alert-rules.md).
+Залишаються WebhookEndpoint CRUD, UID lifecycle, reusable Target/CheckProfile/
+policies, multi-Monitor placement/replicas, groups/dependencies, enrollment
+та фінальна acceptance/security/performance звірка. Повний v1alpha1 не завершений.
+
 # Наскрізний перегляд доказів: R18
 
 GET observations/{id}, CLI get observations ID та React «Відкрити доказ»

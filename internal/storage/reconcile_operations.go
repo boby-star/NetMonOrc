@@ -89,6 +89,18 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 				target.Ready = true
 				target.Reason = "profile_catalogued"
 			}
+			if target.Kind == "AlertRule" {
+				target.Reason = "awaiting_alert_evaluation"
+				var applied bool
+				if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE logical_key=$1 AND payload->>'ruleHash'=$2 AND (payload->>'lastEvaluatedAt')::timestamptz >= $3 AND payload->>'revision'=$4)`, target.Name+"/"+active+"/monitor", target.EffectiveRevision, op.StartedAt, revision).Scan(&applied); e != nil {
+					return e
+				}
+				target.Ready = applied
+				if applied {
+					target.Reason = "alert_rule_evaluated"
+					loaded = true
+				}
+			}
 			if target.Kind == "Monitor" && target.Name == active {
 				target.Reason = "awaiting_controller_revision"
 				if target.EffectiveRevision == revision {

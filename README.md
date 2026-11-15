@@ -19,6 +19,8 @@ Admin-панель підтримує [керування користувача
 через apply зі збереженням регулярного моніторингу.
 [Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
 React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
+[Керування AlertRule](docs/deployment/alert-rules.md): REST/CLI/React, mixed apply
+і виконання кількох збережених правил без перепідключення агентів.
 [Деталі спостереження](docs/deployment/observation-detail.md) доступні за ID
 через REST/CLI та з історії перевірок у React, включно зі старими ревізіями.
 [Оглядова панель](docs/deployment/dashboard.md) показує свіжі стани ресурсів,

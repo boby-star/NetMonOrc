@@ -205,6 +205,24 @@ func (s *Store) DeleteResourceKind(ctx context.Context, actor auth.AdminCredenti
 	if v.ResourceVersion != expected {
 		return resources.ErrVersion
 	}
+	if kind == "Monitor" {
+		var refs bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='AlertRule' AND manifest->'spec'->>'monitorRef'=$1)`, name).Scan(&refs); err != nil {
+			return err
+		}
+		if refs {
+			return resources.ErrConflict
+		}
+	}
+	if kind == "AlertRule" {
+		var active bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE logical_key=$1 AND payload->>'status' IN ('pending','firing'))`, name+"/"+stringMonitorRef(v.Manifest)+"/monitor").Scan(&active); err != nil {
+			return err
+		}
+		if active {
+			return resources.ErrConflict
+		}
+	}
 	if kind == "DiagnosticProfile" {
 		var refs bool
 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='Monitor' AND manifest->'spec'->'diagnostics'->>'profileRef'=$1 AND COALESCE((manifest->'spec'->'diagnostics'->>'enabled')::boolean,false))`, name).Scan(&refs); err != nil {
@@ -318,4 +336,12 @@ func saveResourceTx(ctx context.Context, tx pgx.Tx, m resources.Manifest, revisi
 		return v, err
 	}
 	return v, nil
+}
+
+func stringMonitorRef(m resources.Manifest) string {
+	var spec struct {
+		Monitor string `json:"monitorRef"`
+	}
+	_ = json.Unmarshal(m.Spec, &spec)
+	return spec.Monitor
 }

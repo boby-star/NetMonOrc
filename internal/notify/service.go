@@ -3,8 +3,12 @@ package notify
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"github.com/boby-star/NetMonOrc/internal/alerting"
+	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/boby-star/NetMonOrc/internal/storage"
 	"github.com/boby-star/NetMonOrc/internal/webhook"
 	"time"
@@ -12,13 +16,56 @@ import (
 
 type Service struct {
 	Store    *storage.Store
+	Managed  bool
+	cache    map[string]*alerting.Evaluator
 	Rule     *alerting.Evaluator
 	Endpoint webhook.Endpoint
 	Sender   *webhook.Sender
 }
 
 func (s *Service) Evaluate(ctx context.Context, a monitor.Assessment) (alerting.State, error) {
-	return s.Store.EvaluateAlert(ctx, s.Rule, s.Endpoint, a)
+	if !s.Managed {
+		return s.Store.EvaluateAlert(ctx, s.Rule, s.Endpoint, a)
+	}
+	rows, err := s.Store.AlertRuleResources(ctx, a.Monitor)
+	if err != nil {
+		return alerting.State{}, err
+	}
+	next := map[string]*alerting.Evaluator{}
+	var primary alerting.State
+	s.Rule = nil
+	for _, v := range rows {
+		key := v.UID + "/" + v.Revision
+		evaluator := s.cache[key]
+		if evaluator == nil {
+			data, err := jsonManifest(v.Manifest)
+			if err != nil {
+				return primary, err
+			}
+			rule, err := config.CompileAlert(data)
+			if err != nil {
+				return primary, err
+			}
+			evaluator, err = alerting.New(rule)
+			if err != nil {
+				return primary, err
+			}
+		}
+		next[key] = evaluator
+		state, err := s.Store.EvaluateAlertResource(ctx, evaluator, s.Endpoint, a, v)
+		if errors.Is(err, resources.ErrVersion) {
+			continue
+		}
+		if err != nil {
+			return primary, err
+		}
+		if s.Rule == nil {
+			s.Rule = evaluator
+			primary = state
+		}
+	}
+	s.cache = next
+	return primary, nil
 }
 func (s *Service) Run(ctx context.Context) error {
 	tick := time.NewTicker(time.Second)
@@ -51,4 +98,9 @@ func (s *Service) Run(ctx context.Context) error {
 			return e
 		}
 	}
+}
+
+func jsonManifest(m resources.Manifest) ([]byte, error) {
+	m.Metadata = resources.Metadata{Name: m.Metadata.Name}
+	return json.Marshal(m)
 }

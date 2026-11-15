@@ -20,6 +20,8 @@ const states = {
 const reasons: Record<string, string> = {
   profile_catalogued: "Профіль збережено в каталозі",
   awaiting_reconciliation: "Очікує узгодження",
+  alert_rule_evaluated: "Правило оброблено Controller",
+  awaiting_alert_evaluation: "Очікується оцінювання правила",
   controller_not_selected: "Monitor не вибрано Controller",
   awaiting_controller_revision: "Очікує нову ревізію Controller",
   awaiting_agent_acknowledgements: "Очікує підтвердження агентів",
@@ -165,7 +167,7 @@ export function BatchApply({
       {canWrite && (
         <>
           <p>
-            До 20 ресурсів Monitor і DiagnosticProfile в одному JSON-пакеті. Для наявного ресурсу задайте
+            До 20 ресурсів Monitor, DiagnosticProfile і AlertRule в одному JSON-пакеті. Для наявного ресурсу задайте
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>

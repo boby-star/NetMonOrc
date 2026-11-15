@@ -113,37 +113,6 @@ func run() error {
 			}
 			defer store.Close()
 
-			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison}
-			if *profilePath != "" {
-				data, err := os.ReadFile(*profilePath)
-				if err != nil {
-					return err
-				}
-				manifest, err := resources.DecodeYAML(data)
-				if err != nil {
-					return err
-				}
-				result, err := registry.CompileResource(manifest)
-				if err != nil {
-					return err
-				}
-				if _, err = store.SeedResource(ctx, manifest, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
-					return err
-				}
-			}
-			if _, err := store.SeedResource(ctx, bootstrap, "", registry); err != nil {
-				return err
-			}
-			loaded, compiled, err := store.LoadCompiledMonitor(ctx, p.Name, registry)
-			if err != nil {
-				return err
-			}
-			registry = loaded
-			p = *compiled.Monitor
-			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
-				profile = registry.Profiles[p.Diagnostics.ProfileRef]
-			}
-			resourceService := resources.New(store, registry)
 			var alertRule *alerting.Evaluator
 			var endpoint webhook.Endpoint
 			var sender *webhook.Sender
@@ -190,6 +159,54 @@ func run() error {
 					defer sender.Close()
 				}
 			}
+			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name}
+			if *profilePath != "" {
+				data, err := os.ReadFile(*profilePath)
+				if err != nil {
+					return err
+				}
+				manifest, err := resources.DecodeYAML(data)
+				if err != nil {
+					return err
+				}
+				result, err := registry.CompileResource(manifest)
+				if err != nil {
+					return err
+				}
+				if _, err = store.SeedResource(ctx, manifest, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
+					return err
+				}
+			}
+			if _, err := store.SeedResource(ctx, bootstrap, "", registry); err != nil {
+				return err
+			}
+			if *alertPath != "" {
+				data, err := os.ReadFile(*alertPath)
+				if err != nil {
+					return err
+				}
+				m, err := resources.DecodeYAML(data)
+				if err != nil {
+					return err
+				}
+				result, err := registry.CompileResource(m)
+				if err != nil {
+					return err
+				}
+				if _, err = store.SeedResource(ctx, m, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
+					return err
+				}
+			}
+			loaded, compiled, err := store.LoadCompiledMonitor(ctx, p.Name, registry)
+			if err != nil {
+				return err
+			}
+			registry = loaded
+			p = *compiled.Monitor
+			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
+				profile = registry.Profiles[p.Diagnostics.ProfileRef]
+			}
+			resourceService := resources.New(store, registry)
 			assessor, e := monitor.NewAssessor(p)
 			if e != nil {
 				return e
@@ -230,7 +247,7 @@ func run() error {
 			}
 			var notifications *notify.Service
 			if alertRule != nil {
-				notifications = &notify.Service{Store: store, Rule: alertRule, Endpoint: endpoint, Sender: sender}
+				notifications = &notify.Service{Store: store, Managed: true, Endpoint: endpoint, Sender: sender}
 			}
 			var diagnostic *coordinator.Coordinator
 			if p.Diagnostics != nil && p.Diagnostics.Enabled {
@@ -465,7 +482,11 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 			return err
 		}
 		alertState = &state
-		summary, err := store.WebhookSummary(c, notifications.Endpoint, notifications.Rule.Rule.Name, p.Name)
+		primaryRule := ""
+		if notifications.Rule != nil {
+			primaryRule = notifications.Rule.Rule.Name
+		}
+		summary, err := store.WebhookSummary(c, notifications.Endpoint, primaryRule, p.Name)
 		if err != nil {
 			return err
 		}

@@ -5,10 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/boby-star/NetMonOrc/internal/alerting"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/boby-star/NetMonOrc/internal/webhook"
+	"github.com/jackc/pgx/v5"
 	"sort"
 	"time"
 )
@@ -24,6 +27,15 @@ func eventID() (string, error) {
 	return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:], nil
 }
 func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment) (alerting.State, error) {
+	return s.evaluateAlert(ctx, rule, endpoint, a, nil)
+}
+
+// EvaluateAlertResource fences configuration replacement/deletion in the same
+// transaction as FSM changes and notification enqueueing.
+func (s *Store) EvaluateAlertResource(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource resources.View) (alerting.State, error) {
+	return s.evaluateAlert(ctx, rule, endpoint, a, &resource)
+}
+func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource *resources.View) (alerting.State, error) {
 	if rule.Rule.Monitor != a.Monitor || rule.Rule.Channel != endpoint.Name {
 		return alerting.State{}, fmt.Errorf("alert monitor/channel mismatch")
 	}
@@ -32,6 +44,33 @@ func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 		return alerting.State{}, e
 	}
 	defer tx.Rollback(ctx)
+	if resource != nil {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock_shared(781305)`); err != nil {
+			return alerting.State{}, err
+		}
+		var monitorRevision string
+		err := tx.QueryRow(ctx, `SELECT effective_revision FROM nmo_resources WHERE kind='Monitor' AND name=$1 FOR SHARE`, a.Monitor).Scan(&monitorRevision)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return alerting.State{}, resources.ErrVersion
+		}
+		if err != nil {
+			return alerting.State{}, err
+		}
+		if monitorRevision != a.Revision {
+			return alerting.State{}, resources.ErrVersion
+		}
+		var current bool
+		err = tx.QueryRow(ctx, `SELECT uid=$2 AND effective_revision=$3 FROM nmo_resources WHERE kind='AlertRule' AND name=$1 FOR SHARE`, rule.Rule.Name, resource.UID, rule.Hash).Scan(&current)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return alerting.State{}, resources.ErrVersion
+		}
+		if err != nil {
+			return alerting.State{}, err
+		}
+		if !current {
+			return alerting.State{}, resources.ErrVersion
+		}
+	}
 	key := rule.Rule.Name + "/" + a.Monitor + "/monitor"
 	_, e = tx.Exec(ctx, `INSERT INTO nmo_alerts(logical_key,payload) VALUES($1,'{}') ON CONFLICT DO NOTHING`, key)
 	if e != nil {

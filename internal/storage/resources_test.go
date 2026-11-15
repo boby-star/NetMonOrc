@@ -25,7 +25,7 @@ func configureResourceTest(t *testing.T, ctx context.Context, s *Store, h *httpa
 	if e != nil {
 		t.Fatal(e)
 	}
-	registry := resources.Registry{Active: "service", Zones: []string{"office"}}
+	registry := resources.Registry{Active: "service", Zones: []string{"office"}, AlertChannel: "default-webhook"}
 	p, e := registry.Compile(m)
 	if e != nil {
 		t.Fatal(e)

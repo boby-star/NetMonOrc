@@ -74,12 +74,14 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires Monitor|DiagnosticProfile|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires Monitor|DiagnosticProfile|AlertRule|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
 		case "Monitor":
 			route = "/api/v1/resources/Monitor"
+		case "AlertRule":
+			route = "/api/v1/resources/AlertRule"
 		case "DiagnosticProfile":
 			route = "/api/v1/resources/DiagnosticProfile"
 		case "operations":
@@ -103,7 +105,7 @@ func remoteCommand(args []string) error {
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
+			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|AlertRule|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))
