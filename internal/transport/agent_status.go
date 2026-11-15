@@ -14,6 +14,8 @@ func (s *Server) AgentStatuses(now time.Time) []agentstatus.View {
 	out := make([]agentstatus.View, 0, len(s.Slots))
 	for _, slot := range s.Slots {
 		v := agentstatus.View{AgentID: slot.Agent, Name: slot.Agent, OnlineState: "offline", NetworkZone: slot.Zone, Labels: map[string]string{}}
+		regular := s.Plan.RegularAllowed(slot.Agent)
+		v.RegularMonitoringAssigned = &regular
 		if session, ok := s.active[slot.Agent]; ok {
 			v.OnlineState = "degraded"
 			if session.applied && !session.lastHeartbeat.IsZero() && now.Sub(session.lastHeartbeat) <= 15*time.Second && now.Before(session.certExpiresAt) {

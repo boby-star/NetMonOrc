@@ -37,7 +37,7 @@ def main():
             env = os.environ.copy()
             env['NETMONORC_TEST_DSN_FILE'] = str(dsn)
             subprocess.run(['go', 'test', './internal/storage', '-run',
-                            '^TestPostgresBrowserSessionsAndCSRF$', '-count=1', '-v', '-timeout=60s'],
+                            '^TestPostgres(BrowserSessionsAndCSRF|DurabilityAndFencing)$', '-count=1', '-v', '-timeout=60s'],
                            cwd=ROOT, env=env, check=True, timeout=90)
         print('PASS: critical HTTPS identity, users, PAT, resource CRUD, diagnostic/alert history and revision isolation', flush=True)
     finally:

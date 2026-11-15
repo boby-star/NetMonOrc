@@ -87,6 +87,7 @@ export function Agents() {
                 <tr>
                   <th>Агент / зона</th>
                   <th>Стан / heartbeat</th>
+                  <th>Регулярне призначення</th>
                   <th>Активні probes / ліміт</th>
                   <th>Ревізія / сертифікат</th>
                 </tr>
@@ -114,6 +115,7 @@ export function Agents() {
                           : "Немає поточного heartbeat"}
                       </small>
                     </td>
+                    <td>{a.regularMonitoringAssigned === undefined ? "Невідомо" : a.regularMonitoringAssigned ? "Призначено" : "Не призначено"}</td>
                     <td>
                       {a.activeProbes ?? "—"} / {a.maxConcurrentProbes ?? "—"}
                     </td>

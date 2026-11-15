@@ -30,6 +30,10 @@ func (s *Service) Admit() bool {
 }
 func (s *Service) Release() { <-s.slots }
 func (s *Service) Status(v View, activeRevision string) View {
+	if v.Manifest.Kind == "PlacementPolicy" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "placement_policy_catalogued"}}}
+		return v
+	}
 	if v.Manifest.Kind == "AssessmentPolicy" {
 		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "assessment_policy_catalogued"}}}
 		return v
@@ -126,11 +130,22 @@ type Diff struct {
 	ResourceVersion   *string `json:"resourceVersion"`
 	EffectiveRevision string  `json:"effectiveRevision"`
 }
+type PlannedPlacementSource struct {
+	AgentID     string `json:"agentId"`
+	NetworkZone string `json:"networkZone"`
+}
+type PlacementPreview struct {
+	MonitorID      string                   `json:"monitorId"`
+	Strategy       string                   `json:"strategy"`
+	Replicas       int                      `json:"replicas"`
+	Pending        bool                     `json:"pending"`
+	SelectedAgents []PlannedPlacementSource `json:"selectedAgents"`
+}
 type Plan struct {
-	PlanID     string   `json:"planId"`
-	Diffs      []Diff   `json:"diffs"`
-	Placements []any    `json:"placements"`
-	Warnings   []Detail `json:"warnings"`
+	PlanID     string             `json:"planId"`
+	Diffs      []Diff             `json:"diffs"`
+	Placements []PlacementPreview `json:"placements"`
+	Warnings   []Detail           `json:"warnings"`
 }
 
 func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
@@ -145,7 +160,7 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	plan := Plan{Diffs: []Diff{}, Placements: []any{}, Warnings: v.Warnings}
+	plan := Plan{Diffs: []Diff{}, Placements: []PlacementPreview{}, Warnings: v.Warnings}
 	for _, m := range batch.Manifests {
 		current, found, err := s.Repo.ResourceKind(ctx, m.Kind, m.Metadata.Name)
 		if err != nil {
@@ -195,8 +210,23 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 			plan.Diffs = append(plan.Diffs, Diff{Kind: "Monitor", Name: entry.Monitor.Name, Action: "reconcile", ResourceVersion: &version, EffectiveRevision: entry.Revision})
 		}
 	}
+	for _, diff := range plan.Diffs {
+		if diff.Kind != "Monitor" {
+			continue
+		}
+		entry := compiled["Monitor/"+diff.Name]
+		if entry.Monitor == nil || entry.Monitor.FixedPlacement == nil {
+			continue
+		}
+		placement := entry.Monitor.FixedPlacement
+		preview := PlacementPreview{MonitorID: diff.Name, Strategy: "fixed", Replicas: placement.Replicas, Pending: len(placement.Selected) == 0, SelectedAgents: []PlannedPlacementSource{}}
+		for _, slot := range placement.Selected {
+			preview.SelectedAgents = append(preview.SelectedAgents, PlannedPlacementSource{AgentID: slot.Agent, NetworkZone: slot.Zone})
+		}
+		plan.Placements = append(plan.Placements, preview)
+	}
 	// Actual placement is the fixed roster; a dry-run does not invent live capacity.
-	plan.Warnings = append(plan.Warnings, Detail{Code: "FIXED_ROSTER", Message: "Placement remains the configured fixed Agent roster; unselected Monitors await Controller selection"})
+	plan.Warnings = append(plan.Warnings, Detail{Code: "FIXED_ROSTER", Message: "Placement candidates come from the trusted fixed Controller roster; dry-run does not claim online/capacity proof; unselected Monitors await Controller selection"})
 	b, _ := json.Marshal(plan)
 	digest := sha256.Sum256(b)
 	plan.PlanID = hex.EncodeToString(digest[:])

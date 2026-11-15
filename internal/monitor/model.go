@@ -37,6 +37,7 @@ type TargetContext struct {
 }
 
 type Plan struct {
+	FixedPlacement *FixedPlacement       `json:",omitempty"`
 	TargetContext  *TargetContext        `json:",omitempty"`
 	AssessmentRef  string                `json:",omitempty"`
 	AssessmentHash string                `json:",omitempty"`

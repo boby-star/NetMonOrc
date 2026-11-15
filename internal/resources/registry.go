@@ -20,6 +20,8 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
+	Placements       map[string]PlacementPolicy
+	Roster           []monitor.Slot
 	TargetLabels     map[string]map[string]string
 	Assessments      map[string]AssessmentPolicy
 	CheckProfiles    map[string]CheckProfile
@@ -78,7 +80,18 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err := validateMetadata(m); err != nil {
 		return monitor.Plan{}, err
 	}
-	assessed, assessmentRef, assessmentHash, err := r.resolveAssessment(m)
+	placed, placement, err := r.resolvePlacement(m)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
+	assessmentRegistry := r
+	if placement != nil {
+		assessmentRegistry.Zones = nil
+		for _, slot := range placement.Selected {
+			assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
+		}
+	}
+	assessed, assessmentRef, assessmentHash, err := assessmentRegistry.resolveAssessment(placed)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
@@ -121,7 +134,20 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 			return p, err
 		}
 	}
-	if p.Name == r.Active && !slices.Equal(p.Zones, r.Zones) {
+	if placement != nil {
+		p, err = config.ResolveFixedPlacement(p, placement)
+		if err != nil {
+			return p, err
+		}
+	}
+	if p.Name == r.Active && placement != nil {
+		for _, zone := range p.Zones {
+			if !slices.Contains(r.Zones, zone) {
+				return p, fmt.Errorf("assessment zone is outside Controller roster")
+			}
+		}
+	}
+	if p.Name == r.Active && placement == nil && !slices.Equal(p.Zones, r.Zones) {
 		return p, fmt.Errorf("active Monitor must retain the Controller's fixed zones")
 	}
 	if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {

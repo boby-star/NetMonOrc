@@ -15,7 +15,7 @@ type catalogReader interface {
 }
 
 func readCatalog(ctx context.Context, reader catalogReader) ([]resources.Manifest, error) {
-	rows, err := reader.Query(ctx, `SELECT manifest FROM nmo_resources WHERE kind IN ('Monitor','DiagnosticProfile','AlertRule','WebhookEndpoint','Target','CheckProfile','AssessmentPolicy') ORDER BY kind,name`)
+	rows, err := reader.Query(ctx, `SELECT manifest FROM nmo_resources WHERE kind IN ('Monitor','DiagnosticProfile','AlertRule','WebhookEndpoint','Target','CheckProfile','AssessmentPolicy','PlacementPolicy') ORDER BY kind,name`)
 	if err != nil {
 		return nil, err
 	}

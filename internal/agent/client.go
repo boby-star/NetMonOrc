@@ -117,7 +117,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	if e = stream.Send(f); e != nil {
 		return e
 	}
@@ -217,7 +217,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 				if !accepted {
 					return fmt.Errorf("assignment before session acceptance")
 				}
-				if e = apply(a, st, dir); e != nil {
+				if e = apply(a, st, dir, id); e != nil {
 					return e
 				}
 				f := agentFrame(id)
@@ -305,7 +305,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		}
 	}
 }
-func apply(a *pb.ConfigAssignment, st *state, dir string) error {
+func apply(a *pb.ConfigAssignment, st *state, dir string, agent ...string) error {
 	boot, err := bootTime()
 	if err != nil {
 		return err
@@ -328,7 +328,7 @@ func apply(a *pb.ConfigAssignment, st *state, dir string) error {
 	if p.Revision != a.Revision {
 		return fmt.Errorf("assignment revision mismatch")
 	}
-	if e := config.VerifyPlan(p, a.Zone); e != nil {
+	if e := config.VerifyPlan(p, a.Zone, agent...); e != nil {
 		return e
 	}
 	b, e := json.Marshal(a)
@@ -372,6 +372,9 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 				exporter.Close()
 				exporter = nil
 			}
+		}
+		if !a.plan.RegularAllowed(id) {
+			continue
 		}
 		for _, c := range a.plan.Checks {
 			if ctx.Err() != nil {

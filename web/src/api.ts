@@ -404,6 +404,7 @@ export interface ConfigPlan {
     effectiveRevision: string;
   }[];
   warnings: { code: string; message: string }[];
+  placements?: { monitorId: string; strategy: "fixed"; replicas: number; pending: boolean; selectedAgents: {agentId: string; networkZone: string}[] }[];
 }
 function resourceError(status: number): Error {
   if (status === 412)
@@ -631,6 +632,7 @@ export async function operations(
 }
 
 export interface AgentView {
+  regularMonitoringAssigned?: boolean;
   agentId: string;
   name: string;
   onlineState: "online" | "offline" | "degraded" | "revoked";

@@ -1,3 +1,18 @@
+# Фіксований PlacementPolicy та regular assignments: R24
+
+PlacementPolicy CRUD/history/status, placementRef/inline, mixed apply, CLI та
+React підключені. Реалізовано strategy=fixed, deterministic selection із trusted
+roster, zone filter, distinctBy=none/zone, replicas у різних зонах та pending
+без partial probes. Hash/selection змінюють залежні effective revisions.
+Необраний Agent ACK/heartbeat лишається online і може виконувати авторизовану
+діагностику. Regular replay захищено historical assignment permissions.
+Документація: [placement-policies.md](docs/deployment/placement-policies.md).
+Критичні Go/PG/HTTPS перевірки пройшли; live Compose R24 ще виконується.
+Відкриті: dynamic placement, same-zone replicas/full assessment modes,
+multi-Monitor execution, groups/dependencies, enrollment/cert lifecycle,
+UID lifecycle та фінальна acceptance/performance звірка.
+Повний v1alpha1 не завершений.
+
 # AssessmentPolicy refs та фактичний Target CEL context: R23
 
 AssessmentPolicy CRUD/history/status, assessmentRef, mixed apply, CLI та React

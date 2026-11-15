@@ -100,6 +100,25 @@ func run() error {
 			if e != nil {
 				return e
 			}
+			var rosterSlots []monitor.Slot
+			registeredIDs, registeredZones := map[string]bool{}, map[string]bool{}
+			for _, entry := range strings.Split(*roster, ",") {
+				id, zone, ok := strings.Cut(entry, "=")
+				if !ok || !secure.AgentID.MatchString(id) || zone == "" || registeredIDs[id] || registeredZones[zone] {
+					return fmt.Errorf("fixed roster requires one unique Agent per zone")
+				}
+				registeredIDs[id] = true
+				registeredZones[zone] = true
+				rosterSlots = append(rosterSlots, monitor.Slot{Agent: id, Zone: zone})
+			}
+			if len(rosterSlots) != len(p.Zones) {
+				return fmt.Errorf("one fixed Agent is required per bootstrap zone")
+			}
+			for _, zone := range p.Zones {
+				if !registeredZones[zone] {
+					return fmt.Errorf("bootstrap zone is absent from roster")
+				}
+			}
 			var profile diagnostics.Profile
 			b, e = os.ReadFile(*database)
 			if e != nil {
@@ -163,7 +182,7 @@ func run() error {
 				})
 			}
 
-			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
+			registry := resources.Registry{Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
 			if *endpointPath != "" {
 				data, err := os.ReadFile(*endpointPath)
 				if err != nil {
@@ -259,17 +278,8 @@ func run() error {
 			if e != nil {
 				return e
 			}
-			var slots []monitor.Slot
-			for _, entry := range strings.Split(*roster, ",") {
-				id, z, ok := strings.Cut(entry, "=")
-				if !ok || !secure.AgentID.MatchString(id) {
-					return fmt.Errorf("invalid fixed Agent roster")
-				}
-				slots = append(slots, monitor.Slot{Agent: id, Zone: z})
-			}
-			if len(slots) != len(p.Zones) {
-				return fmt.Errorf("one fixed Agent is required per configured zone")
-			}
+			assignedSlots := p.RegularSlots(rosterSlots)
+			slots := p.AssessmentSlots(rosterSlots)
 			if _, e = assessor.Evaluate(slots, nil, time.Now()); e != nil {
 				return e
 			}
@@ -283,7 +293,7 @@ func run() error {
 			}
 			defer lis.Close()
 			server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
-			agentServer := &transport.Server{Plan: p, Slots: slots, Store: store}
+			agentServer := &transport.Server{Plan: p, Slots: rosterSlots, Store: store}
 			pb.RegisterAgentServiceServer(server, agentServer)
 			{
 				c, done := context.WithTimeout(ctx, 5*time.Second)
@@ -432,7 +442,7 @@ func run() error {
 						return
 					}
 					opctx, opdone := context.WithTimeout(ctx, 3*time.Second)
-					opErr := store.ReconcileOperations(opctx, p.Name, p.Revision, slots, agentServer.AppliedAssignments(time.Now()), webhookProofs)
+					opErr := store.ReconcileOperations(opctx, p.Name, p.Revision, assignedSlots, agentServer.AppliedAssignments(time.Now()), webhookProofs)
 					opdone()
 					if opErr != nil && ctx.Err() == nil {
 						log.Print("Operation reconciliation deferred; regular assessment continues")

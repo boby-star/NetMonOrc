@@ -24,6 +24,8 @@ const reasons: Record<string, string> = {
   awaiting_webhook_configuration: "Очікується завантаження webhook",
   alert_rule_evaluated: "Правило оброблено Controller",
   awaiting_alert_evaluation: "Очікується оцінювання правила",
+  insufficient_placement_agents: "Недостатньо допустимих агентів для повного призначення",
+  placement_policy_catalogued: "Політику розміщення перевірено та збережено",
   assessment_policy_catalogued: "Політику оцінювання перевірено та збережено",
   check_profile_catalogued: "CheckProfile перевірено та збережено",
   target_catalogued: "Target перевірено та збережено",
@@ -172,7 +174,7 @@ export function BatchApply({
       {canWrite && (
         <>
           <p>
-            До 20 ресурсів AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
+            До 20 ресурсів PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>

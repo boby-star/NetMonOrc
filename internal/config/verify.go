@@ -13,7 +13,7 @@ import (
 
 // VerifyPlan checks both the canonical revision and Agent-side resource bounds.
 // A valid checksum alone is not permission to execute an arbitrary plan.
-func VerifyPlan(p monitor.Plan, zone string) error {
+func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 	revision := p.Revision
 	p.Revision = ""
 	b, e := json.Marshal(p)
@@ -80,7 +80,16 @@ func VerifyPlan(p monitor.Plan, zone string) error {
 		}
 		seenZones[z] = true
 	}
-	if !seenZones[zone] {
+	if p.FixedPlacement != nil {
+		id := ""
+		if len(agent) == 1 {
+			id = agent[0]
+		}
+		if err := verifyFixedPlacement(p.FixedPlacement, id, zone); err != nil {
+			return err
+		}
+	}
+	if !seenZones[zone] && p.FixedPlacement == nil {
 		return fmt.Errorf("assigned zone is not in plan")
 	}
 	if p.MaxAge <= 0 || p.MaxSkew <= 0 || p.MinCoverage < 0 || p.MinCoverage > 1 || p.DegradedMin < 0 || p.HealthyMin > 1 || p.DegradedMin >= p.HealthyMin {

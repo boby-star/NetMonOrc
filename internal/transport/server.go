@@ -110,6 +110,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	for _, c := range hello.GetHello().Capabilities {
 		capabilities[c] = true
 	}
+	if s.Plan.FixedPlacement != nil && !capabilities["placement:fixed"] {
+		return status.Error(codes.FailedPrecondition, "fixed placement capability required")
+	}
 	for _, c := range s.Plan.Checks {
 		if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
 			return status.Error(codes.FailedPrecondition, "runner capability unavailable")
@@ -162,7 +165,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	assignmentID := fmt.Sprintf("%s-%d", s.Plan.Revision, generation)
 	sendAssignment := func() error {
 		c, done := context.WithTimeout(ctx, 5*time.Second)
-		assignmentErr := s.Store.Assign(c, id, generation, s.Plan.Revision, zone, s.Plan.Name)
+		assignmentErr := s.Store.Assign(c, id, generation, s.Plan.Revision, zone, s.Plan.Name, s.Plan.RegularAllowed(id))
 		done()
 		if assignmentErr != nil {
 			return status.Error(codes.Aborted, "session superseded or storage unavailable")
@@ -290,6 +293,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				o, e := Decode(w, id, w.GetZone(), w.GetMonitor())
 				if e != nil || seen[w.GetId()] {
 					return status.Error(codes.InvalidArgument, "invalid or conflicting observation")
+				}
+				if o.Revision == s.Plan.Revision && o.DiagnosticTaskID == "" && !s.Plan.RegularAllowed(id) {
+					return status.Error(codes.PermissionDenied, "Agent is not assigned regular probes")
 				}
 				seen[o.ID] = true
 				observations = append(observations, o)

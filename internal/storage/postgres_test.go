@@ -75,6 +75,29 @@ func TestPostgresDurabilityAndFencing(t *testing.T) {
 	if _, e = s.CommitBatch(ctx, id, g, "revision", []monitor.Observation{changed}); e == nil {
 		t.Fatal("conflicting ID silently accepted")
 	}
+	// An idle assignment remains ineligible for regular replay even after the
+	// Agent applies a later revision. Diagnostic submissions need their ledger.
+	if e = s.Assign(ctx, id, g, "old-idle", "office", "storage-test", false); e != nil {
+		t.Fatal(e)
+	}
+	replay := o
+	replay.ID += "-idle"
+	replay.Revision = "old-idle"
+	if _, e = s.CommitBatch(ctx, id, g, "revision", []monitor.Observation{replay}); e == nil {
+		t.Fatal("idle historical revision authorized regular replay")
+	}
+	replay.DiagnosticTaskID = "not-an-assigned-task"
+	if _, e = s.CommitBatch(ctx, id, g, "revision", []monitor.Observation{replay}); e == nil {
+		t.Fatal("idle Agent bypassed diagnostic task authorization")
+	}
+	if e = s.Assign(ctx, id, g, "old-regular", "office", "storage-test", true); e != nil {
+		t.Fatal(e)
+	}
+	replay.ID = o.ID + "-regular"
+	replay.Revision, replay.DiagnosticTaskID = "old-regular", ""
+	if _, e = s.CommitBatch(ctx, id, g, "revision", []monitor.Observation{replay}); e != nil {
+		t.Fatalf("legitimate historical regular replay rejected: %v", e)
+	}
 	if _, e = s.BeginSession(ctx, id); e != nil {
 		t.Fatal(e)
 	}

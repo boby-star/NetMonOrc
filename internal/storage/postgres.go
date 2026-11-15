@@ -63,6 +63,7 @@ CREATE INDEX IF NOT EXISTS nmo_browser_session_expiry ON nmo_browser_sessions(ex
 CREATE TABLE IF NOT EXISTS nmo_identity_audit(id bigserial PRIMARY KEY,username text NOT NULL,action text NOT NULL,succeeded boolean NOT NULL,occurred_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS nmo_sessions(agent_id text PRIMARY KEY,generation bigint NOT NULL,applied_revision text NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS nmo_assignments(agent_id text NOT NULL,revision text NOT NULL,zone text NOT NULL,monitor text NOT NULL,PRIMARY KEY(agent_id,revision,zone,monitor));
+ALTER TABLE nmo_assignments ADD COLUMN IF NOT EXISTS regular_enabled boolean NOT NULL DEFAULT true;
 CREATE TABLE IF NOT EXISTS nmo_observations(id text PRIMARY KEY,agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,check_id text NOT NULL,finished_at timestamptz NOT NULL,received_at timestamptz NOT NULL DEFAULT now(),payload jsonb NOT NULL,payload_hash bytea NOT NULL);
 CREATE INDEX IF NOT EXISTS nmo_observations_history ON nmo_observations(monitor,finished_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS nmo_observations_live ON nmo_observations(monitor,revision,agent_id,check_id,finished_at DESC,id DESC);
@@ -118,7 +119,7 @@ func (s *Store) BeginSession(ctx context.Context, agent string) (int64, error) {
 
 // Historical assignment bindings permit old-revision replay without trusting
 // a zone newly claimed by an Agent after reconnect or relocation.
-func (s *Store) Assign(ctx context.Context, agent string, generation int64, revision, zone, monitorName string) error {
+func (s *Store) Assign(ctx context.Context, agent string, generation int64, revision, zone, monitorName string, regular ...bool) error {
 	tx, e := s.pool.Begin(ctx)
 	if e != nil {
 		return e
@@ -131,7 +132,11 @@ func (s *Store) Assign(ctx context.Context, agent string, generation int64, revi
 	if n != generation {
 		return ErrFenced
 	}
-	if _, e = tx.Exec(ctx, `INSERT INTO nmo_assignments(agent_id,revision,zone,monitor) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`, agent, revision, zone, monitorName); e != nil {
+	enabled := true
+	if len(regular) > 0 {
+		enabled = regular[0]
+	}
+	if _, e = tx.Exec(ctx, `INSERT INTO nmo_assignments(agent_id,revision,zone,monitor,regular_enabled) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, agent, revision, zone, monitorName, enabled); e != nil {
 		return e
 	}
 	return tx.Commit(ctx)
@@ -167,7 +172,7 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 	duplicates := make([]bool, len(observations))
 	for i, o := range observations {
 		var assigned bool
-		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_assignments WHERE agent_id=$1 AND revision=$2 AND zone=$3 AND monitor=$4)`, agent, o.Revision, o.Zone, o.Monitor).Scan(&assigned); e != nil {
+		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_assignments WHERE agent_id=$1 AND revision=$2 AND zone=$3 AND monitor=$4 AND (regular_enabled OR $5))`, agent, o.Revision, o.Zone, o.Monitor, o.DiagnosticTaskID != "").Scan(&assigned); e != nil {
 			return nil, e
 		}
 		if !assigned {

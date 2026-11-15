@@ -869,7 +869,7 @@ paths:
       tags:
       - Configuration
       summary: План застосування
-      description: No mutation; поточний зріз повертає create/replace/unchanged diff та reconcile для неявно залежних Monitor, поточний resourceVersion, effective revision та deterministic planId. Реальний placement лишається fixed roster; placements=[] із явним warning. Це preview, не config/apply чи reservation.
+      description: No mutation; поточний зріз повертає create/replace/unchanged diff та reconcile для неявно залежних Monitor, поточний resourceVersion, effective revision та deterministic planId. placements містить типізований preview явного fixed selection або pending; legacy fixed roster без placement/ref повертає порожній список. Preview не підтверджує online-state чи capacity. Це preview, не config/apply чи reservation.
       operationId: planConfiguration
       x-netmonorc-rbac: admin
       security:
@@ -2743,6 +2743,22 @@ components:
             $ref: '#/components/schemas/ErrorDetail'
         normalizedSummary:
           type: object
+    PlacementPreview:
+      type: object
+      required: [monitorId, strategy, replicas, pending, selectedAgents]
+      properties:
+        monitorId: {type: string}
+        strategy: {type: string, enum: [fixed]}
+        replicas: {type: integer, minimum: 1, maximum: 10}
+        pending: {type: boolean}
+        selectedAgents:
+          type: array
+          items:
+            type: object
+            required: [agentId, networkZone]
+            properties:
+              agentId: {type: string}
+              networkZone: {type: string}
     ConfigPlan:
       type: object
       properties:
@@ -2754,8 +2770,9 @@ components:
             type: object
         placements:
           type: array
+          description: Planned fixed assignments only; does not assert online state or target reachability.
           items:
-            type: object
+            $ref: '#/components/schemas/PlacementPreview'
         warnings:
           type: array
           items:
@@ -2971,6 +2988,9 @@ components:
           format: date-time
         spoolPending:
           type: integer
+        regularMonitoringAssigned:
+          type: boolean
+          description: Наявність desired regular assignment для Agent; не доказ виконання. Idle Agent може мати online-сесію та виконувати дозволену діагностику.
         maxConcurrentProbes:
           type: [integer, 'null']
           minimum: 1

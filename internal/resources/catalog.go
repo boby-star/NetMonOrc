@@ -24,11 +24,12 @@ type Compiled struct {
 	Target       *TargetSpec
 	CheckProfile *CheckProfile
 	Assessment   *AssessmentPolicy
+	Placement    *PlacementPolicy
 }
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy"
+	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -60,6 +61,7 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	registry := base
 	registry.Diagnostic = nil
+	registry.Placements = map[string]PlacementPolicy{}
 	registry.Assessments = map[string]AssessmentPolicy{}
 	registry.CheckProfiles = map[string]CheckProfile{}
 	registry.Targets = map[string]TargetSpec{}
@@ -123,6 +125,18 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		registry.Assessments[m.Metadata.Name] = *result.Assessment
 		compiled[key] = result
 	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "PlacementPolicy" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.Placements[m.Metadata.Name] = *result.Placement
+		compiled[key] = result
+	}
 	activeEndpoints := 0
 	for _, key := range keys {
 		m := all[key]
@@ -178,6 +192,13 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	if err := validateMetadata(m); err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "PlacementPolicy" {
+		placement, err := compilePlacement(m.Spec)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: placement.Hash(), Placement: &placement}, nil
 	}
 	if m.Kind == "AssessmentPolicy" {
 		assessment, err := compileAssessmentPolicy(m)

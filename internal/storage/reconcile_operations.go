@@ -85,6 +85,10 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 				allReady = false
 				break
 			}
+			if target.Kind == "PlacementPolicy" {
+				target.Ready = true
+				target.Reason = "placement_policy_catalogued"
+			}
 			if target.Kind == "AssessmentPolicy" {
 				target.Ready = true
 				target.Reason = "assessment_policy_catalogued"
@@ -126,6 +130,9 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 				if target.EffectiveRevision == revision {
 					loaded = true
 					target.Reason = "awaiting_agent_acknowledgements"
+					if len(slots) == 0 {
+						target.Reason = "insufficient_placement_agents"
+					}
 					if allAgentsReady {
 						target.Ready = true
 						target.Reason = "required_agents_applied"
