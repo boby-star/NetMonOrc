@@ -49,6 +49,9 @@ var ruleID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 var ruleReason = regexp.MustCompile(`^[A-Z0-9_]+$`)
 
 func NewAssessor(p Plan) (*Assessor, error) {
+	if p.ZoneAggregation != "" && p.ZoneAggregation != "all-required" && p.ZoneAggregation != "any" {
+		return nil, fmt.Errorf("invalid zone aggregation")
+	}
 	a := &Assessor{plan: p}
 	if len(p.Rules) == 0 {
 		return a, nil

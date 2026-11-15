@@ -117,7 +117,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "assessment:zone-any", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	if e = stream.Send(f); e != nil {
 		return e
 	}

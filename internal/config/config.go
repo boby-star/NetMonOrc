@@ -146,8 +146,12 @@ func Compile(data []byte) (monitor.Plan, error) {
 	if a.DefaultState != "" && a.DefaultState != "unknown" {
 		return p, fmt.Errorf("only defaultState=unknown is implemented")
 	}
-	if a.ZoneAggregation != "" && a.ZoneAggregation != "all-required" {
-		return p, fmt.Errorf("only all-required zoneAggregation is implemented")
+	if a.ZoneAggregation != "" && a.ZoneAggregation != "all-required" && a.ZoneAggregation != "any" {
+		return p, fmt.Errorf("zoneAggregation must be all-required or any")
+	}
+	// Keep the default absent in IR so existing all-required revisions are stable.
+	if a.ZoneAggregation == "any" {
+		p.ZoneAggregation = "any"
 	}
 	if a.Weighted.Enabled != nil && !*a.Weighted.Enabled {
 		return p, fmt.Errorf("weighted.enabled=false is not implemented")

@@ -122,17 +122,31 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 		assessor.applyRules(&z, latest, now, coherent, requiredFailure, requiredMissing)
 		a.Zones = append(a.Zones, z)
 	}
+	a.State = aggregateZones(p.ZoneAggregation, a.Zones)
+	return a, nil
+}
+
+// A local failure proves degradation even when another zone is unknown. It
+// proves a global outage only when every required zone is down. Explicit any
+// is an availability SLA, not majority voting; zone evidence stays untouched.
+func aggregateZones(policy string, zones []ZoneAssessment) string {
+	if len(zones) == 0 {
+		return "unknown"
+	}
 	counts := map[string]int{}
-	for _, z := range a.Zones {
-		counts[z.State]++
+	for _, zone := range zones {
+		counts[zone.State]++
 	}
 	switch {
-	case counts["healthy"] == len(p.Zones):
-		a.State = "healthy"
-	case counts["down"] == len(p.Zones):
-		a.State = "down"
-	case counts["degraded"] > 0 || (counts["down"] > 0 && counts["healthy"] > 0):
-		a.State = "degraded"
+	case policy == "any" && counts["healthy"] > 0:
+		return "healthy"
+	case counts["healthy"] == len(zones):
+		return "healthy"
+	case counts["down"] == len(zones):
+		return "down"
+	case counts["degraded"] > 0 || counts["down"] > 0:
+		return "degraded"
+	default:
+		return "unknown"
 	}
-	return a, nil
 }

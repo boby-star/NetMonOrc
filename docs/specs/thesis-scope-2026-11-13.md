@@ -21,7 +21,7 @@ REST/React прямо доручені користувачем; записка 
 |---|---|---|---|---|
 | T01 | §1.4, §2.1 | Декларативні Target/Monitor/CheckProfile, YAML refs, параметри, compiler/IR | R24: Target/CheckProfile/AssessmentPolicy/PlacementPolicy refs, typed parameters та Monitor/DiagnosticProfile registry; regular placement тільки explicit fixed | Typed registry, closed schema, expansion без колізій, validation до network |
 | T02 | §2.1 | Кілька replicas перевірки на різних Agent | R24: replicas 1–10 у різних зонах через explicit fixed; один Agent на зону; same-zone replicas відкриті | Окремі planned/applied/observed slots; без вигаданої зони; partial вимкнений |
-| T03 | §2.1–2.2, табл.2.2 | All/any/quorum, majority від planned N | Для N=1 лише вироджений випадок | Table-driven межі missing/negative/conflict; raw докази й coverage окремі |
+| T03 | §2.1–2.2, табл.2.2 | All/any/quorum, majority від planned N | R25: zoneAggregation all-required/any; same-zone N=1 лише вироджений випадок | Table-driven межі missing/negative/conflict; raw докази й coverage окремі |
 | T04 | §2.1 | Зони й Controller-owned failure domains, capabilities, дозволи, навантаження | R24: regular fixed selection/filter/pending та diagnostic placement; trusted roster; domain=zone; dynamic strategies відкриті | Regular placement fixed/roundRobin/leastLoaded, без припущення незалежності |
 | T05 | §2.1–2.2 | Групи ресурсів і залежності | Не інтегровані | Чинні ResourceGroup/Dependency з DSL; DAG validation, weighted/coverage; без автоматичної RCA |
 | T06 | §1.4, §2.1 | ICMP/TCP/DNS/HTTP/HTTPS через exporter | Є в обмеженому IP-literal профілі | Різні targets/runners; TLS/egress; hostname policy тільки після контролю resolved IP |

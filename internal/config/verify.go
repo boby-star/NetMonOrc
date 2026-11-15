@@ -24,6 +24,9 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || len(p.Checks) == 0 || len(p.Checks) > 100 {
 		return fmt.Errorf("invalid plan revision or size")
 	}
+	if p.ZoneAggregation != "" && p.ZoneAggregation != "all-required" && p.ZoneAggregation != "any" {
+		return fmt.Errorf("invalid zone aggregation")
+	}
 	if context := p.TargetContext; context != nil {
 		switch context.Type {
 		case "host", "network-device", "service", "endpoint", "logical":

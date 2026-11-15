@@ -22,7 +22,7 @@ React-редактор і mixed apply з підтвердженням нових
 [Фіксований PlacementPolicy](docs/deployment/placement-policies.md): selection регулярних
 агентів, pending без partial probes та окремий стан призначення у панелі.
 [Спільні AssessmentPolicy](docs/deployment/assessment-policies.md): assessmentRef,
-залежні ревізії та фактичний Target-контекст для CEL.
+залежні ревізії, явні зональні SLA all-required/any та фактичний Target-контекст для CEL.
 [CheckProfile і useProfiles](docs/deployment/check-profiles.md): типізовані шаблони
 перевірок, безпечне розгортання й залежні ревізії Monitor.
 [Спільні Target і targetRef](docs/deployment/targets.md): декларативні цілі,

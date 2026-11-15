@@ -1,4 +1,4 @@
-# Спільні AssessmentPolicy (R23)
+# Спільні AssessmentPolicy (R23, зональні SLA R25)
 
 AssessmentPolicy підключено до наявного каталогу REST, CLI та React. Monitor
 може використовувати assessmentRef замість inline assessment. Обидва одночасно
@@ -35,9 +35,10 @@ healthy CEL-правила. Брак доказів не стає healthy. Пр�
 required failure перевірено unit test через реальний AssessmentPolicy ref.
 
 Цей етап підключає reusable policy до вже підтриманого математичного профілю:
-zoneAggregation=all-required, sameZoneAggregation=all, weighted.enabled=true,
-defaultState=unknown. Інші значення (any/quorum, weighted=false, інші fallback
-states) явно відхиляються; вони не імітуються. Повні replicas/placement та
+zoneAggregation=all-required або явний any, sameZoneAggregation=all,
+weighted.enabled=true, defaultState=unknown. Replica voting any/quorum,
+weighted=false та інші fallback states поки явно відхиляються.
+Зональний any не є same-zone replica voting. Повні replicas/placement та
 додаткові математичні режими залишаються окремою роботою. Формули не змінені.
 
 Normalizer перевіряє закриту схему, defaults, weights, durations, правила й CEL
@@ -92,3 +93,47 @@ PG/HTTPS: mixed apply, JSONB normalization, 428/409, implicit revisions,
 policy-only update дає healthy→degraded→healthy на двох Agent, переживає restart,
 потім inline source відновлюється. Go/React build і go vet перевіряються;
 DOM clicks цим сценарієм не автоматизовані.
+
+## Явний SLA any та таблиця зон (R25)
+
+`zoneAggregation: any` означає достатність здорової зони для доступності
+сервісу. Це явний вибір адміністратора, а не majority чи заміна defaults.
+Поле працює inline і через assessmentRef; CRUD, mixed apply, CLI та React
+використовують той самий compiler. Наявні API routes/DTO не змінені.
+
+| Зональні стани | all-required | any |
+|---|---|---|
+| healthy + healthy | healthy | healthy |
+| healthy + down | degraded | healthy |
+| healthy + unknown | unknown | healthy |
+| down + unknown | degraded | degraded |
+| down + down | down | down |
+| degraded + unknown | degraded | degraded |
+| unknown + unknown | unknown | unknown |
+
+Це таблиця ТЗ §4.6. За будь-якого healthy у режимі any результат healthy;
+без healthy наявність доведеного degraded/down дає degraded, якщо всі зони
+не down. Зональні state/reason/evidence/H/Q і coverage не переписуються.
+Відсутній Agent зменшує coverage навіть за global healthy. Негативна required
+перевірка лишається локальним down; healthy CEL її не скасовує. У режимі
+all-required down+unknown тепер коректно degraded: доведено локальну проблему,
+але немає доказів глобальної відмови. Ця корекція не вводить нового DSL-поля.
+
+Ваги, TTL/maxSkew, ревізії та minCoverage застосовуються в кожній зоні як
+раніше. Any не може створити здорову зону з недостатніх локальних доказів.
+Зональні alerts залишаються доступні, навіть коли global any SLA healthy;
+автоматична діагностика керується явно заданим trigger, а не прихованою зміною
+стану. У панелі оцінюйте загальний стан разом із coverage та списком зон.
+
+Mode входить в IR/effective revision. Для all-required поле IR опускається,
+щоб старі default revisions лишалися стабільні. Any вимагає capability
+assessment:zone-any; неоновлені Agent відхиляються, а не ACK-ають незнайому
+семантику. Controller та Agent оновлюються разом. Старі observations іншої
+ревізії не застосовуються до нового SLA; policy-only update залишає Monitor
+source resourceVersion незмінним та очікує належні Agent ACK.
+
+Вузький сценарій `lab_sessions.py --zones-only` використовує новий приватний
+owned stand і звичайний login. Він перевіряє actual office path failure,
+порівняння режимів, відсутній Agent, REST coverage, restart і відновлення
+обох required sources. Фактичний результат зберігається окремо після запуску;
+DOM automation новим сценарієм не виконується.

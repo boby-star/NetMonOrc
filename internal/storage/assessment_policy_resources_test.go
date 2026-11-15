@@ -92,7 +92,7 @@ func testAssessmentPolicyResources(t *testing.T, ctx context.Context, s *Store, 
 	if err = s.SaveAssessment(ctx, monitor.Assessment{Monitor: m.Metadata.Name, Revision: before.Revision, At: time.Now(), State: "healthy"}); err != nil {
 		t.Fatal(err)
 	}
-	policy.Spec = json.RawMessage(`{"minCoverage":0.5,"rules":[{"id":"planned-degradation","when":"true","then":{"state":"degraded","reason":"POLICY_TEST"}}]}`)
+	policy.Spec = json.RawMessage(`{"zoneAggregation":"any","minCoverage":0.5,"rules":[{"id":"planned-degradation","when":"true","then":{"state":"degraded","reason":"POLICY_TEST"}}]}`)
 	version := current.ResourceVersion
 	code, data = request("POST", "/api/v1/config/apply", resources.Batch{Manifests: []resources.Manifest{policy}, ExpectedVersions: map[string]*string{"AssessmentPolicy/policy-test": &version}, RequestID: "policy-only"}, "")
 	if code != 202 {
@@ -108,6 +108,13 @@ func testAssessmentPolicyResources(t *testing.T, ctx context.Context, s *Store, 
 	}
 	if _, found, err = s.ReadLiveAssessment(ctx, m.Metadata.Name, before.Revision); err != nil || found {
 		t.Fatal("old policy healthy assessment returned as live", err)
+	}
+	_, anyPlan, err := s.LoadCompiledMonitor(ctx, m.Metadata.Name, registry)
+	if err != nil || anyPlan.Monitor.ZoneAggregation != "any" {
+		t.Fatal("zone any lost after JSONB policy update", err)
+	}
+	if err = config.VerifyPlan(*anyPlan.Monitor, "office"); err != nil {
+		t.Fatal(err)
 	}
 	original, err := resources.Decode([]byte(testMonitor))
 	if err != nil {

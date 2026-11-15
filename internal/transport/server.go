@@ -110,6 +110,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	for _, c := range hello.GetHello().Capabilities {
 		capabilities[c] = true
 	}
+	if s.Plan.ZoneAggregation == "any" && !capabilities["assessment:zone-any"] {
+		return status.Error(codes.FailedPrecondition, "zone any assessment capability required")
+	}
 	if s.Plan.FixedPlacement != nil && !capabilities["placement:fixed"] {
 		return status.Error(codes.FailedPrecondition, "fixed placement capability required")
 	}

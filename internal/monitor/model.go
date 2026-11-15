@@ -37,25 +37,26 @@ type TargetContext struct {
 }
 
 type Plan struct {
-	FixedPlacement *FixedPlacement       `json:",omitempty"`
-	TargetContext  *TargetContext        `json:",omitempty"`
-	AssessmentRef  string                `json:",omitempty"`
-	AssessmentHash string                `json:",omitempty"`
-	CheckProfiles  []CheckProfileBinding `json:",omitempty"`
-	TargetRef      string                `json:",omitempty"`
-	TargetHash     string                `json:",omitempty"`
-	Diagnostics    *DiagnosticBinding    `json:",omitempty"`
-	Rules          []AssessmentRule
-	Name           string
-	TargetAddress  string
-	Revision       string
-	Checks         []Check
-	Zones          []string
-	MaxAge         time.Duration
-	MaxSkew        time.Duration
-	MinCoverage    float64
-	HealthyMin     float64
-	DegradedMin    float64
+	ZoneAggregation string                `json:",omitempty"`
+	FixedPlacement  *FixedPlacement       `json:",omitempty"`
+	TargetContext   *TargetContext        `json:",omitempty"`
+	AssessmentRef   string                `json:",omitempty"`
+	AssessmentHash  string                `json:",omitempty"`
+	CheckProfiles   []CheckProfileBinding `json:",omitempty"`
+	TargetRef       string                `json:",omitempty"`
+	TargetHash      string                `json:",omitempty"`
+	Diagnostics     *DiagnosticBinding    `json:",omitempty"`
+	Rules           []AssessmentRule
+	Name            string
+	TargetAddress   string
+	Revision        string
+	Checks          []Check
+	Zones           []string
+	MaxAge          time.Duration
+	MaxSkew         time.Duration
+	MinCoverage     float64
+	HealthyMin      float64
+	DegradedMin     float64
 }
 
 // Slot is an expected observation source, never inferred from received data.

@@ -1,3 +1,15 @@
+# Зональний SLA any та коректне агрегування: R25
+
+Підключено AssessmentPolicy.zoneAggregation=any через inline/ref, compiler,
+IR, Agent validation/capability fencing та чинні REST/CLI/React інтерфейси.
+Зональні докази/coverage зберігаються незалежно від global SLA. Виправлено
+all-required down+unknown → degraded відповідно до ТЗ §4.6.
+Критичні Go та PostgreSQL/HTTPS перевірки пройшли; вузький live сценарій
+реального path failure/restart ще виконується.
+Відкриті: dynamic placement, same-zone replica voting/value semantics,
+multi-Monitor, groups/dependencies, enrollment/cert lifecycle та фінальна
+acceptance/performance звірка. Повний v1alpha1 не завершений.
+
 # Фіксований PlacementPolicy та regular assignments: R24
 
 PlacementPolicy CRUD/history/status, placementRef/inline, mixed apply, CLI та

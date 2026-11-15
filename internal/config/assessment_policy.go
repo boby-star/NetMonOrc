@@ -39,8 +39,8 @@ func NormalizeAssessmentPolicy(data []byte) ([]byte, error) {
 	if a.DefaultState == "" {
 		a.DefaultState = "unknown"
 	}
-	// No new aggregation/fallback mathematics is introduced by a resource ref.
-	if a.ZoneAggregation != "all-required" || a.SameZoneAggregation != "all" || a.DefaultState != "unknown" {
+	// Zone aggregation follows the approved table; replica voting stays separate.
+	if (a.ZoneAggregation != "all-required" && a.ZoneAggregation != "any") || a.SameZoneAggregation != "all" || a.DefaultState != "unknown" {
 		return nil, fmt.Errorf("policy mode is not supported by the current single-replica engine")
 	}
 	if a.Weighted.Enabled != nil && !*a.Weighted.Enabled {

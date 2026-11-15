@@ -121,3 +121,55 @@ func TestPolicyTargetContextUsesActualDescriptorAndLabels(t *testing.T) {
 		t.Fatal("Target label change not revisioned", err)
 	}
 }
+
+func TestZoneAnyUsesActualZonesAndKeepsRequiredFailure(t *testing.T) {
+	policy, m := assessmentFixtures(t)
+	policy.Spec = json.RawMessage(`{"zoneAggregation":"any","requiredZones":["office","server"],"checks":[{"id":"http","required":true}],"rules":[{"id":"attempt-healthy","when":"true","then":{"state":"healthy","reason":"RULE"}}]}`)
+	base := Registry{Active: "service", Zones: []string{"office", "server"}}
+	_, compiled, err := ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := *compiled["Monitor/service"].Monitor
+	if p.ZoneAggregation != "any" {
+		t.Fatal("zone any lost in IR")
+	}
+	if err = config.VerifyPlan(p, "office"); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	slots := []monitor.Slot{{Agent: "branch", Zone: "office"}, {Agent: "dc", Zone: "server"}}
+	obs := []monitor.Observation{}
+	for _, slot := range slots {
+		outcome := "success"
+		if slot.Zone == "office" {
+			outcome = "failure"
+		}
+		obs = append(obs, monitor.Observation{ID: slot.Agent, Agent: slot.Agent, Zone: slot.Zone, Monitor: p.Name, Revision: p.Revision, Check: "http", StartedAt: now.Add(-time.Second), FinishedAt: now, Execution: "completed", Outcome: outcome})
+	}
+	a, err := monitor.Evaluate(p, slots, obs, now)
+	if err != nil || a.State != "healthy" || a.Zones[0].State != "down" || a.Zones[0].Reason != "required_failure" {
+		t.Fatalf("any hid zone failure or rejected explicit SLA: %+v %v", a, err)
+	}
+	a, err = monitor.Evaluate(p, slots, obs[1:], now)
+	if err != nil || a.State != "healthy" || a.Zones[0].State != "unknown" || a.Zones[0].Coverage != "coverage_degraded" {
+		t.Fatal("any lost coverage", a, err)
+	}
+	a, err = monitor.Evaluate(p, slots, obs[:1], now)
+	if err != nil || a.State != "degraded" {
+		t.Fatal("required down plus unknown is degraded", a, err)
+	}
+	policy.Spec = json.RawMessage(`{"zoneAggregation":"all-required","requiredZones":["office","server"],"checks":[{"id":"http","required":true}]}`)
+	_, changed, err := ResolveCatalog(base, []Manifest{m}, []Manifest{policy})
+	if err != nil || changed["Monitor/service"].Revision == p.Revision {
+		t.Fatal("mode is not revision-fenced", err)
+	}
+	all := *changed["Monitor/service"].Monitor
+	for i := range obs {
+		obs[i].Revision = all.Revision
+	}
+	a, err = monitor.Evaluate(all, slots, obs, now)
+	if err != nil || a.State != "degraded" {
+		t.Fatal("all-required hid negative zone", a, err)
+	}
+}
