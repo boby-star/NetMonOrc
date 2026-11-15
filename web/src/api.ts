@@ -738,9 +738,9 @@ export interface AlertView {
 export interface AlertPage { items: AlertView[]; nextCursor: string | null }
 export interface AlertHistoryPage { items: {id: string; from: string; to: string; at: string; configRevision: string; suppressed: boolean}[]; nextCursor: string | null }
 export interface DeliveryPage { items: {id: string; eventId: string; state: string; attempts: number; lastHttpStatus: number | null; lastAttemptAt: string | null}[]; nextCursor: string | null }
-async function alertRead<T>(path: string): Promise<T> {
+async function alertRead<T>(path: string, label = "Історія алертів"): Promise<T> {
   const response = await fetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error(`Історія алертів недоступна (${response.status}). Оновіть запит.`);
+  if (!response.ok) throw new Error(`${label} недоступна (${response.status}). Оновіть запит.`);
   return response.json() as Promise<T>;
 }
 export function alerts(monitor: string, state: string, cursor: string | null): Promise<AlertPage> {
@@ -796,4 +796,16 @@ export async function webhookTestOperation(id: string): Promise<WebhookTestOpera
   const value = await alertRead<WebhookTestOperation>(`/api/v1/operations/${encodeURIComponent(id)}`);
   if (value.kind !== "webhook.test") throw new Error("Операція не є тестом webhook.");
   return value;
+}
+
+export interface DashboardSummary {
+  observedAt: string;
+  monitorStates?: Record<string, number>;
+  coverageStates?: Record<string, number>;
+  agentCounts?: Record<string, number>;
+  firingAlerts?: number;
+  recentDiagnostics?: DiagnosticSession[];
+}
+export function dashboardSummary(): Promise<DashboardSummary> {
+  return alertRead("/api/v1/dashboard/summary", "Оглядова панель");
 }

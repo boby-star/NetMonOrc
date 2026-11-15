@@ -74,7 +74,7 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires Monitor|DiagnosticProfile|operations|agents|diagnostics|alerts|deliveries [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires Monitor|DiagnosticProfile|operations|agents|diagnostics|alerts|deliveries|dashboard [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
@@ -84,6 +84,11 @@ func remoteCommand(args []string) error {
 			route = "/api/v1/resources/DiagnosticProfile"
 		case "operations":
 			route = "/api/v1/operations"
+		case "dashboard":
+			if f.NArg() != 1 || *cursor != "" || *state != "" || *tasks || *history {
+				return fmt.Errorf("dashboard takes no ID or filters")
+			}
+			route = "/api/v1/dashboard/summary"
 		case "alerts":
 			route = "/api/v1/alerts"
 		case "deliveries":
@@ -93,7 +98,7 @@ func remoteCommand(args []string) error {
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|operations|agents|diagnostics|alerts|deliveries")
+			return fmt.Errorf("this CLI supports remote get Monitor|DiagnosticProfile|operations|agents|diagnostics|alerts|deliveries|dashboard")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))
@@ -104,7 +109,7 @@ func remoteCommand(args []string) error {
 		if *history {
 			route += "/history"
 		}
-		if f.NArg() != 2 || *tasks || *history {
+		if (f.NArg() != 2 || *tasks || *history) && f.Arg(0) != "dashboard" {
 			params := url.Values{"limit": {fmt.Sprint(*limit)}}
 			if *cursor != "" {
 				params.Set("cursor", *cursor)

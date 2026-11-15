@@ -11,6 +11,7 @@ import {
   type Assessment,
 } from "./api";
 import "./style.css";
+import { Overview } from "./Overview";
 import { History } from "./History";
 import { Alerts } from "./Alerts";
 import { Tokens } from "./Tokens";
@@ -308,6 +309,7 @@ function App() {
             </details>
           </section>
         )}
+        {session && <Overview key={session.userId} />}
         {session?.role === "admin" &&
           session.scopes.includes("system:admin") && (
             <Users

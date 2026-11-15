@@ -2132,7 +2132,14 @@ paths:
       tags:
       - System
       summary: Dashboard summary
-      description: Aggregated counts, coverage, recent diagnostics; не підміна детального API.
+      description: >-
+        Read-only overview без query parameters. Resources:read дає monitor/coverage
+        counts, agents:read — live session counts, alerts:read — firingAlerts,
+        diagnostics:read — останні 5 sessions. Неавторизовані поля відсутні.
+        Лише свіжий Assessment чинної desired/runtime revision може дати healthy;
+        stale/невибрані Monitor враховуються як unknown. Online Agent не підвищує
+        Monitor до healthy. Компоненти читаються послідовно; observedAt позначає
+        час складання, це не глобальна транзакція із live Agent streams.
       operationId: getDashboardSummary
       x-netmonorc-rbac: viewer
       responses:
@@ -3335,19 +3342,44 @@ components:
           type: number
     DashboardSummary:
       type: object
+      required: [observedAt]
+      additionalProperties: false
       properties:
-        monitorStates:
-          type: object
-        coverageStates:
-          type: object
-        agentCounts:
-          type: object
-        firingAlerts:
-          type: integer
+        observedAt: {type: string, format: date-time}
+        monitorStates: {$ref: '#/components/schemas/DashboardMonitorCounts'}
+        coverageStates: {$ref: '#/components/schemas/DashboardCoverageCounts'}
+        agentCounts: {$ref: '#/components/schemas/DashboardAgentCounts'}
+        firingAlerts: {type: integer, minimum: 0}
         recentDiagnostics:
           type: array
-          items:
-            $ref: '#/components/schemas/DiagnosticSession'
+          maxItems: 5
+          items: {$ref: '#/components/schemas/DiagnosticSession'}
+    DashboardMonitorCounts:
+      type: object
+      required: [healthy, degraded, down, unknown]
+      additionalProperties: false
+      properties:
+        healthy: {type: integer, minimum: 0}
+        degraded: {type: integer, minimum: 0}
+        down: {type: integer, minimum: 0}
+        unknown: {type: integer, minimum: 0}
+    DashboardCoverageCounts:
+      type: object
+      required: [sufficient, degraded, unknown]
+      additionalProperties: false
+      properties:
+        sufficient: {type: integer, minimum: 0}
+        degraded: {type: integer, minimum: 0}
+        unknown: {type: integer, minimum: 0}
+    DashboardAgentCounts:
+      type: object
+      required: [online, offline, degraded, revoked]
+      additionalProperties: false
+      properties:
+        online: {type: integer, minimum: 0}
+        offline: {type: integer, minimum: 0}
+        degraded: {type: integer, minimum: 0}
+        revoked: {type: integer, minimum: 0}
     AuditEvent:
       type: object
       properties:

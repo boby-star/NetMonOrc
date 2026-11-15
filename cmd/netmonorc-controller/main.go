@@ -22,6 +22,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/coordinator"
+	"github.com/boby-star/NetMonOrc/internal/dashboard"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
 	"github.com/boby-star/NetMonOrc/internal/durable"
@@ -272,6 +273,9 @@ func run() error {
 				handler.SetAlerts(store, endpointHash)
 				handler.SetAlertAcknowledge(store.AcknowledgeAlert)
 				handler.SetOperations(store)
+				handler.SetDashboard(func(c context.Context, reads dashboard.Reads) (dashboard.Source, error) {
+					return store.Dashboard(c, p.Name, p.Revision, reads)
+				})
 				handler.SetWebhookTest(func(c context.Context, actor auth.AdminCredential) (operationview.Operation, error) {
 					if notifications == nil || notifications.Sender == nil || !endpoint.Enabled {
 						return operationview.Operation{}, resources.ErrConflict

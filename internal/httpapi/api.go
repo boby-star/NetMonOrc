@@ -39,6 +39,7 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	dashboard        DashboardLoad
 	operations       operationview.Reader
 	webhookTest      WebhookTestCommand
 	alertAcknowledge AlertAcknowledgeCommand
@@ -117,6 +118,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.diagnosticCommandRoutes(w, r)
 		return
 	}
+	if r.URL.Path == "/api/v1/dashboard/summary" {
+		h.dashboardSummary(w, r)
+		return
+	}
 	if r.URL.Path == "/api/v1/webhook/test" {
 		h.testWebhook(w, r)
 		return
@@ -185,27 +190,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 	a, found, err := h.load(ctx, h.monitor)
-	age := time.Since(a.At)
-	if err != nil || !found || a.Monitor != h.monitor || age > 5*time.Second || age < -5*time.Second || (h.expectedRevision != "" && a.Revision != h.expectedRevision) {
+	if err != nil || !currentAssessment(a, found, h.monitor, h.expectedRevision) {
 		failure(w, 503, "ASSESSMENT_UNAVAILABLE", "Fresh assessment temporarily unavailable")
 		return
 	}
-	dto := Assessment{MonitorID: a.Monitor, State: a.State, CoverageState: "sufficient", ZoneStates: a.Zones, ReasonCodes: []string{}, EvidenceIDs: []string{}, EvaluatedAt: a.At, Revision: a.Revision}
-	if dto.ZoneStates == nil {
-		dto.ZoneStates = []monitor.ZoneAssessment{}
-	}
-	count := 0
-	for _, z := range a.Zones {
-		if z.Coverage != "complete" {
-			dto.CoverageState = "degraded"
-		}
-		dto.ReasonCodes = append(dto.ReasonCodes, z.Reason)
-		dto.EvidenceIDs = append(dto.EvidenceIDs, z.Evidence...)
-		count += len(z.Evidence)
-	}
-	if count == 0 {
-		dto.CoverageState = "unknown"
-	}
+	dto := projectAssessment(a)
 	w.Header().Set("Content-Type", "application/json")
 	// The persisted DTO is JSON-safe; a disconnected client needs no repair.
 	_ = json.NewEncoder(w).Encode(dto)
@@ -227,4 +216,24 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.ServeFileFS(w, r, h.ui, name)
+}
+
+func projectAssessment(a monitor.Assessment) Assessment {
+	dto := Assessment{MonitorID: a.Monitor, State: a.State, CoverageState: "sufficient", ZoneStates: a.Zones, ReasonCodes: []string{}, EvidenceIDs: []string{}, EvaluatedAt: a.At, Revision: a.Revision}
+	if dto.ZoneStates == nil {
+		dto.ZoneStates = []monitor.ZoneAssessment{}
+	}
+	count := 0
+	for _, z := range a.Zones {
+		if z.Coverage != "complete" {
+			dto.CoverageState = "degraded"
+		}
+		dto.ReasonCodes = append(dto.ReasonCodes, z.Reason)
+		dto.EvidenceIDs = append(dto.EvidenceIDs, z.Evidence...)
+		count += len(z.Evidence)
+	}
+	if count == 0 {
+		dto.CoverageState = "unknown"
+	}
+	return dto
 }
