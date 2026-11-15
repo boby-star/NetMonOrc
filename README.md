@@ -19,6 +19,8 @@ Admin-панель підтримує [керування користувача
 через apply зі збереженням регулярного моніторингу.
 [Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
 React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
+[Оглядова панель](docs/deployment/dashboard.md) показує свіжі стани ресурсів,
+coverage, live Agent counts, алерти та останні діагностики з урахуванням scopes.
 [Тест webhook](docs/deployment/webhook-test.md) проходить durable outbox
 і має окрему Operation через API, React та CLI.
 [Підтвердження алертів](docs/deployment/alert-acknowledgement.md) доступне

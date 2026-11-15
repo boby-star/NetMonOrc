@@ -1,3 +1,14 @@
+# Огляд реальних джерел моніторингу: R17
+
+GET dashboard/summary, React overview та CLI get dashboard підключено.
+Monitor counts використовують спільні freshness/revision/coverage guards
+детального Assessment. Невибрані/stale ресурси — unknown; Agent availability
+окрема. Unauthorized fields не повертаються, recent diagnostics обмежені 5.
+Документація: [dashboard.md](docs/deployment/dashboard.md).
+Відкритий повний scope: rule/webhook CRUD, UID lifecycle, Target/CheckProfile/
+policy refs, multi-Monitor placement/replicas, groups/dependencies, enrollment
+і фінальна acceptance/security/performance звірка. Реалізація не є 100% v1alpha1.
+
 # Durable webhook test та typed operations: R16
 
 POST webhook/test підключено до API/React/CLI. Окрема подія без message
