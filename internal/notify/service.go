@@ -19,6 +19,7 @@ type Service struct {
 	Managed  bool
 	cache    map[string]*alerting.Evaluator
 	Rule     *alerting.Evaluator
+	Channels map[string]webhook.Endpoint
 	Endpoint webhook.Endpoint
 	Sender   *webhook.Sender
 }
@@ -52,7 +53,15 @@ func (s *Service) Evaluate(ctx context.Context, a monitor.Assessment) (alerting.
 			}
 		}
 		next[key] = evaluator
-		state, err := s.Store.EvaluateAlertResource(ctx, evaluator, s.Endpoint, a, v)
+		channel := s.Endpoint
+		if s.Channels != nil {
+			var found bool
+			channel, found = s.Channels[evaluator.Rule.Channel]
+			if !found {
+				continue
+			}
+		}
+		state, err := s.Store.EvaluateAlertResource(ctx, evaluator, channel, a, v)
 		if errors.Is(err, resources.ErrVersion) {
 			continue
 		}

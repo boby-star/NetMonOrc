@@ -9,6 +9,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/webhook"
 )
 
 const MaxCatalogBytes = 8 << 20
@@ -19,11 +20,12 @@ type Compiled struct {
 	Monitor  *monitor.Plan
 	Profile  *diagnostics.Profile
 	Rule     *alerting.Rule
+	Endpoint *webhook.Endpoint
 }
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule"
+	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -55,6 +57,7 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	registry := base
 	registry.Diagnostic = nil
+	registry.Webhooks = map[string]webhook.Endpoint{}
 	registry.Profiles = map[string]diagnostics.Profile{}
 	compiled := map[string]Compiled{}
 	keys := make([]string, 0, len(all))
@@ -75,6 +78,25 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 			registry.Profiles[m.Metadata.Name] = *result.Profile
 			compiled[key] = result
 		}
+	}
+	activeEndpoints := 0
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "WebhookEndpoint" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		if result.Endpoint.Enabled {
+			activeEndpoints++
+		}
+		if activeEndpoints > 1 {
+			return base, nil, fmt.Errorf("at most one enabled WebhookEndpoint is allowed")
+		}
+		registry.Webhooks[m.Metadata.Name] = *result.Endpoint
+		compiled[key] = result
 	}
 	for _, key := range keys {
 		m := all[key]
@@ -98,7 +120,11 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		if _, found := compiled["Monitor/"+result.Rule.Monitor]; !found {
 			return base, nil, fmt.Errorf("%s: monitorRef is unavailable", key)
 		}
-		if registry.AlertChannel == "" || result.Rule.Channel != registry.AlertChannel {
+		if registry.ManagedWebhooks {
+			if _, found := registry.Webhooks[result.Rule.Channel]; !found && result.Rule.Enabled {
+				return base, nil, fmt.Errorf("%s: channelRef is unavailable", key)
+			}
+		} else if registry.AlertChannel == "" || result.Rule.Channel != registry.AlertChannel {
 			return base, nil, fmt.Errorf("%s: channelRef is not the configured webhook", key)
 		}
 		compiled[key] = result
@@ -119,6 +145,16 @@ func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	data, err := executionJSON(m)
 	if err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "WebhookEndpoint" {
+		endpoint, err := config.CompileWebhook(data)
+		if err != nil {
+			return Compiled{}, err
+		}
+		if err = webhook.Allowed(endpoint.URL, r.WebhookCIDRs); err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: endpoint.Hash(), Endpoint: &endpoint}, nil
 	}
 	if m.Kind == "AlertRule" {
 		rule, err := config.CompileAlert(data)

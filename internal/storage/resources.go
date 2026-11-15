@@ -170,6 +170,9 @@ func (s *Store) SaveResource(ctx context.Context, actor auth.AdminCredential, m 
 	if err != nil {
 		return current, err
 	}
+	if err = s.preflightWebhooks(compiled); err != nil {
+		return current, err
+	}
 	v, err := saveResourceTx(ctx, tx, m, compiled[resources.Key(m)].Revision, current, found, username)
 	if err != nil {
 		return v, err
@@ -204,6 +207,15 @@ func (s *Store) DeleteResourceKind(ctx context.Context, actor auth.AdminCredenti
 	}
 	if v.ResourceVersion != expected {
 		return resources.ErrVersion
+	}
+	if kind == "WebhookEndpoint" {
+		var refs bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='AlertRule' AND COALESCE(manifest->'spec'->>'channelRef','default-webhook')=$1 AND COALESCE((manifest->'spec'->>'enabled')::boolean,true))`, name).Scan(&refs); err != nil {
+			return err
+		}
+		if refs {
+			return resources.ErrConflict
+		}
 	}
 	if kind == "Monitor" {
 		var refs bool

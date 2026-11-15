@@ -12,7 +12,7 @@ import (
 
 // ReconcileOperations rotates a bounded number of pending operations. Readiness
 // requires current stream proof AND its persisted, fenced session generation.
-func (s *Store) ReconcileOperations(ctx context.Context, active, revision string, slots []monitor.Slot, proofs []monitor.AppliedAssignment) error {
+func (s *Store) ReconcileOperations(ctx context.Context, active, revision string, slots []monitor.Slot, proofs []monitor.AppliedAssignment, webhookProofs ...map[string]string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -88,6 +88,14 @@ func (s *Store) ReconcileOperations(ctx context.Context, active, revision string
 			if target.Kind == "DiagnosticProfile" {
 				target.Ready = true
 				target.Reason = "profile_catalogued"
+			}
+			if target.Kind == "WebhookEndpoint" {
+				target.Reason = "awaiting_webhook_configuration"
+				if len(webhookProofs) > 0 && webhookProofs[0][target.Name] == current.UID+"/"+current.Revision {
+					target.Ready = true
+					target.Reason = "webhook_configuration_loaded"
+					loaded = true
+				}
 			}
 			if target.Kind == "AlertRule" {
 				target.Reason = "awaiting_alert_evaluation"

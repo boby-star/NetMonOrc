@@ -1,3 +1,15 @@
+# Збережена конфігурація webhook: R20
+
+WebhookEndpoint CRUD/history/status, validate/plan/mixed apply, CLI та React
+підключені. Один активний канал, inactive replacements, explicit CIDR/TLS policy
+і локальний credential preflight; invalid batch не комітиться частково.
+Controller завантажує desired із PostgreSQL та reconcile UID/hash; старі sender,
+alert enqueue й webhook tests fenced. Readiness підтверджує runtime load.
+Документація: [webhook-resources.md](docs/deployment/webhook-resources.md).
+Відкриті: UID lifecycle, Target/CheckProfile/policies, multi-Monitor
+placement/replicas, groups/dependencies, enrollment та фінальна звірка/експерименти.
+Повний v1alpha1 не завершений.
+
 # Керування правилами алертів і runtime integration: R19
 
 AlertRule CRUD/history/status, validate/plan/mixed apply, CLI та React editor

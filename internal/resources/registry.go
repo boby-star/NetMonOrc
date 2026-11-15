@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/boby-star/NetMonOrc/internal/webhook"
 	"io"
+	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
@@ -20,6 +22,9 @@ import (
 type Registry struct {
 	Active           string
 	AlertChannel     string
+	ManagedWebhooks  bool
+	WebhookCIDRs     []netip.Prefix
+	Webhooks         map[string]webhook.Endpoint
 	Zones            []string
 	Diagnostic       *diagnostics.Profile
 	Profiles         map[string]diagnostics.Profile

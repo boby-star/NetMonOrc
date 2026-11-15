@@ -28,6 +28,11 @@ func (s *Store) QueueWebhookTest(ctx context.Context, actor auth.AdminCredential
 		return empty, err
 	}
 	defer tx.Rollback(ctx)
+	if current, err := s.webhookCurrent(ctx, tx, endpoint); err != nil {
+		return empty, err
+	} else if !current {
+		return empty, resources.ErrConflict
+	}
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(781306)`); err != nil {
 		return empty, err
 	}

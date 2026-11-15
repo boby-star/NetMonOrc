@@ -71,6 +71,11 @@ func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 			return alerting.State{}, resources.ErrVersion
 		}
 	}
+	if current, err := s.webhookCurrent(ctx, tx, endpoint); err != nil {
+		return alerting.State{}, err
+	} else if !current {
+		return alerting.State{}, resources.ErrVersion
+	}
 	key := rule.Rule.Name + "/" + a.Monitor + "/monitor"
 	_, e = tx.Exec(ctx, `INSERT INTO nmo_alerts(logical_key,payload) VALUES($1,'{}') ON CONFLICT DO NOTHING`, key)
 	if e != nil {
@@ -203,6 +208,11 @@ func (s *Store) ClaimWebhook(ctx context.Context, endpoint webhook.Endpoint) (*D
 		return nil, e
 	}
 	defer tx.Rollback(ctx)
+	if current, err := s.webhookCurrent(ctx, tx, endpoint); err != nil {
+		return nil, err
+	} else if !current {
+		return nil, nil
+	}
 	// Cancellation on endpoint changes prevents disclosing an older event to a
 	// replacement destination. Terminal rows remain available for review.
 	_, e = tx.Exec(ctx, `UPDATE nmo_webhook_outbox SET state=CASE WHEN endpoint_hash<>$1 THEN 'cancelled' ELSE 'failed' END,lease_token='' WHERE state IN ('pending','leased') AND (endpoint_hash<>$1 OR expires_at<=now() OR (attempts>=$2 AND (state='pending' OR lease_until<=now())))`, endpoint.Hash(), endpoint.MaxAttempts)

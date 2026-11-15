@@ -97,6 +97,9 @@ func (s *Store) ApplyResources(ctx context.Context, actor auth.AdminCredential, 
 	if err != nil {
 		return resources.Operation{}, err
 	}
+	if err = s.preflightWebhooks(compiled); err != nil {
+		return resources.Operation{}, err
+	}
 	explicit := map[string]bool{}
 	result := resources.ApplyResult{DesiredCommitted: true, Targets: []resources.ApplyTarget{}}
 	for _, m := range batch.Manifests {

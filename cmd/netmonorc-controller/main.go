@@ -143,23 +143,44 @@ func run() error {
 				if err != nil {
 					return err
 				}
-				if endpoint.Enabled {
-					var cidrs []netip.Prefix
-					for _, text := range strings.Split(*webhookAllow, ",") {
-						cidr, err := netip.ParsePrefix(text)
-						if err != nil {
-							return fmt.Errorf("explicit webhook-allow-cidrs required")
-						}
-						cidrs = append(cidrs, cidr)
+			}
+			var webhookCIDRs []netip.Prefix
+			if *endpointPath != "" {
+				for _, text := range strings.Split(*webhookAllow, ",") {
+					cidr, err := netip.ParsePrefix(text)
+					if err != nil {
+						return fmt.Errorf("explicit webhook-allow-cidrs required")
 					}
-					sender, err = webhook.New(endpoint, cidrs, *webhookSecretDir, *webhookCA)
+					webhookCIDRs = append(webhookCIDRs, cidr)
+				}
+				store.ConfigureManagedWebhooks(func(candidate webhook.Endpoint) error {
+					check, err := webhook.New(candidate, webhookCIDRs, *webhookSecretDir, *webhookCA)
 					if err != nil {
 						return err
 					}
-					defer sender.Close()
+					check.Close()
+					return nil
+				})
+			}
+
+			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
+			if *endpointPath != "" {
+				data, err := os.ReadFile(*endpointPath)
+				if err != nil {
+					return err
+				}
+				m, err := resources.DecodeYAML(data)
+				if err != nil {
+					return err
+				}
+				result, err := registry.CompileResource(m)
+				if err != nil {
+					return err
+				}
+				if _, err = store.SeedResource(ctx, m, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
+					return err
 				}
 			}
-			registry := resources.Registry{Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name}
 			if *profilePath != "" {
 				data, err := os.ReadFile(*profilePath)
 				if err != nil {
@@ -206,6 +227,33 @@ func run() error {
 			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
 				profile = registry.Profiles[p.Diagnostics.ProfileRef]
 			}
+			webhookRows, err := store.WebhookResources(ctx)
+			if err != nil {
+				return err
+			}
+			webhookFingerprint := storage.WebhookFingerprint(webhookRows)
+			webhookProofs := map[string]string{}
+			channels := map[string]webhook.Endpoint{}
+			endpoint = webhook.Endpoint{}
+			for _, v := range webhookRows {
+				result, err := registry.CompileResource(v.Manifest)
+				if err != nil {
+					return err
+				}
+				candidate := *result.Endpoint
+				channels[candidate.Name] = candidate
+				webhookProofs[candidate.Name] = v.UID + "/" + result.Revision
+				if endpoint.Name == "" || candidate.Enabled {
+					endpoint = candidate
+				}
+			}
+			if endpoint.Enabled {
+				sender, err = webhook.New(endpoint, webhookCIDRs, *webhookSecretDir, *webhookCA)
+				if err != nil {
+					return err
+				}
+				defer sender.Close()
+			}
 			resourceService := resources.New(store, registry)
 			assessor, e := monitor.NewAssessor(p)
 			if e != nil {
@@ -247,7 +295,7 @@ func run() error {
 			}
 			var notifications *notify.Service
 			if alertRule != nil {
-				notifications = &notify.Service{Store: store, Managed: true, Endpoint: endpoint, Sender: sender}
+				notifications = &notify.Service{Store: store, Managed: true, Channels: channels, Endpoint: endpoint, Sender: sender}
 			}
 			var diagnostic *coordinator.Coordinator
 			if p.Diagnostics != nil && p.Diagnostics.Enabled {
@@ -384,7 +432,7 @@ func run() error {
 						return
 					}
 					opctx, opdone := context.WithTimeout(ctx, 3*time.Second)
-					opErr := store.ReconcileOperations(opctx, p.Name, p.Revision, slots, agentServer.AppliedAssignments(time.Now()))
+					opErr := store.ReconcileOperations(opctx, p.Name, p.Revision, slots, agentServer.AppliedAssignments(time.Now()), webhookProofs)
 					opdone()
 					if opErr != nil && ctx.Err() == nil {
 						log.Print("Operation reconciliation deferred; regular assessment continues")
@@ -394,6 +442,17 @@ func run() error {
 						if ctx.Err() == nil {
 							errors <- err
 						}
+						return
+					}
+					currentWebhooks, err := store.WebhookResources(ctx)
+					if err != nil {
+						if ctx.Err() == nil {
+							errors <- err
+						}
+						return
+					}
+					if storage.WebhookFingerprint(currentWebhooks) != webhookFingerprint {
+						errors <- errReconcile
 						return
 					}
 					if !found || latest.Revision != p.Revision {
@@ -436,7 +495,7 @@ func run() error {
 		if !stderrors.Is(err, errReconcile) {
 			return err
 		}
-		log.Print("Reloading persisted Monitor; previous sessions and assessment revision fenced")
+		log.Print("Reloading persisted runtime configuration; previous sessions and assessment revision fenced")
 	}
 }
 func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath, deliveryPath string) error {

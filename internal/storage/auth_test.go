@@ -138,6 +138,7 @@ func TestPostgresBrowserSessionsAndCSRF(t *testing.T) {
 	testAlertAcknowledgement(t, ctx, s, server, client)
 	testWebhookControl(t, ctx, s, server, client)
 	testDashboard(t, ctx, s, server, client)
+	testWebhookResources(t, ctx, s, h, server, client, view)
 	// Equal database timestamps require ID tie-breaking, including sub-microsecond payload times.
 	finished := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
 	for _, id := range []string{"history-a", "history-b", "history-c"} {

@@ -113,7 +113,7 @@ export function Configuration({
       setName(saved.resource.manifest.metadata.name);
       setText(JSON.stringify(saved.resource.manifest, null, 2));
       setResult(
-        "Збережено. Для активного Monitor Controller завантажить нову ревізію; оновіть запис за кілька секунд. Інші Monitor очікують вибору Controller. AlertRule підхоплюються чинним runtime автоматично.",
+        "Збережено. Для активного Monitor Controller завантажить нову ревізію; оновіть запис за кілька секунд. Інші Monitor очікують вибору Controller. AlertRule підхоплюються чинним runtime автоматично. WebhookEndpoint застосовується через перезавантаження конфігурації Controller.",
       );
     } catch (e) {
       setError(
@@ -155,6 +155,7 @@ export function Configuration({
             <option value="Monitor">Monitor</option>
             <option value="DiagnosticProfile">DiagnosticProfile</option>
             <option value="AlertRule">AlertRule</option>
+            <option value="WebhookEndpoint">WebhookEndpoint</option>
           </select>
         </label>
         <label>

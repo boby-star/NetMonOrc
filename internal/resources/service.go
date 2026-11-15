@@ -38,6 +38,10 @@ func (s *Service) Status(v View, activeRevision string) View {
 		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "alert_rule_catalogued"}}}
 		return v
 	}
+	if v.Manifest.Kind == "WebhookEndpoint" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "webhook_catalogued"}}}
+		return v
+	}
 	status := &Status{State: "pending", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Reconciled", Status: "False", Reason: "controller_not_selected"}}}
 	if v.Manifest.Metadata.Name == s.Registry.Active {
 		status.Conditions[0].Reason = "revision_pending"

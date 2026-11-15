@@ -7,9 +7,9 @@ monitorRef, channelRef, when/resolveWhen, for/cooldown, severity,
 notifyEvents, enabled та description.
 
 Каталог перевіряє весь запропонований граф до commit. Monitor повинен існувати,
-а channelRef — відповідати одному налаштованому WebhookEndpoint. Невідомі поля,
+а channelRef — відповідати наявному WebhookEndpoint. Невідомі поля,
 некоректний CEL, інший scope та відсутні посилання відхиляються. Зараз підтримано
-monitor scope; endpoint усе ще задається файлом Controller. Для активації
+monitor scope; у R20 endpoint керується також через каталог ресурсів. Для активації
 каналу залишаються потрібні парні startup flags --alert-rule та --webhook-config.
 Файл AlertRule імпортується один раз; збережені зміни не перезаписуються ним
 після restart, а видалений ресурс не відновлюється з bootstrap.
@@ -74,3 +74,7 @@ protection, resolved та apply readiness. Go build/vet і React production buil
 перевіряють інтеграцію. `scripts/lab_sessions.py` перевіряє кілька правил,
 CLI apply --wait, persistence після restart та повернення початкової конфігурації.
 DOM interaction цим сценарієм не перевіряється.
+
+
+R20: [керування endpoint та runtime reload](webhook-resources.md). Посилання
+на неактивний endpoint дозволене; доставка через нього вимкнена.
