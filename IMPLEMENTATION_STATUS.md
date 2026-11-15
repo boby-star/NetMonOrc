@@ -5,7 +5,9 @@ Refs Target/Monitor, defaults, самопосилання та requires DAG пе
 перед commit. Зв'язки входять у релевантний Monitoring IR; зміна context
 перебудовує effective revisions без зміни source Monitor version та чекає ACK.
 Hard/soft не переносить health. Referenced delete захищено. Критичні Go/PG/HTTPS
-перевірки й React build пройшли; live workflow ще виконується.
+перевірки, React build та вузький live workflow пройшли: cycle rejection,
+Agent ACK/revisions, hard context без вигаданого failure, restart/delete.
+Evidence: docs/experiments/dependencies-r27/. DOM clicks не тестувалися.
 Документація: docs/deployment/dependencies.md. Shorthand Monitor.dependencies
 не реалізовано через розбіжність DSL §4/§15.1; графічний DAG/RCA не додавався.
 Великі відкриті блоки: multi-Monitor execution, dynamic placement/replica voting,
