@@ -143,6 +143,10 @@ elif c['mode']=='ack-stale':
     cookie=c['cookie']
     code,_,_=request('POST','/api/v1/alerts/'+c['alertId']+'/acknowledge',{},csrf=c['csrf'],if_match=c['etag']);assert code==412
     print(json.dumps({'staleRejected':True}))
+elif c['mode']=='group-read':
+    cookie=c['cookie']
+    code,body,_=request('GET','/api/v1/resource-groups/'+c['name']+'/assessment');assert code==200
+    print(body.decode())
 elif c['mode']=='assessment-check':
     cookie=c['cookie']
     code,body,_=request('GET','/api/v1/monitors/research-web/assessment');assert code==200
@@ -198,7 +202,7 @@ else:
     print(json.dumps({'restartSessionRestored':True,'logoutRequiresCSRF':True,'revokedCookieRejected':True,'role':view['role'],'scopes':view['scopes']}))
 '''
 
-def verify(lab, placement_only=False, zones_only=False):
+def verify(lab, placement_only=False, zones_only=False, groups_only=False):
     lab.require()
     if lab.sql('SELECT count(*) FROM nmo_users')!='0':
         raise RuntimeError('session smoke requires a fresh disposable project; existing identities are preserved')
@@ -213,16 +217,18 @@ def verify(lab, placement_only=False, zones_only=False):
     lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
     identity=json.loads(lab.compose('exec','-T','controller',*cli,'whoami','--context-file','/tmp/cli/context.json'))
     assert identity['userId']==first['userId'] and identity['expiresAt'] is None
-    if placement_only or zones_only:
+    if placement_only or zones_only or groups_only:
         if placement_only:
             from lab_placement import verify as scenario
-        else:
+        elif zones_only:
             from lab_zones import verify as scenario
+        else:
+            from lab_groups import verify as scenario
         placement_result=scenario(lab,cli,common,first,CLIENT)
         lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
         result=json.loads(lab.compose('exec','-T','office-net','python3','-c',CLIENT,input=json.dumps({**common,**first,'mode':'restart'}).encode()))
         result.update(placement_result)
-        result.update({'status':'passed','scope':'fixed-placement-only' if placement_only else 'zone-assessment-only','trustedTLS':True,'browserInteractionTested':False,'credentialsDiscarded':True})
+        result.update({'status':'passed','scope':'fixed-placement-only' if placement_only else ('zone-assessment-only' if zones_only else 'resource-groups-only'),'trustedTLS':True,'browserInteractionTested':False,'credentialsDiscarded':True})
         return result
     validation=json.loads(lab.compose('exec','-T','controller',*cli,'validate','--remote','--context-file','/tmp/cli/context.json','-f','/run/netmonorc/monitor.yaml'))
     assert validation['valid']
@@ -553,9 +559,9 @@ def verify(lab, placement_only=False, zones_only=False):
     return result
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');group=p.add_mutually_exclusive_group();group.add_argument('--placement-only',action='store_true',help='fixed placement workflow on a fresh stand');group.add_argument('--zones-only',action='store_true',help='zone SLA workflow on a fresh stand');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');group=p.add_mutually_exclusive_group();group.add_argument('--placement-only',action='store_true',help='fixed placement workflow on a fresh stand');group.add_argument('--zones-only',action='store_true',help='zone SLA workflow on a fresh stand');group.add_argument('--groups-only',action='store_true',help='resource group workflow on a fresh stand');a=p.parse_args()
     try:
-        result=verify(Lab(a.project,a.prefix),a.placement_only,a.zones_only)
+        result=verify(Lab(a.project,a.prefix),a.placement_only,a.zones_only,a.groups_only)
     except __import__('subprocess').CalledProcessError as e:
         raise SystemExit('Integration subprocess failed: '+e.stderr.decode(errors='replace')[-1200:])
     import os

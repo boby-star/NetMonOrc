@@ -19,6 +19,8 @@ Admin-панель підтримує [керування користувача
 через apply зі збереженням регулярного моніторингу.
 [Каталог DiagnosticProfile](docs/deployment/diagnostic-profiles.md) має CRUD,
 React-редактор і mixed apply з підтвердженням нових залежних ревізій агентами.
+[ResourceGroup](docs/deployment/resource-groups.md): context/derived, membership,
+weighted/coverage та окремий перегляд станів у React.
 [Фіксований PlacementPolicy](docs/deployment/placement-policies.md): selection регулярних
 агентів, pending без partial probes та окремий стан призначення у панелі.
 [Спільні AssessmentPolicy](docs/deployment/assessment-policies.md): assessmentRef,

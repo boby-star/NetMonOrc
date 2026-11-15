@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/jackc/pgx/v5"
@@ -15,7 +16,7 @@ type catalogReader interface {
 }
 
 func readCatalog(ctx context.Context, reader catalogReader) ([]resources.Manifest, error) {
-	rows, err := reader.Query(ctx, `SELECT manifest FROM nmo_resources WHERE kind IN ('Monitor','DiagnosticProfile','AlertRule','WebhookEndpoint','Target','CheckProfile','AssessmentPolicy','PlacementPolicy') ORDER BY kind,name`)
+	rows, err := reader.Query(ctx, `SELECT manifest FROM nmo_resources WHERE kind IN ('Monitor','DiagnosticProfile','AlertRule','WebhookEndpoint','Target','CheckProfile','AssessmentPolicy','PlacementPolicy','ResourceGroup') ORDER BY kind,name`)
 	if err != nil {
 		return nil, err
 	}
@@ -65,25 +66,31 @@ func resolveCatalogTx(ctx context.Context, tx pgx.Tx, base resources.Registry, u
 func refreshDependents(ctx context.Context, tx pgx.Tx, compiled map[string]resources.Compiled, explicit map[string]bool) ([]resources.ApplyTarget, error) {
 	affected := []resources.ApplyTarget{}
 	for key, entry := range compiled {
-		if entry.Monitor == nil {
+		if entry.Monitor == nil && entry.Group == nil {
 			continue
 		}
-		name := entry.Monitor.Name
-		current, err := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind='Monitor' AND name=$1 FOR UPDATE`, name))
+		parts := strings.SplitN(key, "/", 2)
+		kind, name := parts[0], parts[1]
+		current, err := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind=$2 AND name=$1 FOR UPDATE`, name, kind))
 		if err != nil {
 			return nil, err
 		}
 		if current.Revision == entry.Revision {
 			continue
 		}
-		if _, err = tx.Exec(ctx, `UPDATE nmo_resources SET effective_revision=$2 WHERE kind='Monitor' AND name=$1`, name, entry.Revision); err != nil {
+		if _, err = tx.Exec(ctx, `UPDATE nmo_resources SET effective_revision=$2 WHERE kind=$3 AND name=$1`, name, entry.Revision, kind); err != nil {
 			return nil, err
 		}
 		if !explicit[key] {
-			affected = append(affected, resources.ApplyTarget{Kind: "Monitor", Name: name, UID: current.UID, ResourceVersion: current.ResourceVersion, EffectiveRevision: entry.Revision, Reason: "awaiting_reconciliation", Implicit: true})
+			affected = append(affected, resources.ApplyTarget{Kind: kind, Name: name, UID: current.UID, ResourceVersion: current.ResourceVersion, EffectiveRevision: entry.Revision, Reason: "awaiting_reconciliation", Implicit: true})
 		}
 	}
-	sort.Slice(affected, func(i, j int) bool { return affected[i].Name < affected[j].Name })
+	sort.Slice(affected, func(i, j int) bool {
+		if affected[i].Name == affected[j].Name {
+			return affected[i].Kind < affected[j].Kind
+		}
+		return affected[i].Name < affected[j].Name
+	})
 	return affected, nil
 }
 

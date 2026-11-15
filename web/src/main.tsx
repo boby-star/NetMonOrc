@@ -11,6 +11,7 @@ import {
   type Assessment,
 } from "./api";
 import "./style.css";
+import { ResourceGroups } from "./ResourceGroups";
 import { Overview } from "./Overview";
 import { History } from "./History";
 import { Alerts } from "./Alerts";
@@ -333,6 +334,7 @@ function App() {
             monitor={connection.monitor}
           />
         )}
+        {session?.scopes.includes("resources:read") && <ResourceGroups key={session.userId} />}
         {session?.scopes.includes("agents:read") && (
           <Agents key={session.userId} />
         )}

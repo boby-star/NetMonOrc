@@ -196,7 +196,7 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/resources/"), "/")
 	if len(parts) < 1 || !resources.Supported(parts[0]) {
-		failure(w, 422, "UNSUPPORTED_KIND", "This registry manages Monitor, DiagnosticProfile, AlertRule, WebhookEndpoint, Target, CheckProfile, AssessmentPolicy and PlacementPolicy resources")
+		failure(w, 422, "UNSUPPORTED_KIND", "This registry manages Monitor, DiagnosticProfile, AlertRule, WebhookEndpoint, Target, CheckProfile, AssessmentPolicy, PlacementPolicy and ResourceGroup resources")
 		return
 	}
 	if r.Method == "GET" && len(parts) == 1 {

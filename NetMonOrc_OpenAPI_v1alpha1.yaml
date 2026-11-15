@@ -3486,28 +3486,29 @@ components:
           - not_ready
     ResourceGroupAssessment:
       type: object
+      required: [groupName, mode, state, coverageState, members, evidenceIds]
       properties:
-        groupName:
-          type: string
-        mode:
-          type: string
-          enum:
-          - context
-          - derived
+        groupName: {type: string}
+        mode: {type: string, enum: [context, derived]}
         state:
-          type:
-          - string
-          - 'null'
-        coverageState:
-          type: string
+          type: [string, 'null']
+          enum: [healthy, degraded, down, unknown, null]
+        coverageState: {type: string, enum: [sufficient, degraded, unknown]}
         members:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/ResourceGroupMember'
         evidenceIds:
           type: array
-          items:
-            type: string
+          items: {type: string}
+    ResourceGroupMember:
+      type: object
+      required: [monitorId, state, coverageState, revision]
+      properties:
+        monitorId: {type: string}
+        state: {type: string, enum: [healthy, degraded, down, unknown]}
+        coverageState: {type: string, enum: [sufficient, degraded, unknown]}
+        revision: {type: string}
     PageResources:
       type: object
       required:

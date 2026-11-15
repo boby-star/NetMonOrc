@@ -1,3 +1,15 @@
+# ResourceGroup: похідні стани й membership (R26)
+
+ResourceGroup CRUD/history/status, members/labels selectors, context/derived,
+all-required/any/weighted, mixed apply, implicit group revisions, REST assessment,
+CLI та React підключено. Група не запускає probes; stale/old-revision/missing
+MonitorAssessment стають unknown. Snapshot читається узгоджено в PostgreSQL.
+Критичні Go/PG/HTTPS перевірки й React build пройшли; live group workflow ще
+виконується. Документація: docs/deployment/resource-groups.md.
+Орієнтир залишку: 25–35% повного погодженого обсягу; метод оцінки та великі
+відкриті блоки — docs/development/readiness.md. Multi-Monitor execution,
+dynamic placement/replica voting, Dependency та Agent lifecycle не завершені.
+
 # Зональний SLA any та коректне агрегування: R25
 
 Підключено AssessmentPolicy.zoneAggregation=any через inline/ref, compiler,

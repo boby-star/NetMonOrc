@@ -9,6 +9,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/boby-star/NetMonOrc/internal/webhook"
 )
 
@@ -16,6 +17,8 @@ const MaxCatalogBytes = 8 << 20
 const MaxCatalogResources = 4096
 
 type Compiled struct {
+	Group        *resourcegroup.Spec
+	GroupMembers []string
 	Revision     string
 	Monitor      *monitor.Plan
 	Profile      *diagnostics.Profile
@@ -29,7 +32,7 @@ type Compiled struct {
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
+	return kind == "ResourceGroup" || kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -187,11 +190,35 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		}
 		compiled[key] = result
 	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "ResourceGroup" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		ids, rev, err := bindGroup(*result.Group, all, compiled)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		result.GroupMembers = ids
+		result.Revision = rev
+		compiled[key] = result
+	}
 	return registry, compiled, nil
 }
 func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	if err := validateMetadata(m); err != nil {
 		return Compiled{}, err
+	}
+	if m.Kind == "ResourceGroup" {
+		g, err := compileGroup(m.Spec)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: valueHash(g), Group: &g}, nil
 	}
 	if m.Kind == "PlacementPolicy" {
 		placement, err := compilePlacement(m.Spec)

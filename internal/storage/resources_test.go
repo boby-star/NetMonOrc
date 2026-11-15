@@ -14,6 +14,7 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/httpapi"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 )
 
@@ -33,6 +34,9 @@ func configureResourceTest(t *testing.T, ctx context.Context, s *Store, h *httpa
 	if _, e = s.SeedResource(ctx, m, p.Revision); e != nil {
 		t.Fatal(e)
 	}
+	h.SetResourceGroups(func(c context.Context, name string) (resourcegroup.Assessment, bool, error) {
+		return s.ReadGroupAssessment(c, name, registry)
+	})
 	h.SetResources(resources.New(s, registry), "")
 	h.SetOperations(s)
 }
@@ -186,7 +190,7 @@ func testResourceUseCases(t *testing.T, ctx context.Context, s *Store, server *h
 	if code, _, _ := request("PUT", "/api/v1/resources/Monitor/standby", m, specTag, session.CSRFToken); code != 412 {
 		t.Fatal("old identity ETag reused", code)
 	}
-	if code, _, _ := request("GET", "/api/v1/resources/ResourceGroup", nil, "", ""); code != 422 {
+	if code, _, _ := request("GET", "/api/v1/resources/Component", nil, "", ""); code != 422 {
 		t.Fatal("unsupported kind advertised", code)
 	}
 	// A fresh persisted result is still ineligible if it belongs to a former desired revision.

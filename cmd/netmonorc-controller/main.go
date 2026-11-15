@@ -31,6 +31,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/notify"
 	"github.com/boby-star/NetMonOrc/internal/operationview"
 	"github.com/boby-star/NetMonOrc/internal/report"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/boby-star/NetMonOrc/internal/secure"
 	"github.com/boby-star/NetMonOrc/internal/storage"
@@ -401,6 +402,9 @@ func run() error {
 						diagnostic.CancelRun(id)
 					}
 					return loadSession(c, id)
+				})
+				handler.SetResourceGroups(func(c context.Context, name string) (resourcegroup.Assessment, bool, error) {
+					return store.ReadGroupAssessment(c, name, registry)
 				})
 				handler.SetResources(resourceService, p.Revision)
 				handler.SetAgents(func() []agentstatus.View { return agentServer.AgentStatuses(time.Now()) })

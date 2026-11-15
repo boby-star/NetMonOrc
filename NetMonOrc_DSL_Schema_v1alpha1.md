@@ -1020,9 +1020,15 @@ spec:
 | `strategy` | enum `all-required`,`any`,`weighted` | Так | — | `all-required`: кожен Monitor необхідний; `any`: достатньо одного доступного; `weighted`: зважений агрегат із чітким порогом. |
 | `minCoverage` | Weight | Ні | `1.0` | Мінімальна частка актуальних станів Monitor для `healthy`. |
 | `weights` | map<MonitorName,Weight> | Умов. | — | Лише `weighted`, лише при `members` (фіксований список); сума >0, нормування до 1. |
-| `healthyMin` | Weight | Умов. | `0.9` | Лише `weighted`, поріг статусу `healthy`; за нижчого score результат щонайменше `degraded`, а за недостатності покриття — `unknown`. |
+| `healthyMin` | Weight | Умов. | `1.0` | Лише `weighted`, поріг статусу `healthy`; за нижчого score результат щонайменше `degraded`, а за недостатності покриття — `unknown`. |
 
 **Особливості:** похідна група не виконує власні probes, не дублює Observations і **не** може бути учасником іншої групи в v1alpha1; це запобігає циклічному переобчисленню. `context`-група може мати порожній список членів без health; `derived` із нулем членів має стан `unknown` і `coverage: unknown`. Зміна labels Monitor змінює склад селекторної групи після reconciliation.
+
+**Погоджене уточнення Q04:** для weighted healthy=1, degraded=0.5, down=0;
+unknown не входить у чисельник і знаменник score, але зменшує зважене coverage.
+Недостатнє minCoverage дає unknown. Без явного healthyMin тільки score=1 дає
+healthy, score=0 — down, проміжні значення — degraded; явний healthyMin має
+пріоритет. Default 1.0 у таблиці відображає це раніше погоджене рішення.
 
 **Ваги групи** не переносяться на `AssessmentPolicy` окремих Monitor. `GroupEvaluation` — окремий рівень оцінювання та окрема функція, а не середнє від сирих ICMP/HTTP-результатів.
 

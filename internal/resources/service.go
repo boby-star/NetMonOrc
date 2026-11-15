@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 type Service struct {
@@ -30,6 +31,10 @@ func (s *Service) Admit() bool {
 }
 func (s *Service) Release() { <-s.slots }
 func (s *Service) Status(v View, activeRevision string) View {
+	if v.Manifest.Kind == "ResourceGroup" {
+		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "group_catalogued"}}}
+		return v
+	}
 	if v.Manifest.Kind == "PlacementPolicy" {
 		v.Status = &Status{State: "stored", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Validated", Status: "True", Reason: "placement_policy_catalogued"}}}
 		return v
@@ -194,20 +199,22 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 	}
 	keys := []string{}
 	for key, entry := range compiled {
-		if !explicit[key] && entry.Monitor != nil {
+		if !explicit[key] && (entry.Monitor != nil || entry.Group != nil) {
 			keys = append(keys, key)
 		}
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
 		entry := compiled[key]
-		current, found, err := s.Repo.ResourceKind(ctx, "Monitor", entry.Monitor.Name)
+		parts := strings.SplitN(key, "/", 2)
+		kind, name := parts[0], parts[1]
+		current, found, err := s.Repo.ResourceKind(ctx, kind, name)
 		if err != nil {
 			return plan, err
 		}
 		if found && current.Revision != entry.Revision {
 			version := current.ResourceVersion
-			plan.Diffs = append(plan.Diffs, Diff{Kind: "Monitor", Name: entry.Monitor.Name, Action: "reconcile", ResourceVersion: &version, EffectiveRevision: entry.Revision})
+			plan.Diffs = append(plan.Diffs, Diff{Kind: kind, Name: name, Action: "reconcile", ResourceVersion: &version, EffectiveRevision: entry.Revision})
 		}
 	}
 	for _, diff := range plan.Diffs {

@@ -836,3 +836,19 @@ export async function loadObservation(id: string, signal: AbortSignal): Promise<
   if (!response.ok) throw new Error(`Доказ тимчасово недоступний (${response.status}).`);
   return response.json() as Promise<ObservationRecord>;
 }
+
+export interface GroupAssessment {
+  groupName: string;
+  mode: "context" | "derived";
+  state: "healthy" | "degraded" | "down" | "unknown" | null;
+  coverageState: "sufficient" | "degraded" | "unknown";
+  members: { monitorId: string; state: "healthy" | "degraded" | "down" | "unknown"; coverageState: string; revision: string }[];
+  evidenceIds: string[];
+}
+export async function groupAssessment(name: string): Promise<GroupAssessment> {
+  const response = await fetch(`/api/v1/resource-groups/${encodeURIComponent(name)}/assessment`, {
+    credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw resourceError(response.status);
+  return response.json() as Promise<GroupAssessment>;
+}
