@@ -399,6 +399,7 @@ def verify(lab):
     rule_op=json.loads(lab.compose('exec','-T','controller',*cli,'apply','--context-file','/tmp/cli/context.json','-f','-','--wait','--timeout','45s',input=json.dumps(rule_batch).encode()))
     assert rule_op['state']=='completed' and rule_op['result']['targets'][0]['reason']=='alert_rule_evaluated'
     lab.compose('restart','controller');lab.wait(agents_rejoined,'Agent proofs restored after managed rule restart')
+    lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
     persisted_rule=json.loads(lab.compose('exec','-T','controller',*cli,'get','--context-file','/tmp/cli/context.json','AlertRule','service-outage'))
     assert persisted_rule['manifest']['spec']['description']=='managed rule runtime verification'
     extra_rule=copy.deepcopy(saved_rule['manifest']);extra_rule['metadata']['name']='secondary-rule';extra_rule['spec']['when']='false'
