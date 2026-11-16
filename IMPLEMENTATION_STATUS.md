@@ -1,3 +1,14 @@
+# Граф залежностей і стабільні компоненти панелі (R28)
+
+React має read-only graph/table Dependency зі стрілками, вибором вузла/ребра,
+клавіатурою, пошуком на поточній сторінці й server cursor pagination.
+Схема не обчислює health/RCA. Виправлено duplicate sibling keys, які під час
+clock updates дублювали секції та скидали вибір. Production build і критичні
+Chromium DOM flows пройшли на fixture API; live Controller цим browser smoke
+не перевірявся. Документація: docs/deployment/dependency-graph.md.
+Multi-Monitor, dynamic placement/replicas, Agent lifecycle та фінальна
+acceptance/performance звірка залишаються відкритими.
+
 # Dependency: перевірений граф і revisioned context (R27)
 
 Окремий Dependency має CRUD/history/status, mixed apply, CLI та React editor.

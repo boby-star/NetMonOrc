@@ -61,8 +61,8 @@ netmonorc plan --context-file /private/context.json -f dependencies.yaml
 netmonorc apply --context-file /private/context.json -f dependencies.yaml --wait
 ```
 
-У React оберіть Dependency у конфігураційному редакторі. Графічної візуалізації
-DAG цей етап не додає. Diagnostic Planner зберігає чинні hypotheses/Gain/Cost:
+У React оберіть Dependency у конфігураційному редакторі. З R28 доступний
+[інтерактивний перегляд графа](dependency-graph.md) поточної сторінки каталогу. Diagnostic Planner зберігає чинні hypotheses/Gain/Cost:
 він не відсіює класи за здогадкою з Dependency. Доступність graph context в IR
 не видається за реалізований автоматичний RCA.
 

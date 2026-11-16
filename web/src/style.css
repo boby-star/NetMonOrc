@@ -190,3 +190,12 @@ fieldset {
   background: #e9f0e8;
   padding: 1rem;
 }
+
+.dependency-filters { margin: 1rem 0; align-items: end; }
+.dependency-graph-scroll { overflow: auto; max-height: 550px; border: 1px solid #c6d9c9; border-radius: 8px; margin: 1rem 0; background: #fffdf8; }
+.dependency-graph-scroll svg { display: block; color: #20362a; }
+.dependency-link, .dependency-node { cursor: pointer; }
+.dependency-node:focus-visible rect { stroke: #875400; stroke-width: 4; }
+.dependency-link:focus-visible .dependency-edge { stroke: #875400; stroke-width: 4; }
+.dependency-link .dependency-edge { pointer-events: none; }
+.dependency-detail { border-left: 4px solid #2e8b57; padding: .5rem 1rem; overflow-wrap: anywhere; }

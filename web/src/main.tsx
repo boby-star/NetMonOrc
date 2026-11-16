@@ -11,6 +11,7 @@ import {
   type Assessment,
 } from "./api";
 import "./style.css";
+import { Dependencies } from "./Dependencies";
 import { ResourceGroups } from "./ResourceGroups";
 import { Overview } from "./Overview";
 import { History } from "./History";
@@ -310,11 +311,11 @@ function App() {
             </details>
           </section>
         )}
-        {session && <Overview key={session.userId} />}
+        {session && <Overview key={"overview:" + session.userId} />}
         {session?.role === "admin" &&
           session.scopes.includes("system:admin") && (
             <Users
-              key={session.userId}
+              key={"users:" + session.userId}
               session={session}
               onOwnChange={() => {
                 setSession(null);
@@ -329,23 +330,24 @@ function App() {
           )}
         {session && connection && (
           <Configuration
-            key={session.userId + connection.monitor}
+            key={"configuration:" + session.userId + ":" + connection.monitor}
             session={session}
             monitor={connection.monitor}
           />
         )}
-        {session?.scopes.includes("resources:read") && <ResourceGroups key={session.userId} />}
+        {session?.scopes.includes("resources:read") && <Dependencies key={"dependencies:" + session.userId} />}
+        {session?.scopes.includes("resources:read") && <ResourceGroups key={"groups:" + session.userId} />}
         {session?.scopes.includes("agents:read") && (
-          <Agents key={session.userId} />
+          <Agents key={"agents:" + session.userId} />
         )}
         {session?.scopes.includes("diagnostics:read") && connection && (
-          <Diagnostics key={session.userId + connection.monitor} monitor={connection.monitor} session={session} />
+          <Diagnostics key={"diagnostics:" + session.userId + ":" + connection.monitor} monitor={connection.monitor} session={session} />
         )}
-        {session?.scopes.includes("alerts:read") && connection && <Alerts key={session.userId + connection.monitor} monitor={connection.monitor} session={session} />}
-        {session && <Tokens key={session.userId} session={session} />}
+        {session?.scopes.includes("alerts:read") && connection && <Alerts key={"alerts:" + session.userId + ":" + connection.monitor} monitor={connection.monitor} session={session} />}
+        {session && <Tokens key={"tokens:" + session.userId} session={session} />}
         {session && connection && (
           <History
-            key={session.userId + connection.monitor}
+            key={"history:" + session.userId + ":" + connection.monitor}
             monitor={connection.monitor}
           />
         )}
