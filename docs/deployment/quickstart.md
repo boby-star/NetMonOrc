@@ -62,9 +62,9 @@ python3 scripts/lab.py backup --project netmonorc-demo --output .local/demo-back
 Реальні probes із двох сегментів, state/coverage, декларативні ресурси й
 залежні ревізії, CEL/extraction, Static/Fixed/Adaptive діагностику,
 alerts/webhook, users/PAT, історію, ResourceGroup та граф Dependency.
-Поточний Controller виконує **один активний Monitor**; інші зберігаються,
-але не запускаються. Dynamic placement, replica voting та Agent enrollment
-не слід оголошувати готовими. Фактичний залишок —
+Controller виконує [кілька Monitor із каталогу](multiple-monitors.md);
+у верхньому полі панелі можна перемикати перегляд без нового входу.
+Dynamic placement, replica voting та Agent enrollment залишаються відкритими. Фактичний залишок —
 [readiness.md](../development/readiness.md).
 
 ## Перевірка браузером проти справжнього Controller
@@ -84,3 +84,6 @@ python3 scripts/lab_browser.py --project YOUR_FRESH_PROJECT --prefix YOUR_PREFIX
 не змінюється, TLS checks не вимикаються. Chromium без sandbox використовується
 лише як локальний headless acceptance client. Після успішного запуску test
 resources видаляються UI, сесія закривається logout; data volumes лишаються.
+
+Додайте `--multi-monitor` до lab_browser.py для перевірки двох одночасних
+Monitor, різних результатів та перемикання UI зі збереженням вибору після reload.

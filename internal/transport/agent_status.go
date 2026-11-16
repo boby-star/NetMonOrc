@@ -14,7 +14,10 @@ func (s *Server) AgentStatuses(now time.Time) []agentstatus.View {
 	out := make([]agentstatus.View, 0, len(s.Slots))
 	for _, slot := range s.Slots {
 		v := agentstatus.View{AgentID: slot.Agent, Name: slot.Agent, OnlineState: "offline", NetworkZone: slot.Zone, Labels: map[string]string{}}
-		regular := s.Plan.RegularAllowed(slot.Agent)
+		regular := false
+		for _, plan := range s.plans() {
+			regular = regular || plan.RegularAllowed(slot.Agent)
+		}
 		v.RegularMonitoringAssigned = &regular
 		if session, ok := s.active[slot.Agent]; ok {
 			v.OnlineState = "degraded"
@@ -27,7 +30,7 @@ func (s *Server) AgentStatuses(now time.Time) []agentstatus.View {
 				}
 			}
 			sort.Strings(v.Capabilities)
-			if session.applied {
+			if session.appliedRevisions[s.Plan.Revision] {
 				revision := s.Plan.Revision
 				v.AppliedRevision = &revision
 			}

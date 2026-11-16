@@ -10,11 +10,14 @@
 Observation → зональна оцінка/CEL → обмежена діагностика → alert/webhook.
 Є persisted resource catalog, залежні ревізії, REST/CLI/React, fixed placement,
 зональні SLA, history, auth/RBAC та відтворюваний приватний Compose stand.
-R26 додає похідні/context ResourceGroup у межах описаного runtime.
+R26 додає похідні/context ResourceGroup. R30 підключає одночасне виконання
+Monitor catalog на спільних Agent; ACK, assessment і діагностика розділені
+за revision/Monitor. Попередня приблизна оцінка відсотків вище не є новим
+перерахунком після цієї ітерації.
 
 | Великий залишок | Що визначає завершення |
 |---|---|
-| Multi-Monitor execution | Кілька одночасних планів на Agent; ACK/replay/lease та оцінки окремих Monitor без взаємного fencing; узгоджені API/діагностика/бюджети |
+| Незалежний hot reload Monitor | R30 виконує кілька планів з окремими ACK/replay/lease, REST/React та Assessment; зміни catalog усе ще перезапускають спільні Agent streams; storm/performance вимірювання лишаються |
 | Dynamic placement і replicas | leastLoaded/roundRobin, стабільні фізичні slots, all/any/quorum від planned N, контроль відсутніх результатів; partial лишається вимкненим |
 | Подальший dependency context | R27 закрив окремі Dependency refs/requires DAG/revisioned IR; R28 додав графічний перегляд сторінки; лишився неузгоджений shorthand, автоматичний RCA не додається |
 | Agent lifecycle | Enrollment/recovery/revocation, certificate rotation та UI/API керування; поточний trusted fixed roster цього не замінює |

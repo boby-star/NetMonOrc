@@ -18,7 +18,10 @@ import (
 )
 
 func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, monitor.Check, time.Time, error) {
-	a := st.get()
+	var a *assignment
+	if task != nil {
+		a = st.forRevision(task.Revision)
+	}
 	if task == nil || !validID(task.TaskId) || !validID(task.SessionId) || task.AttemptNo < 1 || task.AttemptNo > 50 || len(task.CompiledCheck) > 64<<10 || a == nil || a.plan.Diagnostics == nil || !a.plan.Diagnostics.Enabled || task.Revision != a.plan.Revision || !leaseValid(a) {
 		return nil, monitor.Check{}, time.Time{}, fmt.Errorf("task not authorized by current assignment")
 	}

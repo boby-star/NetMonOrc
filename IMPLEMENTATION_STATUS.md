@@ -1,3 +1,22 @@
+# Кілька Monitor у спільному runtime (R30)
+
+Controller завантажує весь Monitor catalog, передає незалежні assignments через
+одне mTLS-з'єднання Agent, оцінює кожний Monitor і має окремі diagnostic/alert
+контексти. PostgreSQL зберігає ACK за revision/session generation; новий ACK
+не скасовує інші. Operations перевіряють ACK усіх відповідних Monitor.
+Agent розділяє checks із однаковим ID за revision та має один regular worker,
+окремий diagnostic worker, bounded cache двох regular exporters і спільний spool.
+REST routes збережені; React перемикає Monitor без нового входу, вибір вкладки
+відновлюється після reload. Dashboard враховує всі актуальні assessments.
+
+Критичні Go-перевірки, React/Docker build та ізольований реальний PostgreSQL
+пройшли. Live browser integration пройшла: два Monitor із різними
+станами, по два Agent, перемикання/reload React та видалення додаткового
+Monitor без втрати здорового стану стартового. Evidence: docs/experiments/multiple-monitors-r30/. Зміни catalog усе ще викликають
+спільний runtime reload/reconnect; незалежного hot reload немає. Dynamic
+placement/replica voting, Agent lifecycle та повне приймання лишаються відкритими.
+Документація: docs/deployment/multiple-monitors.md; ADR 0011.
+
 # Локальний запуск UI та живий браузерний сценарій (R29)
 
 Додано явний loopback-only HTTPS port для owned Compose stand і команду

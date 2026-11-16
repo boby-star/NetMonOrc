@@ -13,6 +13,8 @@ import (
 	jitter "math/rand/v2"
 	"net/netip"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,13 +39,50 @@ type assignment struct {
 type state struct {
 	mu             sync.Mutex
 	current        *assignment
+	assignments    map[string]*assignment
 	active         atomic.Int32
 	diagnosticBusy atomic.Bool
 	fatal          chan error
 }
 
-func (s *state) get() *assignment  { s.mu.Lock(); defer s.mu.Unlock(); return s.current }
-func (s *state) set(a *assignment) { s.mu.Lock(); defer s.mu.Unlock(); s.current = a }
+func (s *state) get() *assignment { s.mu.Lock(); defer s.mu.Unlock(); return s.current }
+func (s *state) set(a *assignment) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.assignments == nil {
+		s.assignments = map[string]*assignment{}
+	}
+	s.assignments[a.plan.Name] = a
+	s.current = a
+}
+func (s *state) list() []*assignment {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.assignments) == 0 {
+		if s.current != nil {
+			return []*assignment{s.current}
+		}
+		return nil
+	}
+	out := make([]*assignment, 0, len(s.assignments))
+	for name, a := range s.assignments {
+		if leaseValid(a) {
+			out = append(out, a)
+		} else {
+			delete(s.assignments, name)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].plan.Name < out[j].plan.Name })
+	return out
+}
+func (s *state) forRevision(revision string) *assignment {
+	for _, a := range s.list() {
+		if a.plan.Revision == revision {
+			return a
+		}
+	}
+	return nil
+}
 
 func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbox string, allowed []netip.Prefix) error {
 	spool, e := OpenSpool(dir, id)
@@ -117,7 +156,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "assessment:zone-any", "context:dependencies", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "assessment:zone-any", "context:dependencies", "plans:multiple", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	if e = stream.Send(f); e != nil {
 		return e
 	}
@@ -144,6 +183,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 	lastReceived := time.Now()
 	accepted := false
 	applied := false
+	appliedRevisions := map[string]bool{}
 	var flight map[string]bool
 	var sent time.Time
 	var sequence uint64
@@ -184,8 +224,14 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 			batch := &pb.ObservationBatch{}
 			flight = map[string]bool{}
 			for _, o := range pending {
+				if st.forRevision(o.Revision) != nil && !appliedRevisions[o.Revision] {
+					continue
+				}
 				batch.Observations = append(batch.Observations, transport.Encode(o))
 				flight[o.ID] = true
+			}
+			if len(batch.Observations) == 0 {
+				continue
 			}
 			f := agentFrame(id)
 			f.Payload = &pb.AgentFrame_ObservationBatch{ObservationBatch: batch}
@@ -226,6 +272,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 					return e
 				}
 				applied = true
+				appliedRevisions[a.Revision] = true
 				continue
 			}
 			if message := f.GetTaskCancel(); message != nil {
@@ -239,7 +286,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 				var a *assignment
 				var c monitor.Check
 				var deadline time.Time
-				reserved := accepted && applied && st.diagnosticBusy.CompareAndSwap(false, true)
+				reserved := accepted && applied && appliedRevisions[task.Revision] && st.diagnosticBusy.CompareAndSwap(false, true)
 				if reserved && !spool.Reserve() {
 					st.diagnosticBusy.Store(false)
 					reserved = false
@@ -335,7 +382,7 @@ func apply(a *pb.ConfigAssignment, st *state, dir string, agent ...string) error
 	if e != nil {
 		return e
 	}
-	if e = durable.AtomicWrite(filepath.Join(dir, ".assignment"), b); e != nil {
+	if e = durable.AtomicWrite(filepath.Join(dir, ".assignment-"+p.Name), b); e != nil {
 		return e
 	}
 	// time.Now().Add retains a monotonic deadline for the running process.
@@ -348,11 +395,15 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 	tick := time.NewTicker(250 * time.Millisecond)
 	defer tick.Stop()
 	next := map[string]time.Time{}
-	revision := ""
-	var exporter *probe.Exporter
+	type cached struct {
+		exporter *probe.Exporter
+		used     time.Time
+	}
+	exporters := map[string]cached{}
+	turn := 0
 	defer func() {
-		if exporter != nil {
-			exporter.Close()
+		for _, v := range exporters {
+			v.exporter.Close()
 		}
 	}()
 	for {
@@ -361,68 +412,96 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 			return nil
 		case <-tick.C:
 		}
-		a := st.get()
-		if !leaseValid(a) || spool.Full() {
-			continue
+		assignments := st.list()
+		if len(assignments) > 0 {
+			start := turn % len(assignments)
+			assignments = append(assignments[start:], assignments[:start]...)
+			turn = (start + 1) % len(assignments)
 		}
-		if revision != a.plan.Revision {
-			next = map[string]time.Time{}
-			revision = a.plan.Revision
-			if exporter != nil {
-				exporter.Close()
-				exporter = nil
+		live := map[string]bool{}
+		for _, a := range assignments {
+			if leaseValid(a) {
+				live[a.plan.Revision] = true
 			}
 		}
-		if !a.plan.RegularAllowed(id) {
-			continue
+		for revision, v := range exporters {
+			if !live[revision] {
+				v.exporter.Close()
+				delete(exporters, revision)
+			}
 		}
-		for _, c := range a.plan.Checks {
-			if ctx.Err() != nil {
-				return nil
+		for key := range next {
+			revision, _, _ := strings.Cut(key, "/")
+			if !live[revision] {
+				delete(next, key)
 			}
-			if spool.Full() || !leaseValid(a) {
-				break
-			}
-			if time.Now().Before(next[c.ID]) {
+		}
+		for _, a := range assignments {
+			if !leaseValid(a) || spool.Full() || !a.plan.RegularAllowed(id) {
 				continue
 			}
-			if !spool.Reserve() {
-				break
-			}
-			next[c.ID] = time.Now().Add(c.Interval)
-			child, cancel := context.WithDeadline(ctx, a.deadline)
-			slot := monitor.Slot{Agent: id, Zone: a.zone}
-			var o monitor.Observation
-			var e error
-			st.active.Add(1)
-			if c.Runner == "blackbox" {
-				if exporter == nil {
-					// The cached exporter outlives individual probe contexts.
-					// Lease validity is checked again before using it below.
-					exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
+			for _, c := range a.plan.Checks {
+				if ctx.Err() != nil {
+					return nil
 				}
-				if e == nil && !leaseValid(a) {
-					e = fmt.Errorf("lease expired during exporter startup")
+				if spool.Full() || !leaseValid(a) {
+					break
 				}
-				if e == nil {
-					o, e = exporter.Run(child, a.plan, c, slot, allowed)
+				key := a.plan.Revision + "/" + c.ID
+				if time.Now().Before(next[key]) {
+					continue
 				}
-			} else {
-				o, e = probe.HTTP(child, a.plan, c, slot, allowed)
-			}
-			cancel()
-			st.active.Add(-1)
-			if e != nil {
-				var id [16]byte
-				if _, err := rand.Read(id[:]); err != nil {
-					spool.Release()
-					return err
+				if !spool.Reserve() {
+					break
 				}
-				now := time.Now().UTC()
-				o = monitor.Observation{ID: hex.EncodeToString(id[:]), Monitor: a.plan.Name, Revision: a.plan.Revision, Check: c.ID, Agent: slot.Agent, Zone: slot.Zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "runner_unavailable_or_policy_denied"}
-			}
-			if e = spool.AddReserved(o); e != nil {
-				return e
+				next[key] = time.Now().Add(c.Interval)
+				child, cancel := context.WithDeadline(ctx, a.deadline)
+				slot := monitor.Slot{Agent: id, Zone: a.zone}
+				var o monitor.Observation
+				var e error
+				st.active.Add(1)
+				if c.Runner == "blackbox" {
+					entry, found := exporters[a.plan.Revision]
+					if !found {
+						// Two regular exporters bound memory independently of catalog size.
+						if len(exporters) >= 2 {
+							oldest := ""
+							for rev, v := range exporters {
+								if oldest == "" || v.used.Before(exporters[oldest].used) {
+									oldest = rev
+								}
+							}
+							exporters[oldest].exporter.Close()
+							delete(exporters, oldest)
+						}
+						entry.exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
+					}
+					if e == nil {
+						entry.used = time.Now()
+						exporters[a.plan.Revision] = entry
+						if !leaseValid(a) {
+							e = fmt.Errorf("lease expired during exporter startup")
+						} else {
+							o, e = entry.exporter.Run(child, a.plan, c, slot, allowed)
+						}
+					}
+				} else {
+					o, e = probe.HTTP(child, a.plan, c, slot, allowed)
+				}
+				cancel()
+				st.active.Add(-1)
+				if e != nil {
+					var observationID [16]byte
+					if _, err := rand.Read(observationID[:]); err != nil {
+						spool.Release()
+						return err
+					}
+					now := time.Now().UTC()
+					o = monitor.Observation{ID: hex.EncodeToString(observationID[:]), Monitor: a.plan.Name, Revision: a.plan.Revision, Check: c.ID, Agent: slot.Agent, Zone: slot.Zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "runner_unavailable_or_policy_denied"}
+				}
+				if e = spool.AddReserved(o); e != nil {
+					return e
+				}
 			}
 		}
 	}

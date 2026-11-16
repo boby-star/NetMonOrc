@@ -68,8 +68,12 @@ func (s *Service) Status(v View, activeRevision string) View {
 		return v
 	}
 	status := &Status{State: "pending", DesiredRevision: v.Revision, Conditions: []Condition{{Type: "Reconciled", Status: "False", Reason: "controller_not_selected"}}}
-	if v.Manifest.Metadata.Name == s.Registry.Active {
+	loadedRevision, loaded := s.Registry.LoadedRevisions[v.Manifest.Metadata.Name]
+	if v.Manifest.Metadata.Name == s.Registry.Active || loaded {
 		status.Conditions[0].Reason = "revision_pending"
+		if loaded {
+			activeRevision = loadedRevision
+		}
 		if v.Revision == activeRevision {
 			status.State = "active"
 			status.Conditions[0] = Condition{Type: "Reconciled", Status: "True", Reason: "controller_loaded"}
@@ -124,7 +128,7 @@ func (s *Service) Validate(ctx context.Context, batch Batch) (Validation, error)
 	revisions := map[string]string{}
 	for _, m := range batch.Manifests {
 		revisions[Key(m)] = compiled[Key(m)].Revision
-		if m.Kind == "Monitor" && m.Metadata.Name != s.Registry.Active {
+		if m.Kind == "Monitor" && m.Metadata.Name != s.Registry.Active && !s.Registry.ExecuteAll {
 			result.Warnings = append(result.Warnings, Detail{Code: "MONITOR_NOT_SELECTED", Message: Key(m) + " requires selection by Controller configuration"})
 		}
 	}

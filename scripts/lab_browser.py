@@ -7,7 +7,7 @@ import subprocess
 import sys
 from lab import Lab, ROOT
 
-def verify(lab,output,screenshot):
+def verify(lab,output,screenshot,multi_monitor=False):
     lab.require()
     port=lab.ui_port()
     if not port:raise RuntimeError('Enable a loopback UI port with lab.py up --ui-port PORT first')
@@ -20,9 +20,15 @@ def verify(lab,output,screenshot):
     subprocess.run(cmd,input=password.encode(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True)
     preserved=subprocess.run(cmd,input=secrets.token_urlsafe(32).encode(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True).stdout
     if b'credentials unchanged' not in preserved:raise RuntimeError('Bootstrap idempotency not confirmed')
-    config={'origin':'https://localhost:'+str(port),'username':username,'password':password,'caFile':str(lab.work/'pki/ca.crt'),'output':str(output),'screenshot':str(screenshot)}
+    config={'multiMonitor':multi_monitor,'origin':'https://localhost:'+str(port),'username':username,'password':password,'caFile':str(lab.work/'pki/ca.crt'),'output':str(output),'screenshot':str(screenshot)}
     subprocess.run(['node',str(ROOT/'scripts/live_browser_smoke.mjs')],input=json.dumps(config).encode(),check=True,timeout=240)
     result=json.loads(output.read_text());result['administratorBootstrapIdempotent']=True
+    if multi_monitor:
+        counts=json.loads(lab.sql("SELECT jsonb_object_agg(monitor,counts) FROM (SELECT monitor,jsonb_build_object('agents',count(DISTINCT agent_id),'observations',count(*),'successes',count(*) FILTER(WHERE payload->>'outcome'='success'),'failures',count(*) FILTER(WHERE payload->>'outcome'='failure')) AS counts FROM nmo_observations WHERE diagnostic_task_id='' GROUP BY monitor) q"))
+        if counts.get('research-web',{}).get('agents')!=2 or counts.get('research-other',{}).get('agents')!=2 or counts['research-other']['failures']<2:
+            raise RuntimeError('Separate observations from both Agents were not confirmed')
+        result['multipleMonitorObservationCounts']=counts
+
     bindings=json.loads(subprocess.check_output(['docker','inspect',lab.compose('ps','--quiet','controller').decode().strip()],text=True))[0]['HostConfig']['PortBindings']
     if bindings!={'8443/tcp':[{'HostIp':'127.0.0.1','HostPort':str(port)}]}:raise RuntimeError('Unexpected published service ports')
     containers=lab.compose('ps','--quiet').decode().split()
@@ -38,7 +44,7 @@ def verify(lab,output,screenshot):
     output.write_text(json.dumps(result,indent=2)+'\n');output.chmod(0o600)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.19');p.add_argument('--output',default='.local/live-browser-r29.json');p.add_argument('--screenshot',default='.local/live-browser-r29.png');a=p.parse_args()
-    try:verify(Lab(a.project,a.prefix),a.output,a.screenshot)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.19');p.add_argument('--output',default='.local/live-browser-r29.json');p.add_argument('--screenshot',default='.local/live-browser-r29.png');p.add_argument('--multi-monitor',action='store_true');a=p.parse_args()
+    try:verify(Lab(a.project,a.prefix),a.output,a.screenshot,a.multi_monitor)
     except subprocess.CalledProcessError:raise SystemExit('Live browser acceptance did not pass; credentials were not exported')
     print('Verified real UI and loopback-only publishing; credentials omitted.')

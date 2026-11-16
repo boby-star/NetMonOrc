@@ -30,7 +30,10 @@ const labels = {
 const percent = (x: number | null) =>
   typeof x === "number" ? `${(x * 100).toFixed(0)}%` : "—";
 function App() {
-  const [monitor, setMonitor] = useState("research-web");
+  const [monitor, setMonitor] = useState(() => {
+    try { const saved = sessionStorage.getItem("netmonorc.monitor"); return saved && /^[a-z][a-z0-9-]{0,62}$/.test(saved) ? saved : "research-web"; }
+    catch { return "research-web"; }
+  });
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -54,6 +57,7 @@ function App() {
   }, []);
   useEffect(() => {
     if (!connection) return;
+    try { sessionStorage.setItem("netmonorc.monitor", connection.monitor); } catch { /* Browsers may disable storage; the live session still works. */ }
     let closed = false;
     let busy = false;
     const controller = new AbortController();
@@ -99,7 +103,7 @@ function App() {
       .then((current) => {
         if (active && current) {
           setSession(current);
-          setConnection({ monitor: "research-web", token: "" });
+          setConnection({ monitor, token: "" });
         }
       })
       .catch(() => {})
@@ -197,9 +201,10 @@ function App() {
                 required
                 pattern="[a-z][a-z0-9-]*"
                 onChange={(e) => setMonitor(e.target.value)}
-                disabled={!!connection}
+                disabled={submitting || restoring}
               />
             </label>
+            {connection && <button type="button" disabled={submitting || restoring || !/^[a-z][a-z0-9-]{0,62}$/.test(monitor)} onClick={() => { setAssessment(null); setError(""); setConnection({ monitor, token: connection.token }); }}>Відкрити Monitor</button>}
             {!connection && (
               <label>
                 Спосіб входу
@@ -265,8 +270,7 @@ function App() {
           </form>
           <small>
             Пароль не зберігається панеллю. Сесія використовує захищену HttpOnly
-            cookie; токен читання — лише пам’ять вкладки. Перегляд одного
-            Monitor.
+            cookie; токен читання — лише пам’ять вкладки. Можна перемикати Monitor без повторного входу.
           </small>
         </section>
         {session && (

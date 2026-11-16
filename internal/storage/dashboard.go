@@ -43,3 +43,30 @@ func (s *Store) Dashboard(ctx context.Context, name, revision string, reads dash
 	}
 	return out, nil
 }
+
+// DashboardRuntime includes only evidence matching both desired and loaded revisions.
+func (s *Store) DashboardRuntime(ctx context.Context, revisions map[string]string, reads dashboard.Reads) (dashboard.Source, error) {
+	out, err := s.Dashboard(ctx, "", "", reads)
+	if err != nil || !reads.Resources {
+		return out, err
+	}
+	rows, err := s.pool.Query(ctx, `SELECT a.payload FROM nmo_assessments a JOIN nmo_resources r ON r.kind='Monitor' AND r.name=a.monitor AND r.effective_revision=a.revision`)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var raw []byte
+		var a monitor.Assessment
+		if err = rows.Scan(&raw); err != nil {
+			return out, err
+		}
+		if err = json.Unmarshal(raw, &a); err != nil {
+			return out, err
+		}
+		if revisions[a.Monitor] == a.Revision {
+			out.Assessments = append(out.Assessments, a)
+		}
+	}
+	return out, rows.Err()
+}

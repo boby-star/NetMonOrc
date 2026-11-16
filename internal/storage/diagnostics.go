@@ -126,12 +126,12 @@ func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
 		return fmt.Errorf("diagnostic run budget or deadline unavailable")
 	}
 	var gen int64
-	var applied string
-	e = tx.QueryRow(ctx, `SELECT generation,applied_revision FROM nmo_sessions WHERE agent_id=$1 FOR UPDATE`, t.Agent).Scan(&gen, &applied)
+	var applied bool
+	e = tx.QueryRow(ctx, `SELECT generation,EXISTS(SELECT 1 FROM nmo_session_revisions r WHERE r.agent_id=$1 AND r.generation=nmo_sessions.generation AND r.revision=$2) FROM nmo_sessions WHERE agent_id=$1 FOR UPDATE`, t.Agent, t.Plan.Revision).Scan(&gen, &applied)
 	if e != nil {
 		return e
 	}
-	if gen != t.Generation || applied != t.Plan.Revision {
+	if gen != t.Generation || !applied {
 		return ErrFenced
 	}
 	b, e := json.Marshal(t.Check)

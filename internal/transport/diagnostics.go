@@ -63,8 +63,9 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	}
 	s.mu.Lock()
 	session, ok := s.active[e.ID]
+	ready := ok && session.appliedRevisions[r.Plan.Revision] && time.Since(session.lastHeartbeat) <= 15*time.Second
 	s.mu.Unlock()
-	if !ok || !session.applied || time.Since(session.lastHeartbeat) > 15*time.Second {
+	if !ready {
 		return unknown, fmt.Errorf("Agent not ready")
 	}
 	var b [16]byte

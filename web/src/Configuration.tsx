@@ -113,7 +113,7 @@ export function Configuration({
       setName(saved.resource.manifest.metadata.name);
       setText(JSON.stringify(saved.resource.manifest, null, 2));
       setResult(
-        "Збережено. Для активного Monitor Controller завантажить нову ревізію; оновіть запис за кілька секунд. Інші Monitor очікують вибору Controller. AlertRule підхоплюються чинним runtime автоматично. WebhookEndpoint застосовується через перезавантаження конфігурації Controller.",
+        "Збережено. Controller завантажить нову ревізію Monitor і передасть плани агентам; оновіть запис за кілька секунд. AlertRule підхоплюються чинним runtime автоматично. WebhookEndpoint застосовується через перезавантаження конфігурації Controller.",
       );
     } catch (e) {
       setError(
@@ -132,8 +132,8 @@ export function Configuration({
       <h2>Конфігурація моніторингу</h2>
       <p>
         JSON-подання декларативного маніфесту. Перевірку та компіляцію виконує
-        сервер. Зараз Controller виконує один вибраний Monitor із фіксованими
-        зонами.
+        сервер. Controller виконує Monitor із каталогу у фіксованих мережевих
+        зонах; вибір Monitor у панелі змінює перегляд.
       </p>
       <form
         onSubmit={(e) => {

@@ -118,3 +118,43 @@ func (s *Store) LoadCompiledMonitor(ctx context.Context, name string, base resou
 	}
 	return registry, plan, tx.Commit(ctx)
 }
+
+// LoadRuntime captures all Monitor plans and shared dependencies in one catalog transaction.
+func (s *Store) LoadRuntime(ctx context.Context, base resources.Registry) (resources.Registry, map[string]resources.Compiled, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return base, nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(781305)`); err != nil {
+		return base, nil, err
+	}
+	registry, compiled, err := resolveCatalogTx(ctx, tx, base, nil)
+	if err != nil {
+		return base, nil, err
+	}
+	if _, err = refreshDependents(ctx, tx, compiled, nil); err != nil {
+		return base, nil, err
+	}
+	return registry, compiled, tx.Commit(ctx)
+}
+func (s *Store) RuntimeCurrent(ctx context.Context, revisions map[string]string) (bool, error) {
+	rows, err := s.pool.Query(ctx, `SELECT name,effective_revision FROM nmo_resources WHERE kind='Monitor'`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	count := 0
+	current := true
+	for rows.Next() {
+		var name, revision string
+		if err = rows.Scan(&name, &revision); err != nil {
+			return false, err
+		}
+		count++
+		if revisions[name] != revision {
+			current = false
+		}
+	}
+	return current && count == len(revisions), rows.Err()
+}

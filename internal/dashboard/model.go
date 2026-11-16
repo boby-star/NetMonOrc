@@ -11,6 +11,7 @@ type Reads struct{ Resources, Agents, Alerts, Diagnostics bool }
 type Source struct {
 	Monitors    int
 	Assessment  *monitor.Assessment
+	Assessments []monitor.Assessment
 	Firing      int
 	Diagnostics []diagnosticview.Session
 }

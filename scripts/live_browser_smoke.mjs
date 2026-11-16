@@ -72,14 +72,34 @@ try {
   await load('Target','browser-dns');await click(configSection,'Видалити ресурс');await wait(`(${configSection}).textContent.includes('Ресурс видалено')`);
   await click(graph,'Оновити граф');await wait(`${graph}.textContent.includes('У каталозі немає зв’язків')`);
   await pause(2200);assert.equal(await evaluate(`document.querySelectorAll('section[aria-labelledby="dependencies-heading"]').length`),1);
-  stage='logout';await click(`document.querySelector('main > section')`,'Від’єднатися');await wait(`document.querySelector('input[autocomplete="username"]')&&![...document.querySelectorAll('button')].find(b=>b.textContent==='Увійти').disabled`);
-  assert.equal(await evaluate(`fetch('/api/v1/auth/me',{credentials:'same-origin'}).then(r=>r.status)`),401);
-  assert.deepEqual(errors,[]);
-  assert.equal(responses.filter(r=>r.path==='/api/v1/resources/Target/browser-dns'&&r.method==='DELETE'&&r.status===409).length,1);
+  if(config.multiMonitor){
+    stage='create-second-monitor';await load('Monitor','research-web');
+    const secondary=await evaluate(`JSON.parse((${configSection}).querySelector('textarea.manifest-editor').value)`);
+    secondary.metadata={name:'research-other'};
+    secondary.spec.checks=secondary.spec.checks.filter(c=>c.id==='http');
+    secondary.spec.checks[0].interval='10s';secondary.spec.checks[0].config.expectedStatus=[503];
+    secondary.spec.assessment.checks=secondary.spec.assessment.checks.filter(c=>c.id==='http');
+    secondary.spec.diagnostics={enabled:false};
+    await create(secondary);
+    const connection=`document.querySelector('main > section')`;
+    const selected=`[...document.querySelectorAll('main > section')].find(s=>s.querySelector('h2')?.textContent==='research-other')`;
+    await field(`(${connection}).querySelector('input[pattern]')`,'research-other');await click(connection,'Відкрити Monitor');
+    stage='independent-second-assessment';await wait(`${selected}?.querySelector('.badge')?.textContent==='Відмова'`);
+    const secondaryRevision=await evaluate(`(${selected}).querySelector('details code').textContent`);assert.notEqual(secondaryRevision,originalRevision);
+    stage='second-monitor-session-reload';await call('Page.reload');await wait(`${selected}?.querySelector('.badge')?.textContent==='Відмова'&&document.body.textContent.includes(${JSON.stringify(config.username+' · admin')})`);
+    await field(`(${connection}).querySelector('input[pattern]')`,'research-web');await click(connection,'Відкрити Monitor');
+    stage='primary-still-healthy';await wait(`${assessment}?.querySelector('.badge')?.textContent==='Працює'&&${assessment}?.querySelector('details code')?.textContent===${JSON.stringify(originalRevision)}`);
+    stage='remove-second-monitor';await load('Monitor','research-other');await click(configSection,'Видалити ресурс');await wait(`(${configSection}).textContent.includes('Ресурс видалено')`);
+    const removedAt=Date.now();await wait(`${assessment}?.querySelector('.badge')?.textContent==='Працює'&&Date.parse(${assessment}?.querySelector('time')?.textContent)>${removedAt}`);
+  }
+  stage='logout-click';await click(`document.querySelector('main > section')`,'Від’єднатися');stage='logout-form';await wait(`document.querySelector('input[autocomplete="username"]')&&![...document.querySelectorAll('button')].find(b=>b.textContent==='Увійти').disabled`);
+  stage='logout-revocation';assert.equal(await evaluate(`fetch('/api/v1/auth/me',{credentials:'same-origin'}).then(r=>r.status)`),401);
+  stage='runtime-errors';assert.deepEqual(errors,[]);
+  stage='mutation-replay-check';assert.equal(responses.filter(r=>r.path==='/api/v1/resources/Target/browser-dns'&&r.method==='DELETE'&&r.status===409).length,1);
   assert.equal(responses.filter(r=>r.path==='/api/v1/resources/Target'&&r.method==='POST').length,1);
-  await writeFile(config.output,JSON.stringify({status:'passed',browserInteractionTested:true,liveControllerIntegrationTested:true,strictNodeTLS:true,browserTrustedLocalCA:true,insecureTLSFlags:false,realPasswordLogin:true,httpOnlySessionRestoredByBrowser:true,targetCRUD:true,dependencyCRUDAndGraph:true,derivedGroupHealthyFromRealProbes:true,referenceDeleteGuardVisible:true,revisionChangeAndRestoreVisible:true,stablePanels:true,logoutRevokesSession:true,createdResourcesRemoved:true,mutationsNotReplayed:true,consoleExceptions:errors.length,screenshotContainsOwnedDemoDataOnly:true},null,2)+'\n',{flag:'wx',mode:0o600});
+  await writeFile(config.output,JSON.stringify({status:'passed',multipleMonitorBrowserFlow:config.multiMonitor===true,browserInteractionTested:true,liveControllerIntegrationTested:true,strictNodeTLS:true,browserTrustedLocalCA:true,insecureTLSFlags:false,realPasswordLogin:true,httpOnlySessionRestoredByBrowser:true,targetCRUD:true,dependencyCRUDAndGraph:true,derivedGroupHealthyFromRealProbes:true,referenceDeleteGuardVisible:true,revisionChangeAndRestoreVisible:true,stablePanels:true,logoutRevokesSession:true,createdResourcesRemoved:true,mutationsNotReplayed:true,consoleExceptions:errors.length,screenshotContainsOwnedDemoDataOnly:true},null,2)+'\n',{flag:'wx',mode:0o600});
   console.log('PASS: live HTTPS browser login CRUD graph group and logout; no secrets exported');
-} catch(error) {console.error('Live browser verification failed at stage: '+stage+(typeof error.code==='string'?' ('+error.code+')':''));console.error('HTTP error metadata: '+JSON.stringify(responses.filter(r=>r.status>=400)));process.exitCode=1;}
+} catch(error) {console.error('Live browser verification failed at stage: '+stage+(typeof error.code==='string'?' ('+error.code+')':''));console.error('Failure category: '+(['Browser condition timeout','Browser evaluation failed','CDP timeout','CDP command failed'].includes(error.message)?error.message:'assertion or transport failure'));console.error('HTTP error metadata: '+JSON.stringify(responses.filter(r=>r.status>=400)));process.exitCode=1;}
 finally {
   if(socket)socket.close();if(chrome?.pid&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([once(chrome,'exit'),pause(3000)]);if(chrome.exitCode===null){chrome.kill('SIGKILL');await once(chrome,'exit');}}
   await rm(browserHome,{recursive:true,force:true});

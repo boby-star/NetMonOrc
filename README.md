@@ -5,7 +5,8 @@
 [Покроковий quickstart](docs/deployment/quickstart.md): Docker build → prepare →
 up --ui-port 8443 → admin з прихованим введенням пароля → https://localhost:8443.
 Порт доступний лише на 127.0.0.1; дані зберігаються у named volumes.
-Це робочий дослідницький профіль з одним активним Monitor. Повна відповідність
+Це робочий дослідницький профіль із [кількома Monitor](docs/deployment/multiple-monitors.md)
+на одному Controller та спільних Agent. Повна відповідність
 v1alpha1 ще не досягнута; [великі відкриті блоки](docs/development/readiness.md).
 
 ## Поточний обсяг: REST API та React

@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS nmo_browser_sessions(token_hash bytea PRIMARY KEY,use
 CREATE INDEX IF NOT EXISTS nmo_browser_session_expiry ON nmo_browser_sessions(expires_at);
 CREATE TABLE IF NOT EXISTS nmo_identity_audit(id bigserial PRIMARY KEY,username text NOT NULL,action text NOT NULL,succeeded boolean NOT NULL,occurred_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS nmo_sessions(agent_id text PRIMARY KEY,generation bigint NOT NULL,applied_revision text NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS nmo_session_revisions(agent_id text NOT NULL REFERENCES nmo_sessions(agent_id) ON DELETE CASCADE,revision text NOT NULL,generation bigint NOT NULL,PRIMARY KEY(agent_id,revision));
 CREATE TABLE IF NOT EXISTS nmo_assignments(agent_id text NOT NULL,revision text NOT NULL,zone text NOT NULL,monitor text NOT NULL,PRIMARY KEY(agent_id,revision,zone,monitor));
 ALTER TABLE nmo_assignments ADD COLUMN IF NOT EXISTS regular_enabled boolean NOT NULL DEFAULT true;
 CREATE TABLE IF NOT EXISTS nmo_observations(id text PRIMARY KEY,agent_id text NOT NULL,monitor text NOT NULL,revision text NOT NULL,check_id text NOT NULL,finished_at timestamptz NOT NULL,received_at timestamptz NOT NULL DEFAULT now(),payload jsonb NOT NULL,payload_hash bytea NOT NULL);
@@ -141,15 +142,29 @@ func (s *Store) Assign(ctx context.Context, agent string, generation int64, revi
 	}
 	return tx.Commit(ctx)
 }
+
+// Applied records each independently acknowledged plan within a fenced stream.
 func (s *Store) Applied(ctx context.Context, agent string, generation int64, revision string) error {
-	t, e := s.pool.Exec(ctx, `UPDATE nmo_sessions SET applied_revision=$3 WHERE agent_id=$1 AND generation=$2`, agent, generation, revision)
+	tx, e := s.pool.Begin(ctx)
 	if e != nil {
 		return e
 	}
-	if t.RowsAffected() != 1 {
+	defer tx.Rollback(ctx)
+	var actual int64
+	if e = tx.QueryRow(ctx, `SELECT generation FROM nmo_sessions WHERE agent_id=$1 FOR UPDATE`, agent).Scan(&actual); e != nil {
+		return e
+	}
+	if actual != generation {
 		return ErrFenced
 	}
-	return nil
+	if _, e = tx.Exec(ctx, `INSERT INTO nmo_session_revisions(agent_id,revision,generation) VALUES($1,$2,$3) ON CONFLICT(agent_id,revision) DO UPDATE SET generation=EXCLUDED.generation`, agent, revision, generation); e != nil {
+		return e
+	}
+	// Retain the legacy column for on-disk compatibility, not authorization.
+	if _, e = tx.Exec(ctx, `UPDATE nmo_sessions SET applied_revision=$2 WHERE agent_id=$1`, agent, revision); e != nil {
+		return e
+	}
+	return tx.Commit(ctx)
 }
 
 // CommitBatch locks the generation until COMMIT. A reconnect either precedes
@@ -161,12 +176,12 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 	}
 	defer tx.Rollback(ctx)
 	var n int64
-	var applied string
-	e = tx.QueryRow(ctx, `SELECT generation,applied_revision FROM nmo_sessions WHERE agent_id=$1 FOR UPDATE`, agent).Scan(&n, &applied)
+	var applied bool
+	e = tx.QueryRow(ctx, `SELECT generation,EXISTS(SELECT 1 FROM nmo_session_revisions r WHERE r.agent_id=$1 AND r.generation=nmo_sessions.generation AND r.revision=$2) FROM nmo_sessions WHERE agent_id=$1 FOR UPDATE`, agent, appliedRevision).Scan(&n, &applied)
 	if e != nil {
 		return nil, e
 	}
-	if n != generation || applied != appliedRevision {
+	if n != generation || !applied {
 		return nil, ErrFenced
 	}
 	duplicates := make([]bool, len(observations))

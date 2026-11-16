@@ -183,7 +183,7 @@ func run() error {
 				})
 			}
 
-			registry := resources.Registry{Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
+			registry := resources.Registry{ExecuteAll: true, Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
 			if *endpointPath != "" {
 				data, err := os.ReadFile(*endpointPath)
 				if err != nil {
@@ -238,12 +238,18 @@ func run() error {
 					return err
 				}
 			}
-			loaded, compiled, err := store.LoadCompiledMonitor(ctx, p.Name, registry)
+			loaded, compiledCatalog, err := store.LoadRuntime(ctx, registry)
 			if err != nil {
 				return err
 			}
 			registry = loaded
-			p = *compiled.Monitor
+			p = *compiledCatalog["Monitor/"+p.Name].Monitor
+			plans := runtimePlans(compiledCatalog)
+			revisions := map[string]string{}
+			for _, plan := range plans {
+				revisions[plan.Name] = plan.Revision
+			}
+			registry.LoadedRevisions = revisions
 			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
 				profile = registry.Profiles[p.Diagnostics.ProfileRef]
 			}
@@ -294,7 +300,7 @@ func run() error {
 			}
 			defer lis.Close()
 			server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
-			agentServer := &transport.Server{Plan: p, Slots: rosterSlots, Store: store}
+			agentServer := &transport.Server{Plan: p, Plans: plans, Slots: rosterSlots, Store: store}
 			pb.RegisterAgentServiceServer(server, agentServer)
 			{
 				c, done := context.WithTimeout(ctx, 5*time.Second)
@@ -305,7 +311,7 @@ func run() error {
 				}
 			}
 			var notifications *notify.Service
-			if alertRule != nil {
+			if endpoint.Name != "" {
 				notifications = &notify.Service{Store: store, Managed: true, Channels: channels, Endpoint: endpoint, Sender: sender}
 			}
 			var diagnostic *coordinator.Coordinator
@@ -317,7 +323,20 @@ func run() error {
 				if e = diagnostic.RestoreReport(ctx); e != nil {
 					return e
 				}
-				defer diagnostic.Wait()
+				defer func() { cancel(); diagnostic.Wait() }()
+			}
+
+			runtimes, err := addRuntimes(ctx, monitorRuntime{plan: p, assessor: assessor, slots: slots, assigned: assignedSlots, diagnostic: diagnostic, notifications: notifications}, plans, registry, agentServer, store, *reportPath)
+			defer func() {
+				cancel()
+				for name, runtime := range runtimes {
+					if name != p.Name && runtime.diagnostic != nil {
+						runtime.diagnostic.Wait()
+					}
+				}
+			}()
+			if err != nil {
+				return err
 			}
 
 			var httpServer *http.Server
@@ -335,11 +354,16 @@ func run() error {
 					assets = os.DirFS(*uiDir)
 				}
 				handler, err := httpapi.NewWithSessions(p.Name, token, func(c context.Context, name string) (monitor.Assessment, bool, error) {
-					return store.ReadLiveAssessment(c, name, p.Revision)
+					revision, found := revisions[name]
+					if !found {
+						return monitor.Assessment{}, false, nil
+					}
+					return store.ReadLiveAssessment(c, name, revision)
 				}, assets, auth.New(store))
 				if err != nil {
 					return err
 				}
+				handler.SetMonitorRevisions(revisions)
 				handler.SetHistoryLoader(store.ReadObservations)
 				handler.SetObservationLoader(store.ReadObservation)
 				handler.SetDiagnostics(store)
@@ -351,7 +375,7 @@ func run() error {
 				handler.SetAlertAcknowledge(store.AcknowledgeAlert)
 				handler.SetOperations(store)
 				handler.SetDashboard(func(c context.Context, reads dashboard.Reads) (dashboard.Source, error) {
-					return store.Dashboard(c, p.Name, p.Revision, reads)
+					return store.DashboardRuntime(c, revisions, reads)
 				})
 				handler.SetWebhookTest(func(c context.Context, actor auth.AdminCredential) (operationview.Operation, error) {
 					if notifications == nil || notifications.Sender == nil || !endpoint.Enabled {
@@ -371,7 +395,8 @@ func run() error {
 				}
 				handler.SetDiagnosticCommands(func(c context.Context, actor auth.AdminCredential, name string, request diagnosticview.Start) (diagnosticview.Session, error) {
 					var empty diagnosticview.Session
-					if name != p.Name {
+					runtime, found := runtimes[name]
+					if !found {
 						return empty, resources.ErrNotFound
 					}
 					request.Monitor = name
@@ -386,10 +411,10 @@ func run() error {
 					if id != "" {
 						return loadSession(c, id)
 					}
-					if diagnostic == nil {
+					if runtime.diagnostic == nil {
 						return empty, resources.ErrConflict
 					}
-					id, e = diagnostic.StartManual(ctx, c, actor, request)
+					id, e = runtime.diagnostic.StartManual(ctx, c, actor, request)
 					if e != nil {
 						return empty, e
 					}
@@ -398,8 +423,10 @@ func run() error {
 					if e := store.CancelDiagnostic(c, actor, id); e != nil {
 						return diagnosticview.Session{}, e
 					}
-					if diagnostic != nil {
-						diagnostic.CancelRun(id)
+					for _, runtime := range runtimes {
+						if runtime.diagnostic != nil {
+							runtime.diagnostic.CancelRun(id)
+						}
 					}
 					return loadSession(c, id)
 				})
@@ -441,17 +468,22 @@ func run() error {
 				tick := time.NewTicker(time.Second)
 				defer tick.Stop()
 				for {
-					if e := assess(ctx, store, p, assessor, slots, *output, diagnostic, *webReport, notifications, *alertOutput, *deliveryOutput); e != nil {
-						errors <- e
-						return
+					proofs := map[string]storage.RuntimeProof{}
+					for _, plan := range plans {
+						runtime := runtimes[plan.Name]
+						if e := assess(ctx, store, plan, runtime.assessor, runtime.slots, runtimePath(*output, plan.Name, p.Name), runtime.diagnostic, runtimePath(*webReport, plan.Name, p.Name), runtime.notifications, runtimePath(*alertOutput, plan.Name, p.Name), runtimePath(*deliveryOutput, plan.Name, p.Name)); e != nil {
+							errors <- e
+							return
+						}
+						proofs[plan.Name] = storage.RuntimeProof{Revision: plan.Revision, Slots: runtime.assigned, Proofs: agentServer.AppliedFor(plan.Revision, time.Now())}
 					}
 					opctx, opdone := context.WithTimeout(ctx, 3*time.Second)
-					opErr := store.ReconcileOperations(opctx, p.Name, p.Revision, assignedSlots, agentServer.AppliedAssignments(time.Now()), webhookProofs)
+					opErr := store.ReconcileRuntimeOperations(opctx, proofs, webhookProofs)
 					opdone()
 					if opErr != nil && ctx.Err() == nil {
 						log.Print("Operation reconciliation deferred; regular assessment continues")
 					}
-					latest, found, err := store.Resource(ctx, p.Name)
+					currentRuntime, err := store.RuntimeCurrent(ctx, revisions)
 					if err != nil {
 						if ctx.Err() == nil {
 							errors <- err
@@ -469,7 +501,7 @@ func run() error {
 						errors <- errReconcile
 						return
 					}
-					if !found || latest.Revision != p.Revision {
+					if !currentRuntime {
 						errors <- errReconcile
 						return
 					}

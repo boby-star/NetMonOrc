@@ -61,8 +61,27 @@ func (h *Handler) dashboardSummary(w http.ResponseWriter, r *http.Request) {
 	if reads.Resources {
 		v.MonitorStates = map[string]int{"healthy": 0, "degraded": 0, "down": 0, "unknown": source.Monitors}
 		v.CoverageStates = map[string]int{"sufficient": 0, "degraded": 0, "unknown": source.Monitors}
-		if source.Monitors > 0 && source.Assessment != nil && currentAssessment(*source.Assessment, true, h.monitor, h.expectedRevision) {
-			a := projectAssessment(*source.Assessment)
+		assessments := source.Assessments
+		if assessments == nil && source.Assessment != nil {
+			assessments = []monitor.Assessment{*source.Assessment}
+		}
+		seen := map[string]bool{}
+		for _, assessment := range assessments {
+			revision := h.expectedRevision
+			if h.monitorRevisions != nil {
+				var found bool
+				revision, found = h.monitorRevisions[assessment.Monitor]
+				if !found {
+					continue
+				}
+			} else if assessment.Monitor != h.monitor {
+				continue
+			}
+			if seen[assessment.Monitor] || !currentAssessment(assessment, true, assessment.Monitor, revision) || len(seen) >= source.Monitors {
+				continue
+			}
+			seen[assessment.Monitor] = true
+			a := projectAssessment(assessment)
 			state := a.State
 			if !slices.Contains([]string{"healthy", "degraded", "down", "unknown"}, state) {
 				state = "unknown"

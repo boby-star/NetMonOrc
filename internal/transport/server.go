@@ -28,6 +28,7 @@ type activeSession struct {
 	cancel            context.CancelFunc
 	tasks             chan taskRequest
 	applied           bool
+	appliedRevisions  map[string]bool
 	capabilities      map[string]bool
 	lastHeartbeat     time.Time
 	capacity          int
@@ -37,6 +38,7 @@ type activeSession struct {
 type Server struct {
 	pb.UnimplementedAgentServiceServer
 	Plan   monitor.Plan
+	Plans  []monitor.Plan
 	Slots  []monitor.Slot
 	Store  *storage.Store
 	mu     sync.Mutex
@@ -110,25 +112,30 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	for _, c := range hello.GetHello().Capabilities {
 		capabilities[c] = true
 	}
-	if len(s.Plan.Dependencies) > 0 && !capabilities["context:dependencies"] {
-		return status.Error(codes.FailedPrecondition, "dependency context capability required")
+	if len(s.plans()) > 1 && !capabilities["plans:multiple"] {
+		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
-	if s.Plan.ZoneAggregation == "any" && !capabilities["assessment:zone-any"] {
-		return status.Error(codes.FailedPrecondition, "zone any assessment capability required")
-	}
-	if s.Plan.FixedPlacement != nil && !capabilities["placement:fixed"] {
-		return status.Error(codes.FailedPrecondition, "fixed placement capability required")
-	}
-	for _, c := range s.Plan.Checks {
-		if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
-			return status.Error(codes.FailedPrecondition, "runner capability unavailable")
+	for _, plan := range s.plans() {
+		if len(plan.Dependencies) > 0 && !capabilities["context:dependencies"] {
+			return status.Error(codes.FailedPrecondition, "dependency context capability required")
 		}
-	}
-	if s.Plan.Diagnostics != nil && s.Plan.Diagnostics.Enabled && !capabilities["diagnostics:serial"] {
-		return status.Error(codes.FailedPrecondition, "diagnostic execution capability unavailable")
-	}
-	if s.Plan.Diagnostics != nil && s.Plan.Diagnostics.ComparisonStatic && !capabilities["diagnostics:static-comparison"] {
-		return status.Error(codes.FailedPrecondition, "static comparison IR capability unavailable")
+		if plan.ZoneAggregation == "any" && !capabilities["assessment:zone-any"] {
+			return status.Error(codes.FailedPrecondition, "zone any assessment capability required")
+		}
+		if plan.FixedPlacement != nil && !capabilities["placement:fixed"] {
+			return status.Error(codes.FailedPrecondition, "fixed placement capability required")
+		}
+		for _, c := range plan.Checks {
+			if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
+				return status.Error(codes.FailedPrecondition, "runner capability unavailable")
+			}
+		}
+		if plan.Diagnostics != nil && plan.Diagnostics.Enabled && !capabilities["diagnostics:serial"] {
+			return status.Error(codes.FailedPrecondition, "diagnostic execution capability unavailable")
+		}
+		if plan.Diagnostics != nil && plan.Diagnostics.ComparisonStatic && !capabilities["diagnostics:static-comparison"] {
+			return status.Error(codes.FailedPrecondition, "static comparison IR capability unavailable")
+		}
 	}
 	dbctx, dbCancel := context.WithTimeout(ctx, 5*time.Second)
 	generation, e := s.Store.BeginSession(dbctx, id)
@@ -149,7 +156,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		old.cancel()
 	}
 	jobs := make(chan taskRequest, 1)
-	s.active[id] = activeSession{generation: generation, cancel: cancel, tasks: jobs, capabilities: capabilities, certExpiresAt: auth.State.PeerCertificates[0].NotAfter}
+	s.active[id] = activeSession{generation: generation, cancel: cancel, tasks: jobs, appliedRevisions: map[string]bool{}, capabilities: capabilities, certExpiresAt: auth.State.PeerCertificates[0].NotAfter}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -163,29 +170,39 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 	if e = stream.Send(f); e != nil {
 		return e
 	}
-	plan, e := json.Marshal(s.Plan)
-	if e != nil {
-		return e
+	plans := s.plans()
+	assignments := map[string]monitor.Plan{}
+	for _, plan := range plans {
+		assignments[fmt.Sprintf("%s-%d", plan.Revision, generation)] = plan
 	}
-	sum := sha256.Sum256(plan)
-	assignmentID := fmt.Sprintf("%s-%d", s.Plan.Revision, generation)
 	sendAssignment := func() error {
-		c, done := context.WithTimeout(ctx, 5*time.Second)
-		assignmentErr := s.Store.Assign(c, id, generation, s.Plan.Revision, zone, s.Plan.Name, s.Plan.RegularAllowed(id))
-		done()
-		if assignmentErr != nil {
-			return status.Error(codes.Aborted, "session superseded or storage unavailable")
+		for _, p := range plans {
+			plan, e := json.Marshal(p)
+			if e != nil {
+				return e
+			}
+			sum := sha256.Sum256(plan)
+			c, done := context.WithTimeout(ctx, 5*time.Second)
+			assignmentErr := s.Store.Assign(c, id, generation, p.Revision, zone, p.Name, p.RegularAllowed(id))
+			done()
+			if assignmentErr != nil {
+				return status.Error(codes.Aborted, "session superseded or storage unavailable")
+			}
+			f := frame(id)
+			f.Payload = &pb.ControllerFrame_Assignment{Assignment: &pb.ConfigAssignment{AssignmentId: fmt.Sprintf("%s-%d", p.Revision, generation), CompiledPlan: plan, Revision: p.Revision, Checksum: hex.EncodeToString(sum[:]), ExpiresAtUnixMilli: min(time.Now().Add(30*time.Second).UnixMilli(), auth.State.PeerCertificates[0].NotAfter.UnixMilli()), Zone: zone}}
+			if e = stream.Send(f); e != nil {
+				return e
+			}
 		}
-		f := frame(id)
-		f.Payload = &pb.ControllerFrame_Assignment{Assignment: &pb.ConfigAssignment{AssignmentId: assignmentID, CompiledPlan: plan, Revision: s.Plan.Revision, Checksum: hex.EncodeToString(sum[:]), ExpiresAtUnixMilli: min(time.Now().Add(30*time.Second).UnixMilli(), auth.State.PeerCertificates[0].NotAfter.UnixMilli()), Zone: zone}}
-		return stream.Send(f)
+		return nil
 	}
 	if e = sendAssignment(); e != nil {
 		return e
 	}
 	tick := time.NewTicker(10 * time.Second)
 	defer tick.Stop()
-	applied := false
+	applied := map[string]bool{}
+	appliedRevision := ""
 	for {
 		select {
 		case <-ctx.Done():
@@ -202,7 +219,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			if req.ctx.Err() != nil {
 				continue
 			}
-			if !applied {
+			if !applied[req.task.Revision] {
 				s.taskResult(req.task.TaskId, id, diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"})
 				continue
 			}
@@ -234,7 +251,8 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				return status.Error(codes.InvalidArgument, "invalid Agent envelope")
 			}
 			if a := r.f.GetConfigApplied(); a != nil {
-				if a.AssignmentId != assignmentID || a.Revision != s.Plan.Revision {
+				plan, known := assignments[a.AssignmentId]
+				if !known || a.Revision != plan.Revision {
 					return status.Error(codes.InvalidArgument, "unexpected applied revision")
 				}
 				c, done := context.WithTimeout(ctx, 5*time.Second)
@@ -246,15 +264,17 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				s.mu.Lock()
 				v := s.active[id]
 				if v.generation == generation {
-					v.applied = true
+					v.appliedRevisions[a.Revision] = true
+					v.applied = len(v.appliedRevisions) == len(plans)
 					s.active[id] = v
 				}
 				s.mu.Unlock()
-				applied = true
+				applied[a.Revision] = true
+				appliedRevision = a.Revision
 				continue
 			}
 			if h := r.f.GetHeartbeat(); h != nil {
-				if !applied || h.Sequence == 0 || h.MaxConcurrentProbes != 2 || h.ActiveProbes > h.MaxConcurrentProbes {
+				if len(applied) == 0 || h.Sequence == 0 || h.MaxConcurrentProbes != 2 || h.ActiveProbes > h.MaxConcurrentProbes {
 					return status.Error(codes.InvalidArgument, "invalid heartbeat")
 				}
 				s.mu.Lock()
@@ -274,7 +294,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				continue
 			}
 			if receipt := r.f.GetTaskReceipt(); receipt != nil {
-				if !applied || !observationID.MatchString(receipt.TaskId) || len(receipt.Reason) > 128 {
+				if len(applied) == 0 || !observationID.MatchString(receipt.TaskId) || len(receipt.Reason) > 128 {
 					return status.Error(codes.InvalidArgument, "invalid task receipt")
 				}
 				c, done := context.WithTimeout(ctx, 5*time.Second)
@@ -289,7 +309,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				continue
 			}
 			batch := r.f.GetObservationBatch()
-			if !applied || batch == nil || len(batch.Observations) < 1 || len(batch.Observations) > 32 {
+			if len(applied) == 0 || batch == nil || len(batch.Observations) < 1 || len(batch.Observations) > 32 {
 				return status.Error(codes.InvalidArgument, "invalid observation batch")
 			}
 			observations := make([]monitor.Observation, 0, len(batch.Observations))
@@ -300,14 +320,19 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				if e != nil || seen[w.GetId()] {
 					return status.Error(codes.InvalidArgument, "invalid or conflicting observation")
 				}
-				if o.Revision == s.Plan.Revision && o.DiagnosticTaskID == "" && !s.Plan.RegularAllowed(id) {
-					return status.Error(codes.PermissionDenied, "Agent is not assigned regular probes")
+				if plan, known := s.planForRevision(o.Revision); known {
+					if !applied[o.Revision] {
+						return status.Error(codes.FailedPrecondition, "observation plan is not acknowledged")
+					}
+					if o.DiagnosticTaskID == "" && !plan.RegularAllowed(id) {
+						return status.Error(codes.PermissionDenied, "Agent is not assigned regular probes")
+					}
 				}
 				seen[o.ID] = true
 				observations = append(observations, o)
 			}
 			c, done := context.WithTimeout(ctx, 5*time.Second)
-			duplicates, e := s.Store.CommitBatch(c, id, generation, s.Plan.Revision, observations)
+			duplicates, e := s.Store.CommitBatch(c, id, generation, appliedRevision, observations)
 			done()
 			if e != nil {
 				return status.Error(codes.Unavailable, "durable observation commit failed")
@@ -335,4 +360,20 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 }
 func validFrame(f *pb.AgentFrame, id string) bool {
 	return f != nil && f.ProtocolVersion == Version && f.AgentId == id && f.MessageId != "" && len(f.MessageId) <= 128 && f.SentAtUnixMilli > 0 && f.SentAtUnixMilli <= time.Now().Add(5*time.Second).UnixMilli()
+}
+
+// plans is immutable for the lifetime of a Controller stream.
+func (s *Server) plans() []monitor.Plan {
+	if len(s.Plans) > 0 {
+		return s.Plans
+	}
+	return []monitor.Plan{s.Plan}
+}
+func (s *Server) planForRevision(revision string) (monitor.Plan, bool) {
+	for _, p := range s.plans() {
+		if p.Revision == revision {
+			return p, true
+		}
+	}
+	return monitor.Plan{}, false
 }

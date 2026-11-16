@@ -28,6 +28,8 @@ type Registry struct {
 	Assessments      map[string]AssessmentPolicy
 	CheckProfiles    map[string]CheckProfile
 	Active           string
+	ExecuteAll       bool
+	LoadedRevisions  map[string]string
 	AlertChannel     string
 	Targets          map[string]TargetSpec
 	ManagedWebhooks  bool
@@ -150,15 +152,26 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 			return p, err
 		}
 	}
-	if p.Name == r.Active && placement != nil {
+	if r.ExecuteAll {
+		if placement == nil && !slices.Equal(p.Zones, r.Zones) {
+			return p, fmt.Errorf("Monitor without placement must retain Controller fixed zones")
+		}
 		for _, zone := range p.Zones {
 			if !slices.Contains(r.Zones, zone) {
 				return p, fmt.Errorf("assessment zone is outside Controller roster")
 			}
 		}
-	}
-	if p.Name == r.Active && placement == nil && !slices.Equal(p.Zones, r.Zones) {
-		return p, fmt.Errorf("active Monitor must retain the Controller's fixed zones")
+	} else {
+		if p.Name == r.Active && placement != nil {
+			for _, zone := range p.Zones {
+				if !slices.Contains(r.Zones, zone) {
+					return p, fmt.Errorf("assessment zone is outside Controller roster")
+				}
+			}
+		}
+		if p.Name == r.Active && placement == nil && !slices.Equal(p.Zones, r.Zones) {
+			return p, fmt.Errorf("active Monitor must retain the Controller's fixed zones")
+		}
 	}
 	if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
 		profile, found := r.Profiles[p.Diagnostics.ProfileRef]
@@ -177,7 +190,7 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		}
 
 	}
-	if r.StaticComparison && p.Name == r.Active {
+	if r.StaticComparison && (r.ExecuteAll || p.Name == r.Active) {
 		p, err = config.WithStaticComparison(p)
 	}
 	return p, err

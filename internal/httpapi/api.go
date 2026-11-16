@@ -52,6 +52,7 @@ type Handler struct {
 	agents           func() []agentstatus.View
 	resources        *resources.Service
 	expectedRevision string
+	monitorRevisions map[string]string
 	history          HistoryLoad
 	observation      ObservationLoad
 	auth             *auth.Service
@@ -107,7 +108,27 @@ func failure(w http.ResponseWriter, status int, code, message string) {
 	// Encoding these strings can fail only when the client disconnects.
 	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message, "requestId": rand.Text()}})
 }
+
+// SetMonitorRevisions installs an immutable routing snapshot before serving.
+func (h *Handler) SetMonitorRevisions(revisions map[string]string) {
+	h.monitorRevisions = make(map[string]string, len(revisions))
+	for name, revision := range revisions {
+		h.monitorRevisions[name] = revision
+	}
+}
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/v1/monitors/") {
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/monitors/"), "/")
+		if len(parts) == 2 {
+			if revision, found := h.monitorRevisions[parts[0]]; found {
+				selected := *h
+				selected.monitor = parts[0]
+				selected.expectedRevision = revision
+				h = &selected
+			}
+		}
+	}
+
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
