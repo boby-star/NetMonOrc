@@ -1,0 +1,5 @@
+{
+  "browserScenarioImage": "sha256:823aa147f1cd7b0d1984cc2a3706fd16db56e607cba616874f85b84df09d6168",
+  "finalImage": "sha256:d3dfa0315d809473a6154e90c1961a1c4b4a4eb7f27b85623954eed6e09f698e",
+  "postBrowserRuntimeChange": "Read diagnostic applied-revision readiness under the existing mutex; final image rebuilt, race checks and HTTPS update verified."
+}

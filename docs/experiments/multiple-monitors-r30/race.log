@@ -1,0 +1,3 @@
+ok  	github.com/boby-star/NetMonOrc/internal/agent	7.355s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	1.041s
+ok  	github.com/boby-star/NetMonOrc/internal/httpapi	1.102s

@@ -64,4 +64,4 @@ if __name__=='__main__':
     import os
     fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as output:json.dump(result,output,indent=2);output.write('\n')
-    print('Verified trusted HTTPS Assessment, 401 and production React assets; no host ports published.')
+    print('Verified trusted HTTPS Assessment, 401 and production React assets; configured publishing remains unchanged.')

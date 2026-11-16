@@ -1,0 +1,11 @@
+{
+  "matches": true,
+  "sha256": {
+    "index.html": "7e422d969e19ff6423c5f5f151ab291410de1d1df61e06147d52927b5c9189a9",
+    "assets/index-bX-xh3pF.js": "704825b0e71d8c4c69451dc05eaa2fa34906425c2bed5e53083c127ef702c942",
+    "assets/index-c0yhZ2JH.css": "d5216a9c2aa8581a8255b4836707206f9b549485a0083c5f7aba6d65efb839e2"
+  },
+  "image": "sha256:d3dfa0315d809473a6154e90c1961a1c4b4a4eb7f27b85623954eed6e09f698e",
+  "administratorPreservedOnUpdate": true,
+  "healthyAfterUpdate": true
+}

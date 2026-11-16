@@ -1,0 +1,39 @@
+{
+  "status": "passed",
+  "multipleMonitorBrowserFlow": true,
+  "browserInteractionTested": true,
+  "liveControllerIntegrationTested": true,
+  "strictNodeTLS": true,
+  "browserTrustedLocalCA": true,
+  "insecureTLSFlags": false,
+  "realPasswordLogin": true,
+  "httpOnlySessionRestoredByBrowser": true,
+  "targetCRUD": true,
+  "dependencyCRUDAndGraph": true,
+  "derivedGroupHealthyFromRealProbes": true,
+  "referenceDeleteGuardVisible": true,
+  "revisionChangeAndRestoreVisible": true,
+  "stablePanels": true,
+  "logoutRevokesSession": true,
+  "createdResourcesRemoved": true,
+  "mutationsNotReplayed": true,
+  "consoleExceptions": 0,
+  "screenshotContainsOwnedDemoDataOnly": true,
+  "administratorBootstrapIdempotent": true,
+  "multipleMonitorObservationCounts": {
+    "research-web": {
+      "agents": 2,
+      "failures": 0,
+      "successes": 42,
+      "observations": 42
+    },
+    "research-other": {
+      "agents": 2,
+      "failures": 2,
+      "successes": 0,
+      "observations": 2
+    }
+  },
+  "controllerOnlyLoopbackPublished": true,
+  "privateServicesExcludedFromUINetwork": true
+}
