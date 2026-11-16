@@ -140,8 +140,11 @@ func Compile(data []byte) (monitor.Plan, error) {
 		}
 	}
 	a := m.Spec.Assessment
-	if a.SameZoneAggregation != "" && a.SameZoneAggregation != "all" {
-		return p, fmt.Errorf("only sameZoneAggregation=all is implemented")
+	if a.SameZoneAggregation != "" && a.SameZoneAggregation != "all" && a.SameZoneAggregation != "any" && a.SameZoneAggregation != "quorum" {
+		return p, fmt.Errorf("sameZoneAggregation must be all, any or quorum")
+	}
+	if a.SameZoneAggregation == "any" || a.SameZoneAggregation == "quorum" {
+		p.SameZoneAggregation = a.SameZoneAggregation
 	}
 	if a.DefaultState != "" && a.DefaultState != "unknown" {
 		return p, fmt.Errorf("only defaultState=unknown is implemented")

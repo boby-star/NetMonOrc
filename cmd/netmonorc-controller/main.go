@@ -105,15 +105,15 @@ func run() error {
 			registeredIDs, registeredZones := map[string]bool{}, map[string]bool{}
 			for _, entry := range strings.Split(*roster, ",") {
 				id, zone, ok := strings.Cut(entry, "=")
-				if !ok || !secure.AgentID.MatchString(id) || zone == "" || registeredIDs[id] || registeredZones[zone] {
-					return fmt.Errorf("fixed roster requires one unique Agent per zone")
+				if !ok || !secure.AgentID.MatchString(id) || zone == "" || registeredIDs[id] || len(zone) > 63 {
+					return fmt.Errorf("roster requires unique Agent identities and valid zones")
 				}
 				registeredIDs[id] = true
 				registeredZones[zone] = true
 				rosterSlots = append(rosterSlots, monitor.Slot{Agent: id, Zone: zone})
 			}
-			if len(rosterSlots) != len(p.Zones) {
-				return fmt.Errorf("one fixed Agent is required per bootstrap zone")
+			if len(rosterSlots) > 100 || len(registeredZones) != len(p.Zones) {
+				return fmt.Errorf("roster must cover exactly the bootstrap zones (maximum 100 Agents)")
 			}
 			for _, zone := range p.Zones {
 				if !registeredZones[zone] {

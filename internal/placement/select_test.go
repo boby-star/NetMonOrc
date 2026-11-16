@@ -61,3 +61,30 @@ func TestRoundRobinCursorAndPendingHardConstraints(t *testing.T) {
 		t.Fatal("capacity guessed or forbidden target admitted")
 	}
 }
+
+func TestDistinctZonesFilterPhysicalCandidates(t *testing.T) {
+	p, agents, now := fixtures()
+	p.FixedPlacement.Replicas = 2
+	p.FixedPlacement.DistinctBy = "zone"
+	p.FixedPlacement.Candidates[1].Zone = "office"
+	agents[1].NetworkZone = "office"
+	for _, mode := range []string{"leastLoaded", "roundRobin"} {
+		p.FixedPlacement.Strategy = mode
+		selected, next := Select(p, agents, 0, now)
+		if len(selected) != 0 || next != 0 {
+			t.Fatal("partial distinct-zone set scheduled", mode, selected)
+		}
+	}
+	third := agents[1]
+	third.AgentID = "edge"
+	third.NetworkZone = "server"
+	agents = append(agents, third)
+	p.FixedPlacement.Candidates = append(p.FixedPlacement.Candidates, monitor.Slot{Agent: "edge", Zone: "server"})
+	for _, mode := range []string{"leastLoaded", "roundRobin"} {
+		p.FixedPlacement.Strategy = mode
+		selected, _ := Select(p, agents, 0, now)
+		if len(selected) != 2 || selected[0].Zone == selected[1].Zone {
+			t.Fatal("feasible distinct-zone set not selected", mode, selected)
+		}
+	}
+}

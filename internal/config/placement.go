@@ -35,6 +35,9 @@ func verifyFixedPlacement(placement *monitor.FixedPlacement, agent, zone string)
 	if len(placement.Selected) != 0 && len(placement.Selected) != placement.Replicas {
 		return fmt.Errorf("partial fixed placement is forbidden")
 	}
+	if placement.DistinctBy != "" && placement.DistinctBy != "zone" {
+		return fmt.Errorf("invalid placement distinctBy")
+	}
 	registered := map[string]string{}
 	for _, slot := range placement.Roster {
 		if !rosterAgentID.MatchString(slot.Agent) || slot.Zone == "" || len(slot.Zone) > 63 || registered[slot.Agent] != "" {
@@ -60,7 +63,7 @@ func verifyFixedPlacement(placement *monitor.FixedPlacement, agent, zone string)
 	}
 	agents, zones := map[string]bool{}, map[string]bool{}
 	for _, slot := range placement.Selected {
-		if registered[slot.Agent] != slot.Zone || (placement.Strategy != "" && !candidates[slot.Agent]) || agents[slot.Agent] || zones[slot.Zone] {
+		if registered[slot.Agent] != slot.Zone || (placement.Strategy != "" && !candidates[slot.Agent]) || agents[slot.Agent] || (placement.DistinctBy == "zone" && zones[slot.Zone]) {
 			return fmt.Errorf("invalid selected placement source")
 		}
 		agents[slot.Agent] = true

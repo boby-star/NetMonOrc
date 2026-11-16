@@ -118,16 +118,15 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 		return m, nil, fmt.Errorf("placement requires a trusted Controller roster")
 	}
 	known := map[string]monitor.Slot{}
-	rosterZones := map[string]bool{}
+
 	for _, slot := range r.Roster {
-		if !placementAgentID.MatchString(slot.Agent) || slot.Zone == "" || len(slot.Zone) > 63 || rosterZones[slot.Zone] {
-			return m, nil, fmt.Errorf("fixed roster requires one Agent per valid zone")
+		if !placementAgentID.MatchString(slot.Agent) || slot.Zone == "" || len(slot.Zone) > 63 {
+			return m, nil, fmt.Errorf("roster requires valid Agent identities and zones")
 		}
 		if _, duplicate := known[slot.Agent]; duplicate {
 			return m, nil, fmt.Errorf("duplicate Controller roster Agent")
 		}
 		known[slot.Agent] = slot
-		rosterZones[slot.Zone] = true
 	}
 	zones := map[string]bool{}
 	for _, zone := range policy.Zones {
@@ -152,7 +151,20 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 	}
 	selected := []monitor.Slot{}
 	if policy.Strategy == "fixed" && len(candidates) >= policy.Replicas {
-		selected = append(selected, candidates[:policy.Replicas]...)
+		usedZones := map[string]bool{}
+		for _, slot := range candidates {
+			if policy.DistinctBy == "zone" && usedZones[slot.Zone] {
+				continue
+			}
+			selected = append(selected, slot)
+			usedZones[slot.Zone] = true
+			if len(selected) == policy.Replicas {
+				break
+			}
+		}
+		if len(selected) < policy.Replicas {
+			selected = []monitor.Slot{}
+		}
 	}
 	if policy.Strategy != "fixed" {
 		if previous, ok := r.ResolvedPlacements[m.Metadata.Name]; ok && previous.PolicyHash == policy.Hash() {
@@ -171,12 +183,12 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 			selected = append(selected, previous.Selected...)
 		}
 	}
-	// The current assessor supports one expected source per zone. This is explicit
-	// admission, not an approximation of same-zone replica voting.
+	// Distinctness is a policy constraint. Different authenticated sources may
+	// otherwise share a zone; one Agent never supplies two physical replicas.
 	seenZones := map[string]bool{}
 	for _, slot := range selected {
-		if seenZones[slot.Zone] {
-			return m, nil, fmt.Errorf("same-zone regular replicas are not implemented")
+		if policy.DistinctBy == "zone" && seenZones[slot.Zone] {
+			return m, nil, fmt.Errorf("placement distinctBy=zone is violated")
 		}
 		seenZones[slot.Zone] = true
 	}
@@ -186,6 +198,9 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 	if policy.Strategy != "fixed" {
 		binding.Strategy = policy.Strategy
 		binding.Candidates = candidates
+	}
+	if policy.DistinctBy == "zone" {
+		binding.DistinctBy = "zone"
 	}
 	delete(spec, "placement")
 	delete(spec, "placementRef")

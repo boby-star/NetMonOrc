@@ -511,7 +511,7 @@ spec:
 |---|---|---|---|---|
 | `requiredZones` | array<string> | Ні | Зони застосованих призначень | Зони, з яких **потрібні** спостереження. Для багатоточкового SLA бажано задавати явно; відсутня зона → coverage degraded. |
 | `zoneAggregation` | enum `all-required`,`any` | Ні | `all-required` | Як переходити від `ZoneAssessment` до Monitor. `any` дозволений лише за явною політикою, коли доступність із будь-якої однієї зони достатня. |
-| `sameZoneAggregation` | enum `all`,`any` | Ні | `all` | Якщо один Check має кілька агентів у тій самій зоні, визначає агреговане `checks["id"].outcome`; окремі Observations залишаються доступними. |
+| `sameZoneAggregation` | enum `all`,`any`,`quorum` | Ні | `all` | Якщо один Check має кілька агентів у тій самій зоні, визначає агреговане `checks["id"].outcome`; окремі Observations залишаються доступними. |
 | `freshness` | object | Ні | Див. нижче | Умови придатності за часом/ревізією. |
 | `minCoverage` | Weight 0…1 | Ні | `1.0` | Мінімальна зважена повнота для твердження `healthy`; не замінює обов'язкові checks. |
 | `checks` | array<`AssessmentCheck`> | Ні | Рівні ваги для enabled checks; всі `required: false` | Ваги й обов'язковість checks у **цьому Monitor**. Кожний check ID повинен існувати після профільного expansion. |
@@ -574,14 +574,39 @@ spec:
 
 ### 9.7. Кілька агентів в одній зоні: явна політика
 
-| `sameZoneAggregation` | Усі актуальні results success | Є success і failure | Усі results failure | Немає актуальних results |
-|---|---|---|---|---|
-| `all` (default) | `success` | `failure` + reason `AGENT_RESULTS_DIVERGE` | `failure` | `unknown` + coverage degraded |
-| `any` (лише явне рішення) | `success` | `success` + reason `AGENT_RESULTS_DIVERGE`; первинна failure зберігається | `failure` | `unknown` + coverage degraded |
+Погоджене уточнення Q03: N — кількість **запланованих** фізичних Agent для
+цього check у зоні. Duplicate/replay, missing/expired observations, execution
+failure та інша revision не додають голосів і не зменшують N.
 
-Для `all` відсутність одного з **призначених** виконавців при наявному успіху інших дає успіх **серед отриманих**, але `coverage_degraded`; повне `healthy` не підтверджується, якщо бракує required coverage. `any` слід застосовувати тільки якщо дійсно достатньо одного доступного шляху. Навіть тоді всі розбіжності відображаються у вихідних доказах.
+| `sameZoneAggregation` | Підтверджений success | Підтверджений failure | Інакше |
+|---|---|---|---|
+| `all` (default) | N successes | Хоча б один failure | `unknown` |
+| `any` (явно) | Хоча б один success | N failures | `unknown` |
+| `quorum` (явно) | Не менше q successes | Не менше q failures | `unknown` |
 
-`required` застосовується до зонального стану check з урахуванням фактичного покриття. Декілька агентів однієї зони не обов'язково є незалежними точками: для цього слід використовувати `distinctBy: failureDomain` і враховувати реальну мережеву топологію.
+Для quorum q = floor(N / 2) + 1; окремого поля порога немає. За N=2 змішані
+success/failure дають unknown, за N=3 два узгоджені голоси становлять більшість.
+N=0 завжди означає unknown. Негативний required outcome дає down незалежно від H
+та CEL. Для такого висновку власні негативні witnesses мають вкладатися у maxSkew;
+не потрібно чекати інших checks. Для звичайного оцінювання використовуються
+найновіші observations кожного Agent/check у поточному узгодженому часовому вікні.
+
+Неповні required replicas блокують healthy, навіть коли логічний positive outcome
+any/quorum уже визначений. Фізичне coverage лишається degraded; Q/H обчислюються
+за логічними check outcomes і не підміняють фізичну повноту. Протилежні результати
+в межах поточного вікна дають reason AGENT_RESULTS_DIVERGE; усі їхні observation
+IDs зберігаються. required failure зберігає пріоритет визначення стану.
+
+CEL checks[id].outcome містить логічний outcome. Для кількох replicas
+executionStatus = completed лише коли всі планові актуальні procedures завершені;
+наявний execution failure дає failed, а відсутня процедура — not_executed.
+Це не перетворює quorum tie на execution failure. ageSeconds консервативно
+використовує найстарший observation у поточному check-вікні.
+
+Погоджене обмеження реалізації: агрегація values/metrics для кількох same-zone
+replicas відкладена. Правила з таким доступом відхиляються до apply; окремі
+сирі observations і extracted values залишаються доступними в history/API.
+Agent однієї зони не вважаються автоматично незалежними failure domains.
 
 ---
 ## 10. `DiagnosticBinding` — зв'язування Monitor і профілю діагностики

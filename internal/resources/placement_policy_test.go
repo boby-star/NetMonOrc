@@ -106,3 +106,29 @@ func TestDynamicPlacementWithdrawsCachedSelectionAfterTargetChange(t *testing.T)
 		t.Fatal("old target authorization reused for changed configuration")
 	}
 }
+
+func TestSameZonePlacementAndDistinctZoneConstraint(t *testing.T) {
+	base, policy, m := fixedPlacementFixture(t)
+	base.Zones = []string{"office"}
+	base.Roster[1].Zone = "office"
+	policy.Spec = json.RawMessage(`{"strategy":"fixed","agentRefs":["branch","dc"],"replicas":2}`)
+	_, compiled, err := ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := *compiled["Monitor/service"].Monitor
+	if len(plan.Zones) != 1 || len(plan.FixedPlacement.Selected) != 2 {
+		t.Fatal("same-zone sources not independently planned", plan)
+	}
+	if err = config.VerifyPlan(plan, "office", "dc"); err != nil {
+		t.Fatal(err)
+	}
+	policy.Spec = json.RawMessage(`{"strategy":"fixed","agentRefs":["branch","dc"],"replicas":2,"distinctBy":"zone"}`)
+	_, compiled, err = ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(compiled["Monitor/service"].Monitor.FixedPlacement.Selected) != 0 {
+		t.Fatal("distinct zones fabricated")
+	}
+}

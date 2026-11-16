@@ -78,7 +78,8 @@ Monitor без selection. Зміна target, runner, checks чи залежни�
 
 ## Межі
 
-Один довірений Agent на зону; replicas 1–10 у різних зонах. Same-zone voting,
+R32 додає [кілька Agent на зону та all/any/quorum](replica-assessment.md).
+Replicas 1–10, явний distinctBy=zone зберігає різні зони.
 trusted label selectors, distinctBy=failureDomain, per-check overrides,
 Agent enrollment і автоматичне балансування вже feasible наборів ще відкриті.
 Локальні runners підтримують лише IP-literal цілі; hostname-based target

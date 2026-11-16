@@ -41,8 +41,9 @@ type compiledRule struct {
 	program cel.Program
 }
 type Assessor struct {
-	plan  Plan
-	rules []compiledRule
+	plan          Plan
+	rules         []compiledRule
+	replicaValues bool
 }
 
 var ruleID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
@@ -51,6 +52,9 @@ var ruleReason = regexp.MustCompile(`^[A-Z0-9_]+$`)
 func NewAssessor(p Plan) (*Assessor, error) {
 	if p.ZoneAggregation != "" && p.ZoneAggregation != "all-required" && p.ZoneAggregation != "any" {
 		return nil, fmt.Errorf("invalid zone aggregation")
+	}
+	if p.SameZoneAggregation != "" && p.SameZoneAggregation != "all" && p.SameZoneAggregation != "any" && p.SameZoneAggregation != "quorum" {
+		return nil, fmt.Errorf("invalid same-zone aggregation")
 	}
 	a := &Assessor{plan: p}
 	if len(p.Rules) == 0 {
@@ -86,51 +90,58 @@ func NewAssessor(p Plan) (*Assessor, error) {
 		if ast.OutputType() != cel.BoolType {
 			return nil, fmt.Errorf("rule %s must return bool", r.ID)
 		}
+		checked, checkedErr := cel.AstToCheckedExpr(ast)
+		if checkedErr != nil {
+			return nil, checkedErr
+		}
+		a.replicaValues = a.replicaValues || replicaValueAccess(ast.Expr(), checked.TypeMap)
 		program, e := env.Program(ast, cel.CostLimit(1024), cel.InterruptCheckFrequency(50))
 		if e != nil {
 			return nil, e
 		}
 		a.rules = append(a.rules, compiledRule{r, program})
 	}
+	if err := a.ValidateSources(p.ReplicaSources()); err != nil {
+		return nil, err
+	}
 	return a, nil
 }
 
-func (a *Assessor) applyRules(z *ZoneAssessment, latest map[string]Observation, now time.Time, coherent, requiredFailure, requiredMissing bool) {
+func assessmentCheckView(o Observation, typ string, now time.Time) CheckView {
+	v := CheckView{Outcome: "unknown", ExecutionStatus: "failed", ReasonCode: o.Reason, AgeSeconds: now.Sub(o.FinishedAt).Seconds(), Metrics: map[string]int64{}, Values: map[string]*anypb.Any{}}
+	if o.Execution == "completed" && (o.Outcome == "success" || o.Outcome == "failure") {
+		for name, value := range o.Values {
+			var wrapped *anypb.Any
+			var err error
+			switch value.Kind {
+			case "integer":
+				wrapped, err = anypb.New(wrapperspb.Int64(value.Integer))
+			case "float":
+				wrapped, err = anypb.New(wrapperspb.Double(value.Number))
+			case "boolean":
+				wrapped, err = anypb.New(wrapperspb.Bool(value.Boolean))
+			case "string":
+				wrapped, err = anypb.New(wrapperspb.String(value.Text))
+			}
+			if err == nil && wrapped != nil {
+				v.Values[name] = wrapped
+			}
+		}
+		v.Outcome = o.Outcome
+		v.ExecutionStatus = "completed"
+		if typ == "http" && o.StatusCode != 0 {
+			v.Metrics["httpStatus"] = int64(o.StatusCode)
+		}
+	}
+	if o.Execution == "completed" {
+		v.ExecutionStatus = "completed"
+	}
+	return v
+}
+
+func (a *Assessor) applyRules(z *ZoneAssessment, checks map[string]CheckView, now time.Time, coherent, requiredFailure, requiredMissing bool) {
 	if len(a.rules) == 0 || requiredFailure || !coherent {
 		return
-	}
-	checks := map[string]CheckView{}
-	for _, c := range a.plan.Checks {
-		o, ok := latest[c.ID]
-		if !ok {
-			continue
-		}
-		v := CheckView{Outcome: "unknown", ExecutionStatus: "failed", ReasonCode: o.Reason, AgeSeconds: now.Sub(o.FinishedAt).Seconds(), Metrics: map[string]int64{}, Values: map[string]*anypb.Any{}}
-		if o.Execution == "completed" && (o.Outcome == "success" || o.Outcome == "failure") {
-			for name, value := range o.Values {
-				var wrapped *anypb.Any
-				var err error
-				switch value.Kind {
-				case "integer":
-					wrapped, err = anypb.New(wrapperspb.Int64(value.Integer))
-				case "float":
-					wrapped, err = anypb.New(wrapperspb.Double(value.Number))
-				case "boolean":
-					wrapped, err = anypb.New(wrapperspb.Bool(value.Boolean))
-				case "string":
-					wrapped, err = anypb.New(wrapperspb.String(value.Text))
-				}
-				if err == nil && wrapped != nil {
-					v.Values[name] = wrapped
-				}
-			}
-			v.Outcome = o.Outcome
-			v.ExecutionStatus = "completed"
-			if c.Type == "http" && o.StatusCode != 0 {
-				v.Metrics["httpStatus"] = int64(o.StatusCode)
-			}
-		}
-		checks[c.ID] = v
 	}
 	coverage := "degraded"
 	if z.Coverage == "complete" {

@@ -2,10 +2,11 @@ package monitor
 
 import (
 	"fmt"
+	"sort"
 	"time"
 )
 
-// Evaluate supports one planned agent per zone in this first research slice.
+// Evaluate aggregates independently planned physical sources within each zone.
 // It accepts only the newest execution per slot: a newer execution failure
 // must not silently resurrect an older success.
 func Evaluate(p Plan, slots []Slot, history []Observation, now time.Time) (Assessment, error) {
@@ -18,70 +19,142 @@ func Evaluate(p Plan, slots []Slot, history []Observation, now time.Time) (Asses
 func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time.Time) (Assessment, error) {
 	p := assessor.plan
 	a := Assessment{Monitor: p.Name, Revision: p.Revision, At: now, State: "unknown"}
-	byZone := map[string]string{}
+	if err := assessor.ValidateSources(slots); err != nil {
+		return a, err
+	}
+	byZone := map[string][]Slot{}
 	agents := map[string]bool{}
 	allowed := map[string]bool{}
-	for _, z := range p.Zones {
-		allowed[z] = true
+	for _, zone := range p.Zones {
+		allowed[zone] = true
 	}
-	for _, s := range slots {
-		if s.Agent == "" || !allowed[s.Zone] || byZone[s.Zone] != "" || agents[s.Agent] {
-			return a, fmt.Errorf("invalid or duplicate planned slot %q/%q", s.Agent, s.Zone)
+	for _, slot := range slots {
+		if slot.Agent == "" || !allowed[slot.Zone] || agents[slot.Agent] {
+			return a, fmt.Errorf("invalid or duplicate planned slot %q/%q", slot.Agent, slot.Zone)
 		}
-		byZone[s.Zone] = s.Agent
-		agents[s.Agent] = true
+		byZone[slot.Zone] = append(byZone[slot.Zone], slot)
+		agents[slot.Agent] = true
+	}
+	checks := map[string]Check{}
+	for _, check := range p.Checks {
+		checks[check.ID] = check
 	}
 	for _, zone := range p.Zones {
 		z := ZoneAssessment{Zone: zone, State: "unknown", Coverage: "coverage_degraded", Evidence: []string{}, Reason: "insufficient_evidence"}
-		latest := map[string]Observation{}
+		latestPhysical := map[string]Observation{}
+		expected := map[string]bool{}
+		for _, slot := range byZone[zone] {
+			expected[slot.Agent] = true
+		}
+		var anchor time.Time
 		for _, o := range history {
+			check, known := checks[o.Check]
 			age := p.MaxAge
-			known := false
-			for _, c := range p.Checks {
-				if c.ID == o.Check {
-					known = true
-					if c.MaxAge > 0 {
-						age = c.MaxAge
-					}
-					break
-				}
+			if check.MaxAge > 0 {
+				age = check.MaxAge
 			}
-			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || byZone[zone] == "" || o.Agent != byZone[zone] || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || !expected[o.Agent] || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
 				continue
 			}
-			old, ok := latest[o.Check]
-			if !ok || o.FinishedAt.After(old.FinishedAt) || (o.FinishedAt.Equal(old.FinishedAt) && o.ID > old.ID) {
-				latest[o.Check] = o
+			key := o.Agent + "/" + o.Check
+			old, exists := latestPhysical[key]
+			if !exists || o.FinishedAt.After(old.FinishedAt) || (o.FinishedAt.Equal(old.FinishedAt) && o.ID > old.ID) {
+				latestPhysical[key] = o
 			}
 		}
-		var total, valid, success float64
-		requiredMissing, requiredFailure := false, false
-		var earliest, newest time.Time
-		for _, c := range p.Checks {
-			total += c.Weight
-			o, ok := latest[c.ID]
-			ok = ok && o.Execution == "completed" && (o.Outcome == "success" || o.Outcome == "failure")
-			if !ok {
-				if c.Required {
+		for _, o := range latestPhysical {
+			if anchor.IsZero() || o.FinishedAt.After(anchor) {
+				anchor = o.FinishedAt
+			}
+		}
+		latest := map[string]CheckView{}
+		evidence := map[string]bool{}
+		total, valid, success := 0.0, 0.0, 0.0
+		requiredMissing, requiredFailure, divergent := false, false, false
+		complete := len(byZone[zone]) > 0
+		for _, check := range p.Checks {
+			total += check.Weight
+			var fresh, current []Observation
+			for _, slot := range byZone[zone] {
+				if o, found := latestPhysical[slot.Agent+"/"+check.ID]; found {
+					fresh = append(fresh, o)
+					if !o.FinishedAt.Before(anchor.Add(-p.MaxSkew)) {
+						current = append(current, o)
+					}
+				}
+			}
+			n := len(byZone[zone])
+			outcome := aggregateReplicas(p.SameZoneAggregation, n, current)
+			successes, failures, present := 0, 0, 0
+			for _, o := range current {
+				if validOutcome(o) {
+					present++
+					evidence[o.ID] = true
+					if o.Outcome == "success" {
+						successes++
+					} else {
+						failures++
+					}
+				}
+			}
+			if successes > 0 && failures > 0 {
+				divergent = true
+			}
+			physicalComplete := n > 0 && present == n
+			complete = complete && physicalComplete
+			if check.Required && !physicalComplete {
+				requiredMissing = true
+			}
+			if check.Required {
+				proof := failureWitness(p.SameZoneAggregation, n, fresh, p.MaxSkew)
+				if len(proof) > 0 {
+					requiredFailure = true
+					outcome = "failure"
+					for _, o := range proof {
+						evidence[o.ID] = true
+					}
+				}
+			}
+			if outcome == "unknown" {
+				if check.Required {
 					requiredMissing = true
 				}
-				continue
+			} else {
+				valid += check.Weight
+				if outcome == "success" {
+					success += check.Weight
+				}
 			}
-			valid += c.Weight
-			if o.Outcome == "success" {
-				success += c.Weight
-			}
-			if c.Required && o.Outcome == "failure" {
-				requiredFailure = true
-			}
-			z.Evidence = append(z.Evidence, o.ID)
-			if earliest.IsZero() || o.FinishedAt.Before(earliest) {
-				earliest = o.FinishedAt
-			}
-			if newest.IsZero() || o.FinishedAt.After(newest) {
-				newest = o.FinishedAt
+			if n == 1 && len(current) == 1 {
+				latest[check.ID] = assessmentCheckView(current[0], check.Type, now)
+			} else if len(current) > 0 {
+				at := current[0].FinishedAt
+				for _, o := range current {
+					if o.FinishedAt.Before(at) {
+						at = o.FinishedAt
+					}
+				}
+				view := assessmentCheckView(Observation{FinishedAt: at, Reason: "replica_aggregate"}, check.Type, now)
+				view.Outcome = outcome
+				view.ExecutionStatus = "completed"
+				if len(current) < n {
+					view.ExecutionStatus = "not_executed"
+				}
+				for _, o := range current {
+					if o.Execution != "completed" {
+						view.ExecutionStatus = "failed"
+					}
+				}
+				if successes > 0 && failures > 0 {
+					view.ReasonCode = "AGENT_RESULTS_DIVERGE"
+				}
+				latest[check.ID] = view
 			}
 		}
+		for id := range evidence {
+			z.Evidence = append(z.Evidence, id)
+		}
+		sort.Strings(z.Evidence)
 		if total > 0 {
 			z.Q = valid / total
 		}
@@ -89,16 +162,7 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 			h := success / valid
 			z.H = &h
 		}
-		// Coverage counts physical slots separately from weighted coverage:
-		// a missing zero-weight check still means incomplete observations.
-		complete := byZone[zone] != ""
-		for _, c := range p.Checks {
-			o, ok := latest[c.ID]
-			if !ok || o.Execution != "completed" || (o.Outcome != "success" && o.Outcome != "failure") {
-				complete = false
-			}
-		}
-		coherent := !earliest.IsZero() && newest.Sub(earliest) <= p.MaxSkew
+		coherent := len(z.Evidence) > 0
 		if complete && coherent {
 			z.Coverage = "complete"
 		}
@@ -108,7 +172,7 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 			z.Reason = "required_failure"
 		case !coherent:
 			z.Reason = "missing_or_incoherent_evidence"
-		case requiredMissing || z.Q < p.MinCoverage || z.H == nil: // unknown
+		case requiredMissing || z.Q < p.MinCoverage || z.H == nil:
 		case *z.H < p.DegradedMin:
 			z.State = "down"
 			z.Reason = "weighted_failure"
@@ -120,6 +184,9 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 			z.Reason = "sufficient_success"
 		}
 		assessor.applyRules(&z, latest, now, coherent, requiredFailure, requiredMissing)
+		if divergent {
+			z.Reason = "AGENT_RESULTS_DIVERGE"
+		}
 		a.Zones = append(a.Zones, z)
 	}
 	a.State = aggregateZones(p.ZoneAggregation, a.Zones)

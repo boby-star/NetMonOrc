@@ -116,6 +116,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
+		if (plan.SameZoneAggregation != "" || len(plan.ReplicaSources()) > 1 || (plan.FixedPlacement != nil && plan.FixedPlacement.DistinctBy != "")) && !capabilities["assessment:replicas"] {
+			return status.Error(codes.FailedPrecondition, "replica assessment capability required")
+		}
 		if len(plan.Dependencies) > 0 && !capabilities["context:dependencies"] {
 			return status.Error(codes.FailedPrecondition, "dependency context capability required")
 		}

@@ -1,3 +1,24 @@
+# Same-zone replicas та all/any/quorum (R32)
+
+Controller підтримує кілька trusted Agent у зоні; regular placement дотримується
+explicit distinctBy=zone і не створює partial наборів. Assessment бере latest
+кожного Agent/check, planned-N voting, coherent time window та незалежний
+required negative proof. Немає вигаданих votes із missing/execution failure або
+replay. Q/H лишаються логічними; physical coverage та raw IDs збережені.
+
+CEL працює з aggregate outcome/typed execution metadata. Values/metrics за
+кількох same-zone replicas відхиляються checked-AST validation відповідно до
+попереднього рішення користувача. Погоджені Q03 уточнення внесено в DSL §9.7
+і ТЗ §4.5 (Markdown/DOCX); HTTP routes/DTO не змінено.
+
+Критичні Go checks і vet пройшли. Реальний приватний Compose сценарій із двома
+physical Agent однієї зони перевірив opposite outcomes, all/any/quorum tie,
+missing vote, required failure без другого Agent та recovery. Browser test
+і трьох-Agent live benchmark у цій ітерації не виконувались.
+Evidence: docs/experiments/replica-assessment-r32/.
+Межі: enrollment/cert lifecycle, trusted failureDomain/labels, per-check placement,
+повний compiler-default, independent hot reload та load/storm acceptance відкриті.
+
 # Динамічне regular placement (R31)
 
 PlacementSpec/PlacementPolicy приймають leastLoaded та roundRobin; strategy

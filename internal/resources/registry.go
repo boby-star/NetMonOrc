@@ -93,13 +93,17 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if placement != nil && len(placement.Selected) > 0 {
 		assessmentRegistry.Zones = nil
 		for _, slot := range placement.Selected {
-			assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
+			if !slices.Contains(assessmentRegistry.Zones, slot.Zone) {
+				assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
+			}
 		}
 	}
 	if placement != nil && placement.Strategy != "" && len(placement.Selected) == 0 && len(placement.Candidates) > 0 {
 		assessmentRegistry.Zones = nil
 		for _, slot := range placement.Candidates {
-			assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
+			if !slices.Contains(assessmentRegistry.Zones, slot.Zone) {
+				assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
+			}
 		}
 	}
 	assessed, assessmentRef, assessmentHash, err := assessmentRegistry.resolveAssessment(placed)
@@ -209,6 +213,19 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 			if previous.TemplateHash != template.Revision {
 				return template, nil
 			}
+		}
+	}
+	if err == nil && len(p.Rules) > 0 {
+		assessor, checkErr := monitor.NewAssessor(p)
+		if checkErr != nil {
+			return p, checkErr
+		}
+		sources := p.ReplicaSources()
+		if p.FixedPlacement == nil {
+			sources = r.Roster
+		}
+		if checkErr = assessor.ValidateSources(sources); checkErr != nil {
+			return p, checkErr
 		}
 	}
 	return p, err

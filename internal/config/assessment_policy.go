@@ -40,8 +40,8 @@ func NormalizeAssessmentPolicy(data []byte) ([]byte, error) {
 		a.DefaultState = "unknown"
 	}
 	// Zone aggregation follows the approved table; replica voting stays separate.
-	if (a.ZoneAggregation != "all-required" && a.ZoneAggregation != "any") || a.SameZoneAggregation != "all" || a.DefaultState != "unknown" {
-		return nil, fmt.Errorf("policy mode is not supported by the current single-replica engine")
+	if (a.ZoneAggregation != "all-required" && a.ZoneAggregation != "any") || (a.SameZoneAggregation != "all" && a.SameZoneAggregation != "any" && a.SameZoneAggregation != "quorum") || a.DefaultState != "unknown" {
+		return nil, fmt.Errorf("unsupported assessment policy mode")
 	}
 	if a.Weighted.Enabled != nil && !*a.Weighted.Enabled {
 		return nil, fmt.Errorf("weighted.enabled=false is not implemented")

@@ -50,16 +50,37 @@ func Select(plan monitor.Plan, agents []agentstatus.View, cursor int64, now time
 			left, right := views[eligible[i].Agent], views[eligible[j].Agent]
 			return int64(*left.ActiveProbes)*int64(*right.MaxConcurrentProbes) < int64(*right.ActiveProbes)*int64(*left.MaxConcurrentProbes)
 		})
-		return append([]monitor.Slot(nil), eligible[:policy.Replicas]...), cursor
+		var selected []monitor.Slot
+		zones := map[string]bool{}
+		for _, slot := range eligible {
+			if policy.DistinctBy == "zone" && zones[slot.Zone] {
+				continue
+			}
+			selected = append(selected, slot)
+			zones[slot.Zone] = true
+			if len(selected) == policy.Replicas {
+				return selected, cursor
+			}
+		}
+		return []monitor.Slot{}, cursor
 	}
 	if cursor < 0 {
 		cursor = 0
 	}
 	selected := make([]monitor.Slot, 0, policy.Replicas)
-	for i := 0; i < policy.Replicas; i++ {
-		selected = append(selected, eligible[(int(cursor%int64(len(eligible)))+i)%len(eligible)])
+	zones := map[string]bool{}
+	for i := 0; i < len(eligible); i++ {
+		slot := eligible[(int(cursor%int64(len(eligible)))+i)%len(eligible)]
+		if policy.DistinctBy == "zone" && zones[slot.Zone] {
+			continue
+		}
+		selected = append(selected, slot)
+		zones[slot.Zone] = true
+		if len(selected) == policy.Replicas {
+			return selected, (cursor + int64(i+1)) % int64(len(eligible))
+		}
 	}
-	return selected, (cursor + int64(policy.Replicas)) % int64(len(eligible))
+	return []monitor.Slot{}, cursor
 }
 func eligibleFor(plan monitor.Plan, a agentstatus.View, now time.Time) bool {
 	if a.OnlineState != "online" || a.LastHeartbeat == nil || now.Sub(*a.LastHeartbeat) > 15*time.Second || a.LastHeartbeat.After(now.Add(5*time.Second)) || a.CertExpiresAt == nil || !now.Before(*a.CertExpiresAt) || a.MaxConcurrentProbes == nil || a.ActiveProbes == nil || *a.MaxConcurrentProbes <= 0 || *a.MaxConcurrentProbes > 1024 || *a.ActiveProbes < 0 || *a.ActiveProbes > *a.MaxConcurrentProbes {

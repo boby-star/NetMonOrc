@@ -3,6 +3,7 @@ package monitor
 // FixedPlacement is the resolved controller-owned regular assignment. Empty
 // Selected means pending: no partial set is authorized to run regular probes.
 type FixedPlacement struct {
+	DistinctBy string `json:",omitempty"`
 	Strategy   string `json:",omitempty"`
 	Candidates []Slot `json:",omitempty"`
 	Ref        string
@@ -48,4 +49,16 @@ type ResolvedPlacement struct {
 	PolicyHash   string
 	TemplateHash string
 	Selected     []Slot
+}
+
+// ReplicaSources includes potential same-zone sources of a dynamic plan, so
+// deferred CEL value aggregation cannot become active after a later failover.
+func (p Plan) ReplicaSources() []Slot {
+	if p.FixedPlacement == nil {
+		return nil
+	}
+	if p.FixedPlacement.Strategy != "" && p.FixedPlacement.Replicas > 1 && p.FixedPlacement.DistinctBy != "zone" {
+		return p.FixedPlacement.Candidates
+	}
+	return p.FixedPlacement.Selected
 }

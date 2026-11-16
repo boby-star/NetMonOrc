@@ -342,27 +342,27 @@ K=BX\in\mathbb N_0^{n\times k},\qquad K_Z=BXZ_A\in\mathbb N_0^{n\times s}.
 
 ### 4.5. Агрегація кількох агентів усередині зони
 
-Нехай \(A_{jz}\) — набір запланованих агентів check \(j\) у зоні \(z\), \(V_{jz}(t)=\{a\in A_{jz}:v_{ja}(t)=1\}\). Два supported режими з `AssessmentPolicy.sameZoneAggregation`:
+Погоджене Q03: N — число запланованих Agent/check slots у конкретній зоні;
+після відбору за TTL, effective revision та maxSkew кожний slot дає не більше
+одного latest outcome. Відсутні результати не зменшують N.
 
-\[
- h_{jz}^{\mathrm{all}}=
- \begin{cases}
- 1,&V\neq\varnothing\ \land\ \forall a\in V:\ h_{ja}=1,\\
- 0,&V\neq\varnothing\ \land\ \exists a\in V:\ h_{ja}=0,\\
- \bot,&V=\varnothing,
- \end{cases}
-\]
+| Політика | Success | Failure | Інакше |
+|---|---|---|---|
+| all (default) | N successes | Один або більше failures | unknown |
+| any | Один або більше successes | N failures | unknown |
+| quorum | q successes | q failures | unknown |
 
-\[
- h_{jz}^{\mathrm{any}}=
- \begin{cases}
- 1,&V\neq\varnothing\ \land\ \exists a\in V:\ h_{ja}=1,\\
- 0,&V\neq\varnothing\ \land\ \forall a\in V:\ h_{ja}=0,\\
- \bot,&V=\varnothing.
- \end{cases}
-\]
+Сувора більшість: q = floor(N / 2) + 1. За N=0 outcome unknown. Неповні
+required replicas/зони дають coverage_degraded та блокують healthy; Q/H
+лишаються оцінками логічних outcomes. Негативний required outcome не
+компенсується вагами або CEL. Його власні witnesses повинні утворювати
+узгоджений maxSkew набір; актуальна критична failure може визначити down
+без очікування інших checks. Див. DSL §9.7 для повної таблиці й CEL-контексту.
 
-`sameZoneAggregation=all` default, `any` — лише явне рішення. Якщо деякі заплановані агенти не надали свіжих доказів, отриманий outcome **не** заповнює відсутній coverage; додається `coverage_degraded`. Протилежні результати — `AGENT_RESULTS_DIVERGE`, усі observation IDs зберігаються. Така агрегація не створює хибної незалежності: агентські `failureDomain` враховують окремо.
+Протилежні поточні outcomes позначаються AGENT_RESULTS_DIVERGE; raw IDs
+залишаються доступними. Два Agent однієї зони не означають незалежних
+failure domains. Values/metrics aggregation для кількох replicas відкладена
+користувачем; такі CEL правила поки відхиляються, а сирі дані зберігаються.
 
 ### 4.6. Ваги, coverage, оцінка стану та CEL
 
