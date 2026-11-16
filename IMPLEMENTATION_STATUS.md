@@ -1,3 +1,20 @@
+# Локальний запуск UI та живий браузерний сценарій (R29)
+
+Додано явний loopback-only HTTPS port для owned Compose stand і команду
+початкового admin із прихованим вводом/захищеним stdin та idempotency.
+Неінтерактивні Docker команди не успадковують stdin; SQL preflight більше
+не споживає пароль. UI GET виконуються послідовно в межах вкладки та мають bounded retry
+429/503/network у бюджеті 8s;
+POST/PATCH/DELETE та auth errors не повторюються. Python checks, React build
+і Chromium fixture retry cases пройшли. Live HTTPS browser acceptance пройшла:
+login, cookie-session reload, Target/Dependency CRUD, graph, derived group
+із реальних probes, reference guard, revision restore та logout. Перевірено
+відсутність host publishing і UI network у приватних сервісів.
+Evidence: docs/experiments/local-release-r29/.
+Quickstart: docs/deployment/quickstart.md. Повний v1alpha1 не оголошується
+завершеним: multi-Monitor, dynamic placement/replica voting, Agent lifecycle
+залишаються великими відкритими блоками.
+
 # Граф залежностей і стабільні компоненти панелі (R28)
 
 React має read-only graph/table Dependency зі стрілками, вибором вузла/ребра,

@@ -18,7 +18,9 @@ python3 scripts/lab_notifications.py --output .local/notifications.json
 ```
 
 Після export відкрийте `.local/lab-report/report.html`. Це snapshot; повторний
-export оновлює локальну копію. Порти на хост не публікуються. Controller
+export оновлює локальну копію. За замовчуванням порти не публікуються;
+опціональний --ui-port відкриває тільки HTTPS Controller на 127.0.0.1 —
+див. [quickstart](quickstart.md). Controller
 записує поточні JSON і HTML у свій приватний volume.
 
 Якщо мережа збірки використовує корпоративний TLS proxy, передайте довірений

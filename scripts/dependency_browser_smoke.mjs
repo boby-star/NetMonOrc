@@ -22,7 +22,7 @@ const rows = [
 function resource([name, from, to, relation, strength, description]) {
   return { manifest: { apiVersion: 'netmonorc.io/v1alpha1', kind: 'Dependency', metadata: { name }, spec: { from, to, relation, strength, description } }, uid: 'fixture-'+name, generation: 1, resourceVersion: 'fixture:1', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
-let failNext = false, empty = false, scoped = true, mutations = 0;
+let failNext = 0, failStatus = 503, empty = false, scoped = true, mutations = 0;
 const cursors = [], errors = [], paths = [];
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -32,7 +32,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/v1/auth/me') return send(200, { userId:'fixture-viewer', username:'fixture-viewer', role:'viewer', csrfToken:'fixture-only', expiresAt:new Date(Date.now()+3600000).toISOString(), scopes:scoped?['resources:read']:['agents:read'] });
   if (url.pathname === '/api/v1/resources/Dependency') {
     cursors.push(url.searchParams.get('cursor'));
-    if (failNext) { failNext = false; return send(503, {message:'Controlled fixture error'}); }
+    if (failNext > 0) { failNext--; return send(failStatus, {message:'Controlled fixture error'}); }
     if (empty) return send(200, {items:[],nextCursor:null});
     return send(200, url.searchParams.has('cursor') ? { items:[resource(['web-storage',ref('Monitor','web'),ref('Target','storage'),'requires','soft','Друга сторінка'])], nextCursor:null } : { items:rows.map(resource), nextCursor:'fixture-page-2' });
   }
@@ -100,14 +100,23 @@ try {
   await click('Наступна сторінка зв’язків');await wait(`${section}.querySelectorAll('tbody tr').length===1&&${section}.textContent.includes('web-storage')`);
   assert.ok(cursors.includes('fixture-page-2'));
   assert.equal(await evaluate(`${button('Наступна сторінка зв’язків')}.disabled`),true);
-  failNext=true;await click('Оновити граф');await wait(`${section}.querySelector('[role="alert"]')!==null`);
+  for (const status of [429,503]) {
+    failStatus=status;failNext=1;const before=cursors.length;
+    await click('Оновити граф');await wait(`${section}.querySelectorAll('tbody tr').length===4`);
+    assert.ok(cursors.length>=before+2);
+  }
+  failStatus=403;failNext=1;const deniedBefore=cursors.length;
+  await click('Оновити граф');await wait(`${section}.querySelector('[role="alert"]')!==null`);
+  assert.equal(cursors.length,deniedBefore+1);
+  await click('Оновити граф');await wait(`${section}.querySelectorAll('tbody tr').length===4`);
+  failStatus=503;failNext=3;await click('Оновити граф');await wait(`${section}.querySelector('[role="alert"]')!==null`);
   assert.equal(await evaluate(`${section}.querySelector('svg')===null`),true);
   await click('Оновити граф');await wait(`${section}.querySelectorAll('tbody tr').length===4`);
   empty=true;await click('Оновити граф');await wait(`${section}.textContent.includes('У каталозі немає зв’язків')`);
   assert.equal(await evaluate(`${section}.querySelector('svg')===null`),true);
   scoped=false;await call('Page.reload');await wait(`document.body.textContent.includes('fixture-viewer')&&!${section}`);
   assert.equal(mutations,0);assert.deepEqual(errors,[]);
-  const result={status:'passed',browser:'Chromium headless',backend:'local read-only API fixture; production React assets',browserInteractionTested:true,liveControllerIntegrationTested:false,stablePanelsAcrossClockUpdates:true,stableSectionsAcrossClockUpdates:true,directedArrows:true,keyboardNodeSelection:true,incomingAndOutgoingLinks:true,relationStrengthDetails:true,descriptionEscaped:true,currentPageSearch:true,opaqueCursorPagination:true,errorClearsStaleGraph:true,manualRetryRecovers:true,emptyCatalog:true,scopeVisibilityOnly:true,mutationRequests:mutations,consoleExceptions:errors.length,screenshotContainsFixtureDataOnly:true};
+  const result={status:'passed',browser:'Chromium headless',backend:'local read-only API fixture; production React assets',browserInteractionTested:true,liveControllerIntegrationTested:false,stablePanelsAcrossClockUpdates:true,stableSectionsAcrossClockUpdates:true,directedArrows:true,keyboardNodeSelection:true,incomingAndOutgoingLinks:true,relationStrengthDetails:true,descriptionEscaped:true,currentPageSearch:true,opaqueCursorPagination:true,errorClearsStaleGraph:true,manualRetryRecovers:true,boundedReadRetry429And503:true,permissionErrorNotRetried:true,emptyCatalog:true,scopeVisibilityOnly:true,mutationRequests:mutations,consoleExceptions:errors.length,screenshotContainsFixtureDataOnly:true};
   await mkdir(dirname(output),{recursive:true});await writeFile(output,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});
   console.log('PASS: Chromium dependency graph user flows; fixture API only, no real credentials');
 } finally {

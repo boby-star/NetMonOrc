@@ -19,12 +19,51 @@ export interface Assessment {
   revision: string;
 }
 export class AccessError extends Error {}
+
+// Read-only requests can overlap at startup or meet a short reconciliation gap.
+// A single 8s budget includes all attempts. Never replay mutations or auth errors.
+// Serialize reads from this browser tab to respect the small Controller's
+// admission limits. Release at headers, before any retry delay or body parsing.
+let readTail: Promise<void> = Promise.resolve();
+async function readFetch(path: string, init: RequestInit): Promise<Response> {
+  const previous = readTail;
+  let release!: () => void;
+  readTail = new Promise<void>(resolve => { release = resolve; });
+  await previous;
+  try {
+    init.signal?.throwIfAborted();
+    return await fetch(path, init);
+  } finally { release(); }
+}
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  if ((init.method ?? "GET").toUpperCase() !== "GET") return fetch(path, init);
+  const timeout = AbortSignal.timeout(8000);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  for (let attempt = 0; ; attempt++) {
+    let delay = 250 * (attempt + 1);
+    try {
+      const response = await readFetch(path, { ...init, signal });
+      if (attempt >= 2 || (response.status !== 429 && response.status !== 503)) return response;
+      const seconds = Number(response.headers.get("Retry-After"));
+      if (Number.isFinite(seconds) && seconds > 0) delay = Math.min(1000, seconds * 1000);
+      await response.body?.cancel();
+    } catch (error) {
+      if (signal.aborted || attempt >= 2 || !(error instanceof TypeError)) throw error;
+    }
+    await new Promise<void>((resolve, reject) => {
+      if (signal.aborted) { reject(signal.reason); return; }
+      const abort = () => { clearTimeout(timer); reject(signal.reason); };
+      const timer = setTimeout(() => { signal.removeEventListener("abort", abort); resolve(); }, delay);
+      signal.addEventListener("abort", abort, { once: true });
+    });
+  }
+}
 export async function loadAssessment(
   monitor: string,
   token: string,
   signal: AbortSignal,
 ): Promise<Assessment> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/v1/monitors/${encodeURIComponent(monitor)}/assessment`,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -63,7 +102,7 @@ export interface Session {
   scopes: string[];
 }
 export async function sessionInfo(): Promise<Session | null> {
-  const response = await fetch("/api/v1/auth/me", {
+  const response = await apiFetch("/api/v1/auth/me", {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.timeout(8000),
@@ -76,7 +115,7 @@ export async function login(
   username: string,
   password: string,
 ): Promise<Session> {
-  const response = await fetch("/api/v1/auth/login", {
+  const response = await apiFetch("/api/v1/auth/login", {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
@@ -91,7 +130,7 @@ export async function login(
   return response.json() as Promise<Session>;
 }
 export async function logout(session: Session): Promise<void> {
-  const response = await fetch("/api/v1/auth/logout", {
+  const response = await apiFetch("/api/v1/auth/logout", {
     method: "POST",
     credentials: "same-origin",
     headers: { "X-CSRF-Token": session.csrfToken },
@@ -106,7 +145,7 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<Session> {
-  const response = await fetch("/api/v1/auth/change-password", {
+  const response = await apiFetch("/api/v1/auth/change-password", {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -160,7 +199,7 @@ export async function loadHistory(
   const params = new URLSearchParams({ limit: "50" });
   if (zone) params.set("zone", zone);
   if (cursor) params.set("cursor", cursor);
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/v1/monitors/${encodeURIComponent(monitor)}/observations?${params}`,
     {
       credentials: "same-origin",
@@ -204,7 +243,7 @@ export async function tokens(
 ): Promise<TokenPage> {
   const params = new URLSearchParams({ limit: "50" });
   if (cursor) params.set("cursor", cursor);
-  const response = await fetch(`/api/v1/auth/tokens?${params}`, {
+  const response = await apiFetch(`/api/v1/auth/tokens?${params}`, {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
@@ -219,7 +258,7 @@ export async function issueToken(
   scopes: string[],
   expiresAt: string | null,
 ): Promise<IssuedToken> {
-  const response = await fetch("/api/v1/auth/tokens", {
+  const response = await apiFetch("/api/v1/auth/tokens", {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -236,7 +275,7 @@ export async function issueToken(
   return response.json() as Promise<IssuedToken>;
 }
 export async function revokeToken(session: Session, id: string): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/v1/auth/tokens/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
@@ -304,7 +343,7 @@ export async function users(
 ): Promise<UserPage> {
   const params = new URLSearchParams({ limit: "50" });
   if (cursor) params.set("cursor", cursor);
-  const response = await fetch(`/api/v1/users?${params}`, {
+  const response = await apiFetch(`/api/v1/users?${params}`, {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
@@ -314,7 +353,7 @@ export async function users(
 }
 export async function user(id: string): Promise<VersionedUser> {
   return versionedUser(
-    await fetch(`/api/v1/users/${encodeURIComponent(id)}`, {
+    await apiFetch(`/api/v1/users/${encodeURIComponent(id)}`, {
       credentials: "same-origin",
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
@@ -328,7 +367,7 @@ export async function createUser(
   initialPassword: string,
 ): Promise<VersionedUser> {
   return versionedUser(
-    await fetch("/api/v1/users", {
+    await apiFetch("/api/v1/users", {
       method: "POST",
       credentials: "same-origin",
       headers: {
@@ -347,7 +386,7 @@ export async function patchUser(
   disabled: boolean,
 ): Promise<VersionedUser> {
   return versionedUser(
-    await fetch(`/api/v1/users/${encodeURIComponent(selected.user.id)}`, {
+    await apiFetch(`/api/v1/users/${encodeURIComponent(selected.user.id)}`, {
       method: "PATCH",
       credentials: "same-origin",
       headers: {
@@ -441,7 +480,7 @@ export async function monitorResource(
   kind = "Monitor",
 ): Promise<VersionedResource> {
   return resourceResponse(
-    await fetch(`/api/v1/resources/${encodeURIComponent(kind)}/${encodeURIComponent(name)}`, {
+    await apiFetch(`/api/v1/resources/${encodeURIComponent(kind)}/${encodeURIComponent(name)}`, {
       credentials: "same-origin",
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
@@ -455,7 +494,7 @@ export async function resourceCatalog(
 ): Promise<{ items: MonitorResource[]; nextCursor: string | null }> {
   const query = new URLSearchParams({ limit: "20" });
   if (cursor) query.set("cursor", cursor);
-  const response = await fetch(`/api/v1/resources/${encodeURIComponent(kind)}?${query}`, {
+  const response = await apiFetch(`/api/v1/resources/${encodeURIComponent(kind)}?${query}`, {
     credentials: "same-origin",
     cache: "no-store",
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000),
@@ -467,7 +506,7 @@ export async function checkConfiguration(
   session: Session,
   manifest: ResourceManifest,
 ): Promise<ConfigValidation> {
-  const response = await fetch("/api/v1/config/validate", {
+  const response = await apiFetch("/api/v1/config/validate", {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -490,7 +529,7 @@ export async function planBatchConfiguration(
   session: Session,
   batch: ConfigBatch,
 ): Promise<ConfigPlan> {
-  const response = await fetch("/api/v1/config/plan", {
+  const response = await apiFetch("/api/v1/config/plan", {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -514,7 +553,7 @@ export async function saveMonitor(
       ? "/" + encodeURIComponent(current.resource.manifest.metadata.name)
       : "");
   return resourceResponse(
-    await fetch(path, {
+    await apiFetch(path, {
       method: current ? "PUT" : "POST",
       credentials: "same-origin",
       headers: {
@@ -531,7 +570,7 @@ export async function deleteMonitor(
   session: Session,
   current: VersionedResource,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/v1/resources/${encodeURIComponent(current.resource.manifest.kind)}/${encodeURIComponent(current.resource.manifest.metadata.name)}`,
     {
       method: "DELETE",
@@ -575,7 +614,7 @@ export async function applyConfiguration(
   session: Session,
   batch: ConfigBatch,
 ): Promise<Operation> {
-  const response = await fetch("/api/v1/config/apply", {
+  const response = await apiFetch("/api/v1/config/apply", {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -602,7 +641,7 @@ export async function validateBatch(
   session: Session,
   batch: ConfigBatch,
 ): Promise<ConfigValidation> {
-  const response = await fetch("/api/v1/config/validate", {
+  const response = await apiFetch("/api/v1/config/validate", {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -616,7 +655,7 @@ export async function validateBatch(
   return response.json() as Promise<ConfigValidation>;
 }
 export async function operation(id: string): Promise<Operation> {
-  const response = await fetch(`/api/v1/operations/${encodeURIComponent(id)}`, {
+  const response = await apiFetch(`/api/v1/operations/${encodeURIComponent(id)}`, {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.timeout(8000),
@@ -633,7 +672,7 @@ export async function operations(
   const params = new URLSearchParams({ limit: "20" });
   if (state) params.set("state", state);
   if (cursor) params.set("cursor", cursor);
-  const response = await fetch(`/api/v1/operations?${params}`, {
+  const response = await apiFetch(`/api/v1/operations?${params}`, {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.timeout(8000),
@@ -670,7 +709,7 @@ export async function agents(
   if (zone) params.set("zone", zone);
   if (state) params.set("state", state);
   if (cursor) params.set("cursor", cursor);
-  const response = await fetch(`/api/v1/agents?${params}`, {
+  const response = await apiFetch(`/api/v1/agents?${params}`, {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.timeout(8000),
@@ -707,7 +746,7 @@ export interface DiagnosticTask {
 }
 export interface DiagnosticPage { items: DiagnosticSession[]; nextCursor: string | null }
 async function diagnosticRead<T>(path: string): Promise<T> {
-  const response = await fetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
+  const response = await apiFetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error(`Діагностика недоступна (${response.status}). Оновіть запит.`);
   return response.json() as Promise<T>;
 }
@@ -727,7 +766,7 @@ export function diagnosticTasks(id: string, cursor: string | null): Promise<{ite
 }
 
 export async function startDiagnostic(session: Session, monitor: string, profileRef: string, requestId: string): Promise<DiagnosticSession> {
-  const response = await fetch(`/api/v1/monitors/${encodeURIComponent(monitor)}/diagnostics`, {
+  const response = await apiFetch(`/api/v1/monitors/${encodeURIComponent(monitor)}/diagnostics`, {
     method: "POST", credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken },
     body: JSON.stringify({ profileRef, reason: "manual", requestId }), signal: AbortSignal.timeout(8000),
@@ -736,7 +775,7 @@ export async function startDiagnostic(session: Session, monitor: string, profile
   return response.json();
 }
 export async function cancelDiagnostic(session: Session, id: string): Promise<DiagnosticSession> {
-  const response = await fetch(`/api/v1/diagnostics/${encodeURIComponent(id)}/cancel`, {
+  const response = await apiFetch(`/api/v1/diagnostics/${encodeURIComponent(id)}/cancel`, {
     method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": session.csrfToken }, signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error(`Скасування не підтверджено (${response.status}). Оновіть стан сесії.`);
@@ -755,7 +794,7 @@ export interface AlertPage { items: AlertView[]; nextCursor: string | null }
 export interface AlertHistoryPage { items: {id: string; from: string; to: string; at: string; configRevision: string; suppressed: boolean}[]; nextCursor: string | null }
 export interface DeliveryPage { items: {id: string; eventId: string; state: string; attempts: number; lastHttpStatus: number | null; lastAttemptAt: string | null}[]; nextCursor: string | null }
 async function alertRead<T>(path: string, label = "Історія алертів"): Promise<T> {
-  const response = await fetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
+  const response = await apiFetch(path, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error(`${label} недоступна (${response.status}). Оновіть запит.`);
   return response.json() as Promise<T>;
 }
@@ -775,10 +814,10 @@ async function alertVersion(response: Response): Promise<VersionedAlert> {
   return { alert: await response.json() as AlertView, etag };
 }
 export async function alertDetail(id: string): Promise<VersionedAlert> {
-  return alertVersion(await fetch(`/api/v1/alerts/${encodeURIComponent(id)}`, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) }));
+  return alertVersion(await apiFetch(`/api/v1/alerts/${encodeURIComponent(id)}`, { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000) }));
 }
 export async function acknowledgeAlert(session: Session, id: string, etag: string, note: string): Promise<VersionedAlert> {
-  return alertVersion(await fetch(`/api/v1/alerts/${encodeURIComponent(id)}/acknowledge`, {
+  return alertVersion(await apiFetch(`/api/v1/alerts/${encodeURIComponent(id)}/acknowledge`, {
     method: "POST", credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken, "If-Match": etag },
     body: JSON.stringify({ note }), signal: AbortSignal.timeout(8000),
@@ -800,7 +839,7 @@ export interface WebhookTestOperation {
   result: { eventId: string; deliveryState: string; attempts: number; lastHttpStatus: number | null };
 }
 export async function testWebhook(session: Session): Promise<WebhookTestOperation> {
-  const response = await fetch("/api/v1/webhook/test", {
+  const response = await apiFetch("/api/v1/webhook/test", {
     method: "POST", credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken },
     body: "{}", signal: AbortSignal.timeout(8000),
@@ -827,7 +866,7 @@ export function dashboardSummary(): Promise<DashboardSummary> {
 }
 
 export async function loadObservation(id: string, signal: AbortSignal): Promise<ObservationRecord> {
-  const response = await fetch(`/api/v1/observations/${encodeURIComponent(id)}`, {
+  const response = await apiFetch(`/api/v1/observations/${encodeURIComponent(id)}`, {
     credentials: "same-origin", cache: "no-store",
     signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
   });
@@ -847,7 +886,7 @@ export interface GroupAssessment {
   evidenceIds: string[];
 }
 export async function groupAssessment(name: string): Promise<GroupAssessment> {
-  const response = await fetch(`/api/v1/resource-groups/${encodeURIComponent(name)}/assessment`, {
+  const response = await apiFetch(`/api/v1/resource-groups/${encodeURIComponent(name)}/assessment`, {
     credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw resourceError(response.status);

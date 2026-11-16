@@ -9,6 +9,8 @@ from pathlib import Path
 import re
 import secrets
 import subprocess
+import sys
+import tempfile
 import tarfile
 import time
 from dev_pki import generate, issue_server
@@ -46,9 +48,58 @@ class Lab:
         self.work = ROOT/'.local'/'lab'/project
         self.env = {**os.environ,'NMO_NET_PREFIX':prefix}
     def compose(self,*args,input=None,env=None):
-        return subprocess.run(['docker','compose','-p',self.project,'-f',str(ROOT/'compose.yaml'),*args],
-                              cwd=ROOT,env={**self.env,**(env or {})},input=input,
-                              stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True).stdout
+        command=['docker','compose','-p',self.project,'-f',str(ROOT/'compose.yaml')]
+        if self.ui_port() is not None:command.extend(['-f',str(self.work/'ui.compose.json')])
+        return subprocess.run([*command,*args],cwd=ROOT,env={**self.env,**(env or {})},input=input,
+                              stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True,
+                              stdin=subprocess.DEVNULL if input is None else None).stdout
+    @staticmethod
+    def ui_override(port):
+        if type(port) is not int or not 1<=port<=65535:raise ValueError('UI port requires 1..65535')
+        return {'services':{'controller':{'ports':[{'target':8443,'published':str(port),'host_ip':'127.0.0.1','protocol':'tcp'}],'networks':{'ui-access':{}}}},'networks':{'ui-access':{'driver':'bridge','internal':False}}}
+    def ui_port(self):
+        path=self.work/'ui.compose.json'
+        if not path.exists():return None
+        try:
+            if path.stat().st_size>2048:raise ValueError('oversized UI config')
+            value=json.loads(path.read_text());port=int(value['services']['controller']['ports'][0]['published'])
+            if value!=self.ui_override(port):raise ValueError('unexpected UI configuration')
+            return port
+        except (ValueError,KeyError,IndexError,TypeError) as e:
+            raise ValueError('Saved UI configuration must publish only Controller HTTPS on 127.0.0.1') from e
+    def configure_ui(self,port):
+        self.require()
+        if type(port) is not int or not 0<=port<=65535:raise ValueError('UI port requires 0..65535; 0 disables publishing')
+        current=self.ui_port()
+        if current==(port or None):return
+        if self.compose('ps','--status','running','--quiet').strip():
+            raise RuntimeError('Stop this owned stand before changing its UI port; data volumes are preserved')
+        path=self.work/'ui.compose.json'
+        if port==0:path.unlink(missing_ok=True);return
+        with tempfile.NamedTemporaryFile(mode='w',prefix='.ui-',dir=self.work,delete=False) as pending:
+            temp=Path(pending.name)
+            try:
+                json.dump(self.ui_override(port),pending);pending.flush();os.fsync(pending.fileno())
+                os.replace(temp,path)
+            finally:temp.unlink(missing_ok=True)
+    def admin(self,username='admin',password_stdin=False):
+        self.require()
+        import unicodedata
+        if not username or len(username.encode())>64 or username.strip()!=username or any(unicodedata.category(c)=='Cc' for c in username):raise ValueError('Invalid administrator username')
+        if self.sql('SELECT count(*) FROM nmo_users')!='0':return False
+        if password_stdin:
+            raw=sys.stdin.buffer.read(259)
+            if len(raw)>258:raise ValueError('Password input exceeds limit')
+            password=raw.removesuffix(b'\n').removesuffix(b'\r')
+        else:
+            if not sys.stdin.isatty():raise ValueError('Terminal required; use --password-stdin for a protected pipe')
+            import getpass
+            password=getpass.getpass('Initial administrator password: ').encode()
+        if not 16<=len(password)<=256 or b'\n' in password or b'\r' in password:raise ValueError('Password requires one line of 16..256 UTF-8 bytes')
+        try:password.decode('utf-8')
+        except UnicodeDecodeError as e:raise ValueError('Password requires valid UTF-8') from e
+        self.compose('exec','-T','controller','/usr/local/bin/netmonorc-admin','-database-file','/run/netmonorc/database.dsn','-username',username,'-password-stdin',input=password)
+        return True
     def require(self):
         metadata = json.loads((self.work/'prepared.json').read_text())
         if metadata!={'project':self.project,'prefix':self.prefix}:
@@ -223,19 +274,30 @@ spec:
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation',choices=['prepare','up','status','inject','export','package','backup','down'])
+    parser.add_argument('operation',choices=['prepare','up','status','admin','inject','export','package','backup','down'])
     parser.add_argument('--project',default='netmonorc-lab')
     parser.add_argument('--prefix',default='172.30')
     parser.add_argument('--mode',choices=['static','fixed','adaptive'],default='adaptive')
     parser.add_argument('--policy',choices=['legacy','confirmed'],default='confirmed')
     parser.add_argument('--scenario',choices=list(SCENARIOS),default='healthy')
     parser.add_argument('--output',default='.local/lab-report')
+    parser.add_argument('--ui-port',type=int,help='up only: publish HTTPS on 127.0.0.1; 0 disables publishing')
+    parser.add_argument('--username',default='admin')
+    parser.add_argument('--password-stdin',action='store_true',help='admin only: password from a protected stdin pipe')
     args=parser.parse_args();lab=Lab(args.project,args.prefix)
+    if args.ui_port is not None and args.operation!='up':raise ValueError('--ui-port applies only to up')
+    if args.password_stdin and args.operation!='admin':raise ValueError('--password-stdin applies only to admin')
     if args.operation=='prepare':lab.prepare();print('Private configuration volumes prepared; CA private key stays on the host.')
-    elif args.operation=='up':lab.up(args.mode,args.policy);print('Stand started; no host ports published.')
+    elif args.operation=='up':
+        if args.ui_port is not None:lab.configure_ui(args.ui_port)
+        lab.up(args.mode,args.policy)
+        port=lab.ui_port()
+        print('Stand started; UI: https://localhost:'+str(port) if port else 'Stand started; no host ports published.')
+        if port:print('Trust the public lab CA for local access:',lab.work/'pki/ca.crt')
     else:
         lab.require()
-        if args.operation=='status':print(json.dumps({'mode':lab.mode(),'assessment':lab.assessment(),'diagnostic':lab.diagnostic()},indent=2))
+        if args.operation=='admin':print('Administrator initialized.' if lab.admin(args.username,args.password_stdin) else 'Already initialized; credentials unchanged.')
+        elif args.operation=='status':print(json.dumps({'uiUrl':('https://localhost:'+str(lab.ui_port())) if lab.ui_port() else None,'mode':lab.mode(),'assessment':lab.assessment(),'diagnostic':lab.diagnostic()},indent=2))
         elif args.operation=='inject':lab.inject(args.scenario);print('Injected:',args.scenario)
         elif args.operation=='export':lab.export(args.output);print('Exported private snapshots to',args.output)
         elif args.operation=='package':lab.package(args.output);print('Saved private demo package to',args.output)
