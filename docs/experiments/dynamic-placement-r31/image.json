@@ -1,0 +1,8 @@
+{
+  "image": "sha256:0efb8c2e58ec710f0061ee0089ca9cb5a3305e57bde1093adccb8a8c2243e0b5",
+  "sourceCommit": "1f98f6f",
+  "noHostPublishing": true,
+  "demonstrationMonitorsRemoved": true,
+  "placementSelectionsCascadeDeleted": true,
+  "baselineHealthyAfterCleanup": true
+}
