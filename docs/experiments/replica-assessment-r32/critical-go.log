@@ -1,0 +1,7 @@
+ok  	github.com/boby-star/NetMonOrc/internal/monitor	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/config	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/resources	0.105s
+ok  	github.com/boby-star/NetMonOrc/internal/placement	0.009s
+ok  	github.com/boby-star/NetMonOrc/internal/storage	0.031s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	(cached)
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-controller	[no test files]

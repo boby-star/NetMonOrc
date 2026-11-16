@@ -1,0 +1,5 @@
+{
+  "fullWorkflowImage": "sha256:850b9ce318abf72e95b643460e56096d93046903622b8ae1cdf0e30f72f4b5c0",
+  "finalImage": "sha256:850b9ce318abf72e95b643460e56096d93046903622b8ae1cdf0e30f72f4b5c0",
+  "postWorkflowChanges": "Mark the already pinned CEL API protobuf dependency direct instead of indirect; no package version change. Final Docker rebuild and trusted HTTPS healthy verification passed."
+}

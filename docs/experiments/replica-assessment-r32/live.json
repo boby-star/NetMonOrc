@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "twoPhysicalAgentsSameZone": true,
+  "trustedHTTPS": true,
+  "browserInteractionTested": false,
+  "opposingOutcomesFromRealNetworkFault": true,
+  "strictPlannedQuorum": true,
+  "requiredFailureInvariant": true,
+  "cases": {
+    "bothHealthy": {
+      "state": "healthy",
+      "coverage": "complete",
+      "q": 1,
+      "h": 1,
+      "reason": "sufficient_success",
+      "evidenceCount": 2
+    },
+    "allMixed": {
+      "state": "down",
+      "coverage": "complete",
+      "q": 1,
+      "h": 0,
+      "reason": "AGENT_RESULTS_DIVERGE",
+      "evidenceCount": 2
+    },
+    "anyMixed": {
+      "state": "healthy",
+      "coverage": "complete",
+      "q": 1,
+      "h": 1,
+      "reason": "AGENT_RESULTS_DIVERGE",
+      "evidenceCount": 2
+    },
+    "quorumTie": {
+      "state": "unknown",
+      "coverage": "complete",
+      "q": 0,
+      "h": null,
+      "reason": "AGENT_RESULTS_DIVERGE",
+      "evidenceCount": 2
+    },
+    "quorumMissing": {
+      "state": "unknown",
+      "coverage": "coverage_degraded",
+      "q": 0,
+      "h": null,
+      "reason": "insufficient_evidence",
+      "evidenceCount": 1
+    },
+    "requiredFailureWithoutPeer": {
+      "state": "down",
+      "coverage": "coverage_degraded",
+      "q": 1,
+      "h": 0,
+      "reason": "required_failure",
+      "evidenceCount": 1
+    },
+    "recovered": {
+      "state": "healthy",
+      "coverage": "complete",
+      "q": 1,
+      "h": 1,
+      "reason": "sufficient_success",
+      "evidenceCount": 2
+    }
+  },
+  "credentialsOmitted": true
+}

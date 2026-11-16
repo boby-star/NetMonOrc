@@ -1,0 +1,42 @@
+{
+  "assessment": {
+    "monitorId": "research-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "68c63e6041728f841a4383a998cd981f",
+          "f1d65da5789e361f359c20a5dd4ced2a"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "68c63e6041728f841a4383a998cd981f",
+      "f1d65da5789e361f359c20a5dd4ced2a"
+    ],
+    "evaluatedAt": "2026-11-16T16:22:29.867741075Z",
+    "revision": "3f07f2421fadfcaec18ee60de9459352b223eb81cf8737219c4a0201fde335cd"
+  },
+  "anonymousStatus": 401,
+  "productionAssets": 2,
+  "tlsVersions": [
+    "TLSv1.3",
+    "TLSv1.3",
+    "TLSv1.3",
+    "TLSv1.3",
+    "TLSv1.3"
+  ],
+  "browserInteractionTested": false,
+  "image": "sha256:850b9ce318abf72e95b643460e56096d93046903622b8ae1cdf0e30f72f4b5c0",
+  "sameZonePhysicalSources": 2
+}
