@@ -1,0 +1,9 @@
+{
+  "image": "sha256:4f75235a733987ce622d66e0e4689104b15b4938fca1ed24dade36694bad0e0f",
+  "productionAssetsMatchBrowserBuild": true,
+  "files": {
+    "index.html": "650f9fa57dcf09798a589ec85d7b6dbc50a868b9cf0396717b2487a1c4f22ecc",
+    "assets/index-c0yhZ2JH.css": "d5216a9c2aa8581a8255b4836707206f9b549485a0083c5f7aba6d65efb839e2",
+    "assets/index-MRZ-B9Wf.js": "0a4ad5511f53fe8be93de477611068cd45a845a3aabfd3c8aa8e06c8bd6eaa2b"
+  }
+}

@@ -27,7 +27,7 @@ RelatedTo cycles відображаються без спроби перетво
 Під час browser verification виправлено окремий дефект App: sibling keys
 Overview/Configuration/Groups/Agents/Diagnostics/Alerts/Tokens/History/Users
 повторювали userId. Щосекундне оновлення clock могло дублювати секції та
-ремонтувати стан компонентів неправильно. Ключі тепер мають стабільний
+неправильно зіставляти стан компонентів. Ключі тепер мають стабільний
 префікс компонента й розділені user/Monitor identifiers. Новий graph теж
 має окремий ключ. Формули, server validators та протокол Agent не змінені.
 

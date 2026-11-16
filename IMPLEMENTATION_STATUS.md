@@ -5,7 +5,9 @@ React має read-only graph/table Dependency зі стрілками, вибо�
 Схема не обчислює health/RCA. Виправлено duplicate sibling keys, які під час
 clock updates дублювали секції та скидали вибір. Production build і критичні
 Chromium DOM flows пройшли на fixture API; live Controller цим browser smoke
-не перевірявся. Документація: docs/deployment/dependency-graph.md.
+не перевірявся. Docker build пройшов; packaged assets побайтово відповідають
+перевіреній браузером збірці. Evidence: docs/experiments/dependency-graph-r28/.
+Документація: docs/deployment/dependency-graph.md.
 Multi-Monitor, dynamic placement/replicas, Agent lifecycle та фінальна
 acceptance/performance звірка залишаються відкритими.
 
