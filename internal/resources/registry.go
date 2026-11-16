@@ -21,24 +21,25 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
-	Dependencies     []dependency.Edge
-	Placements       map[string]PlacementPolicy
-	Roster           []monitor.Slot
-	TargetLabels     map[string]map[string]string
-	Assessments      map[string]AssessmentPolicy
-	CheckProfiles    map[string]CheckProfile
-	Active           string
-	ExecuteAll       bool
-	LoadedRevisions  map[string]string
-	AlertChannel     string
-	Targets          map[string]TargetSpec
-	ManagedWebhooks  bool
-	WebhookCIDRs     []netip.Prefix
-	Webhooks         map[string]webhook.Endpoint
-	Zones            []string
-	Diagnostic       *diagnostics.Profile
-	Profiles         map[string]diagnostics.Profile
-	StaticComparison bool
+	Dependencies       []dependency.Edge
+	Placements         map[string]PlacementPolicy
+	Roster             []monitor.Slot
+	TargetLabels       map[string]map[string]string
+	Assessments        map[string]AssessmentPolicy
+	CheckProfiles      map[string]CheckProfile
+	Active             string
+	ExecuteAll         bool
+	LoadedRevisions    map[string]string
+	ResolvedPlacements map[string]monitor.ResolvedPlacement
+	AlertChannel       string
+	Targets            map[string]TargetSpec
+	ManagedWebhooks    bool
+	WebhookCIDRs       []netip.Prefix
+	Webhooks           map[string]webhook.Endpoint
+	Zones              []string
+	Diagnostic         *diagnostics.Profile
+	Profiles           map[string]diagnostics.Profile
+	StaticComparison   bool
 }
 
 var namePattern = regexp.MustCompile(`^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -89,9 +90,15 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		return monitor.Plan{}, err
 	}
 	assessmentRegistry := r
-	if placement != nil {
+	if placement != nil && len(placement.Selected) > 0 {
 		assessmentRegistry.Zones = nil
 		for _, slot := range placement.Selected {
+			assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
+		}
+	}
+	if placement != nil && placement.Strategy != "" && len(placement.Selected) == 0 && len(placement.Candidates) > 0 {
+		assessmentRegistry.Zones = nil
+		for _, slot := range placement.Candidates {
 			assessmentRegistry.Zones = append(assessmentRegistry.Zones, slot.Zone)
 		}
 	}
@@ -193,6 +200,17 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if r.StaticComparison && (r.ExecuteAll || p.Name == r.Active) {
 		p, err = config.WithStaticComparison(p)
 	}
+	if err == nil && p.FixedPlacement != nil && p.FixedPlacement.Strategy != "" {
+		if previous, exists := r.ResolvedPlacements[p.Name]; exists && len(previous.Selected) > 0 {
+			template, templateErr := r.PlacementTemplate(m)
+			if templateErr != nil {
+				return p, templateErr
+			}
+			if previous.TemplateHash != template.Revision {
+				return template, nil
+			}
+		}
+	}
 	return p, err
 }
 
@@ -210,4 +228,17 @@ func validateMetadata(m Manifest) error {
 func executionJSON(m Manifest) ([]byte, error) {
 	m.Metadata = Metadata{Name: m.Metadata.Name}
 	return json.Marshal(m)
+}
+
+// PlacementTemplate binds cached selections to every expanded dependency, not
+// only the policy. A target/runner change must first withdraw old execution.
+func (r Registry) PlacementTemplate(m Manifest) (monitor.Plan, error) {
+	copied := make(map[string]monitor.ResolvedPlacement, len(r.ResolvedPlacements))
+	for name, value := range r.ResolvedPlacements {
+		if name != m.Metadata.Name {
+			copied[name] = value
+		}
+	}
+	r.ResolvedPlacements = copied
+	return r.Compile(m)
 }

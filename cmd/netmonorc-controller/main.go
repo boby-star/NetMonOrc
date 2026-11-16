@@ -246,8 +246,10 @@ func run() error {
 			p = *compiledCatalog["Monitor/"+p.Name].Monitor
 			plans := runtimePlans(compiledCatalog)
 			revisions := map[string]string{}
+			hasDynamicPlacement := false
 			for _, plan := range plans {
 				revisions[plan.Name] = plan.Revision
+				hasDynamicPlacement = hasDynamicPlacement || (plan.FixedPlacement != nil && plan.FixedPlacement.Strategy != "")
 			}
 			registry.LoadedRevisions = revisions
 			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
@@ -462,6 +464,7 @@ func run() error {
 				}()
 			}
 			go func() { errors <- server.Serve(lis) }()
+			placementReadyAfter := time.Now().Add(15 * time.Second)
 			assessmentDone := make(chan struct{})
 			go func() {
 				defer close(assessmentDone)
@@ -482,6 +485,14 @@ func run() error {
 					opdone()
 					if opErr != nil && ctx.Err() == nil {
 						log.Print("Operation reconciliation deferred; regular assessment continues")
+					}
+					if hasDynamicPlacement && time.Now().After(placementReadyAfter) {
+						placementCtx, placementDone := context.WithTimeout(ctx, 3*time.Second)
+						_, placementErr := store.ReconcilePlacement(placementCtx, registry, agentServer.AgentStatuses(time.Now()), time.Now())
+						placementDone()
+						if placementErr != nil && ctx.Err() == nil {
+							log.Print("Placement reconciliation deferred; existing leases remain bounded")
+						}
 					}
 					currentRuntime, err := store.RuntimeCurrent(ctx, revisions)
 					if err != nil {

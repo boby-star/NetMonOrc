@@ -168,7 +168,15 @@ elif c['mode']=='assessment-check':
 elif c['mode']=='rule-delete':
     cookie=c['cookie']
     route='/api/v1/resources/'+c.get('kind','AlertRule')+'/'+c['name']
-    code,body,tag=request('GET',route,response_header='ETag');assert code==200 and tag
+    import time
+    for attempt in range(20):
+        try:
+            code,body,tag=request('GET',route,response_header='ETag')
+            if code not in [429,503]:break
+        except (OSError,http.client.HTTPException):
+            if attempt==19:raise
+        time.sleep(.5)
+    assert code==200 and tag
     code,_,_=request('DELETE',route,csrf=c['csrf'],if_match=tag);assert code==204
     # A Dependency delete may reconcile the active plan after its committed 204.
     # Retry only the safe confirmation read, never the already accepted DELETE.
@@ -223,7 +231,7 @@ else:
     print(json.dumps({'restartSessionRestored':True,'logoutRequiresCSRF':True,'revokedCookieRejected':True,'role':view['role'],'scopes':view['scopes']}))
 '''
 
-def verify(lab, placement_only=False, zones_only=False, groups_only=False, dependencies_only=False):
+def verify(lab, placement_only=False, zones_only=False, groups_only=False, dependencies_only=False, dynamic_only=False):
     lab.require()
     if lab.sql('SELECT count(*) FROM nmo_users')!='0':
         raise RuntimeError('session smoke requires a fresh disposable project; existing identities are preserved')
@@ -238,9 +246,9 @@ def verify(lab, placement_only=False, zones_only=False, groups_only=False, depen
     lab.compose('exec','-T','controller',*cli,'login','--server','https://localhost:8443','--ca-file','/run/netmonorc/ca.crt','--context-file','/tmp/cli/context.json','--token-stdin',input=first['apiToken'].encode())
     identity=json.loads(lab.compose('exec','-T','controller',*cli,'whoami','--context-file','/tmp/cli/context.json'))
     assert identity['userId']==first['userId'] and identity['expiresAt'] is None
-    if any((placement_only,zones_only,groups_only,dependencies_only)):
+    if any((placement_only,zones_only,groups_only,dependencies_only,dynamic_only)):
         import importlib
-        cases=[(placement_only,'lab_placement','fixed-placement-only'),(zones_only,'lab_zones','zone-assessment-only'),(groups_only,'lab_groups','resource-groups-only'),(dependencies_only,'lab_dependencies','dependencies-only')]
+        cases=[(dynamic_only,'lab_dynamic','dynamic-placement-only'),(placement_only,'lab_placement','fixed-placement-only'),(zones_only,'lab_zones','zone-assessment-only'),(groups_only,'lab_groups','resource-groups-only'),(dependencies_only,'lab_dependencies','dependencies-only')]
         _,module,scope=next(case for case in cases if case[0])
         placement_result=importlib.import_module(module).verify(lab,cli,common,first,CLIENT)
         lab.compose('exec','-T','controller',*cli,'logout','--context-file','/tmp/cli/context.json')
@@ -577,9 +585,9 @@ def verify(lab, placement_only=False, zones_only=False, groups_only=False, depen
     return result
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');group=p.add_mutually_exclusive_group();group.add_argument('--placement-only',action='store_true',help='fixed placement workflow on a fresh stand');group.add_argument('--zones-only',action='store_true',help='zone SLA workflow on a fresh stand');group.add_argument('--groups-only',action='store_true',help='resource group workflow on a fresh stand');group.add_argument('--dependencies-only',action='store_true',help='dependency context workflow on a fresh stand');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True);p.add_argument('--prefix',default='172.28');p.add_argument('--output',default='.local/session-live.json');group=p.add_mutually_exclusive_group();group.add_argument('--placement-only',action='store_true',help='fixed placement workflow on a fresh stand');group.add_argument('--zones-only',action='store_true',help='zone SLA workflow on a fresh stand');group.add_argument('--groups-only',action='store_true',help='resource group workflow on a fresh stand');group.add_argument('--dynamic-only',action='store_true',help='dynamic regular placement workflow on a fresh stand');group.add_argument('--dependencies-only',action='store_true',help='dependency context workflow on a fresh stand');a=p.parse_args()
     try:
-        result=verify(Lab(a.project,a.prefix),a.placement_only,a.zones_only,a.groups_only,a.dependencies_only)
+        result=verify(Lab(a.project,a.prefix),a.placement_only,a.zones_only,a.groups_only,a.dependencies_only,a.dynamic_only)
     except __import__('subprocess').CalledProcessError as e:
         raise SystemExit('Integration subprocess failed: '+e.stderr.decode(errors='replace')[-1200:])
     import os

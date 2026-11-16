@@ -123,3 +123,9 @@ func icmpNegative(logs string) bool {
 	}
 	return strings.Contains(logs, `msg="Error writing to socket"`) && (strings.Contains(logs, "network is unreachable") || strings.Contains(logs, "no route to host") || strings.Contains(logs, "host is unreachable"))
 }
+
+// CheckTargetPolicy applies the same non-network permission check used by runners.
+func CheckTargetPolicy(p monitor.Plan, c monitor.Check, allowed []netip.Prefix) error {
+	_, err := validateTarget(p, c, allowed)
+	return err
+}

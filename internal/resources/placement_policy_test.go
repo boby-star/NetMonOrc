@@ -62,7 +62,7 @@ func TestFixedPlacementPendingDoesNotAuthorizePartialProbes(t *testing.T) {
 }
 func TestFixedPlacementRejectsUnsupportedStrategiesAndBadReferences(t *testing.T) {
 	base, policy, m := fixedPlacementFixture(t)
-	for _, spec := range []string{`{"strategy":"leastLoaded"}`, `{"strategy":"roundRobin"}`, `{"strategy":"fixed","agentRefs":["branch"],"onInsufficientAgents":"partial"}`, `{"strategy":"fixed","agentRefs":["branch"],"selector":{"matchLabels":{"role":"probe"}}}`, `{"strategy":"fixed","agentRefs":["branch"],"distinctBy":"failureDomain"}`, `{"strategy":"fixed","agentRefs":["branch","branch"]}`} {
+	for _, spec := range []string{`{"strategy":"not-a-strategy"}`, `{"strategy":"fixed","agentRefs":["branch"],"onInsufficientAgents":"partial"}`, `{"strategy":"fixed","agentRefs":["branch"],"selector":{"matchLabels":{"role":"probe"}}}`, `{"strategy":"fixed","agentRefs":["branch"],"distinctBy":"failureDomain"}`, `{"strategy":"fixed","agentRefs":["branch","branch"]}`} {
 		invalid := policy
 		invalid.Spec = json.RawMessage(spec)
 		if _, err := base.CompileResource(invalid); err == nil {
@@ -72,5 +72,37 @@ func TestFixedPlacementRejectsUnsupportedStrategiesAndBadReferences(t *testing.T
 	policy.Spec = json.RawMessage(`{"strategy":"fixed","agentRefs":["absent"]}`)
 	if _, _, err := ResolveCatalog(base, nil, []Manifest{m, policy}); err == nil {
 		t.Fatal("unregistered Agent ref admitted")
+	}
+}
+
+func TestDynamicPlacementWithdrawsCachedSelectionAfterTargetChange(t *testing.T) {
+	base, policy, m := fixedPlacementFixture(t)
+	policy.Spec = json.RawMessage(`{"strategy":"leastLoaded","agentRefs":["branch","dc"],"zones":["office"]}`)
+	registry, compiled, err := ResolveCatalog(base, nil, []Manifest{policy, m})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := compiled["Monitor/service"].Monitor
+	base.ResolvedPlacements = map[string]monitor.ResolvedPlacement{"service": {PolicyHash: registry.Placements["fixed-placement"].Hash(), TemplateHash: pending.Revision, Selected: []monitor.Slot{{Agent: "branch", Zone: "office"}}}}
+	_, selected, err := ResolveCatalog(base, nil, []Manifest{policy, m})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(selected["Monitor/service"].Monitor.FixedPlacement.Selected) != 1 {
+		t.Fatal("valid cached selection lost")
+	}
+	var spec map[string]any
+	if err = json.Unmarshal(m.Spec, &spec); err != nil {
+		t.Fatal(err)
+	}
+	checks := spec["checks"].([]any)
+	checks[0].(map[string]any)["config"].(map[string]any)["url"] = "http://198.18.0.80/"
+	m.Spec, _ = json.Marshal(spec)
+	_, changed, err := ResolveCatalog(base, nil, []Manifest{policy, m})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changed["Monitor/service"].Monitor.FixedPlacement.Selected) != 0 {
+		t.Fatal("old target authorization reused for changed configuration")
 	}
 }

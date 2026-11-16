@@ -34,6 +34,8 @@ React-редактор і mixed apply з підтвердженням нових
 та залежні ревізії без автоматичного перенесення відмов.
 [ResourceGroup](docs/deployment/resource-groups.md): context/derived, membership,
 weighted/coverage та окремий перегляд станів у React.
+[Динамічний PlacementPolicy](docs/deployment/dynamic-placement.md): leastLoaded/roundRobin,
+persisted assignments/cursor, failover та pending без partial probes.
 [Фіксований PlacementPolicy](docs/deployment/placement-policies.md): selection регулярних
 агентів, pending без partial probes та окремий стан призначення у панелі.
 [Спільні AssessmentPolicy](docs/deployment/assessment-policies.md): assessmentRef,

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 	"github.com/jackc/pgx/v5"
 )
@@ -51,6 +52,10 @@ func (s *Store) Catalog(ctx context.Context) ([]resources.Manifest, error) {
 }
 func resolveCatalogTx(ctx context.Context, tx pgx.Tx, base resources.Registry, updates []resources.Manifest) (resources.Registry, map[string]resources.Compiled, error) {
 	current, err := readCatalog(ctx, tx)
+	if err != nil {
+		return base, nil, err
+	}
+	base.ResolvedPlacements, err = readResolvedPlacements(ctx, tx)
 	if err != nil {
 		return base, nil, err
 	}
@@ -157,4 +162,26 @@ func (s *Store) RuntimeCurrent(ctx context.Context, revisions map[string]string)
 		}
 	}
 	return current && count == len(revisions), rows.Err()
+}
+
+func readResolvedPlacements(ctx context.Context, reader catalogReader) (map[string]monitor.ResolvedPlacement, error) {
+	rows, err := reader.Query(ctx, `SELECT r.name,p.policy_hash,p.plan_hash,p.selected FROM nmo_regular_placements p JOIN nmo_resources r ON r.uid=p.monitor_uid AND r.kind='Monitor'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]monitor.ResolvedPlacement{}
+	for rows.Next() {
+		var name string
+		var value monitor.ResolvedPlacement
+		var raw []byte
+		if err = rows.Scan(&name, &value.PolicyHash, &value.TemplateHash, &raw); err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal(raw, &value.Selected); err != nil {
+			return nil, err
+		}
+		out[name] = value
+	}
+	return out, rows.Err()
 }

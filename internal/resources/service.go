@@ -234,7 +234,11 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 			continue
 		}
 		placement := entry.Monitor.FixedPlacement
-		preview := PlacementPreview{MonitorID: diff.Name, Strategy: "fixed", Replicas: placement.Replicas, Pending: len(placement.Selected) == 0, SelectedAgents: []PlannedPlacementSource{}}
+		strategy := placement.Strategy
+		if strategy == "" {
+			strategy = "fixed"
+		}
+		preview := PlacementPreview{MonitorID: diff.Name, Strategy: strategy, Replicas: placement.Replicas, Pending: len(placement.Selected) == 0, SelectedAgents: []PlannedPlacementSource{}}
 		for _, slot := range placement.Selected {
 			preview.SelectedAgents = append(preview.SelectedAgents, PlannedPlacementSource{AgentID: slot.Agent, NetworkZone: slot.Zone})
 		}

@@ -50,8 +50,8 @@ func compilePlacement(spec json.RawMessage) (PlacementPolicy, error) {
 	if p.OnInsufficientAgents == "" {
 		p.OnInsufficientAgents = "pending"
 	}
-	if p.Strategy != "fixed" {
-		return p, fmt.Errorf("regular placement currently supports only explicit strategy=fixed")
+	if p.Strategy != "fixed" && p.Strategy != "leastLoaded" && p.Strategy != "roundRobin" {
+		return p, fmt.Errorf("invalid placement strategy")
 	}
 	if p.OnInsufficientAgents != "pending" {
 		return p, fmt.Errorf("partial regular placement is disabled")
@@ -62,8 +62,8 @@ func compilePlacement(spec json.RawMessage) (PlacementPolicy, error) {
 	if len(wire.Selector.MatchLabels) > 0 || len(wire.Selector.MatchExpressions) > 0 {
 		return p, fmt.Errorf("regular selectors require Controller-managed Agent labels")
 	}
-	if p.Replicas < 1 || p.Replicas > 10 || len(p.AgentRefs) < p.Replicas || len(p.AgentRefs) > 100 {
-		return p, fmt.Errorf("fixed placement requires sufficient agentRefs and 1..10 replicas")
+	if p.Replicas < 1 || p.Replicas > 10 || (p.Strategy == "fixed" && len(p.AgentRefs) < p.Replicas) || len(p.AgentRefs) > 100 {
+		return p, fmt.Errorf("placement requires 1..10 replicas; fixed requires sufficient agentRefs")
 	}
 	seen := map[string]bool{}
 	for _, id := range p.AgentRefs {
@@ -134,7 +134,14 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 		zones[zone] = true
 	}
 	candidates := []monitor.Slot{}
-	for _, id := range policy.AgentRefs {
+	refs := policy.AgentRefs
+	if len(refs) == 0 {
+		for id := range known {
+			refs = append(refs, id)
+		}
+		sort.Strings(refs)
+	}
+	for _, id := range refs {
 		slot, registered := known[id]
 		if !registered {
 			return m, nil, fmt.Errorf("placement Agent %s is not registered in the Controller roster", id)
@@ -144,8 +151,25 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 		}
 	}
 	selected := []monitor.Slot{}
-	if len(candidates) >= policy.Replicas {
+	if policy.Strategy == "fixed" && len(candidates) >= policy.Replicas {
 		selected = append(selected, candidates[:policy.Replicas]...)
+	}
+	if policy.Strategy != "fixed" {
+		if previous, ok := r.ResolvedPlacements[m.Metadata.Name]; ok && previous.PolicyHash == policy.Hash() {
+			permitted := map[string]monitor.Slot{}
+			for _, slot := range candidates {
+				permitted[slot.Agent] = slot
+			}
+			if len(previous.Selected) != 0 && len(previous.Selected) != policy.Replicas {
+				return m, nil, fmt.Errorf("partial runtime placement is forbidden")
+			}
+			for _, slot := range previous.Selected {
+				if permitted[slot.Agent] != slot {
+					return m, nil, fmt.Errorf("runtime placement source is not permitted")
+				}
+			}
+			selected = append(selected, previous.Selected...)
+		}
 	}
 	// The current assessor supports one expected source per zone. This is explicit
 	// admission, not an approximation of same-zone replica voting.
@@ -159,6 +183,10 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 	roster := append([]monitor.Slot(nil), r.Roster...)
 	sort.Slice(roster, func(i, j int) bool { return roster[i].Agent < roster[j].Agent })
 	binding := &monitor.FixedPlacement{Ref: ref, Hash: policy.Hash(), Replicas: policy.Replicas, Roster: roster, Selected: selected}
+	if policy.Strategy != "fixed" {
+		binding.Strategy = policy.Strategy
+		binding.Candidates = candidates
+	}
 	delete(spec, "placement")
 	delete(spec, "placementRef")
 	m.Spec, _ = json.Marshal(spec)

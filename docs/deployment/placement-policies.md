@@ -1,5 +1,8 @@
 # Фіксоване розміщення регулярних перевірок (R24)
 
+R31 додає [динамічні стратегії](dynamic-placement.md). Опис нижче фіксує
+поведінку fixed; історичні обмеження leastLoaded/roundRobin замінені R31.
+
 PlacementPolicy доступний у REST-каталозі, CLI, React-редакторі та mixed apply.
 Monitor приймає placementRef або inline placement, але не обидва одночасно.
 Цей етап реалізує тільки явний strategy=fixed для одного активного Monitor.

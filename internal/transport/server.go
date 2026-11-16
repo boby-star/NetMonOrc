@@ -125,6 +125,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		if plan.FixedPlacement != nil && !capabilities["placement:fixed"] {
 			return status.Error(codes.FailedPrecondition, "fixed placement capability required")
 		}
+		if plan.FixedPlacement != nil && plan.FixedPlacement.Strategy != "" && !capabilities["placement:dynamic"] {
+			return status.Error(codes.FailedPrecondition, "dynamic placement capability required")
+		}
 		for _, c := range plan.Checks {
 			if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
 				return status.Error(codes.FailedPrecondition, "runner capability unavailable")

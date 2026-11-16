@@ -3,11 +3,13 @@ package monitor
 // FixedPlacement is the resolved controller-owned regular assignment. Empty
 // Selected means pending: no partial set is authorized to run regular probes.
 type FixedPlacement struct {
-	Ref      string
-	Hash     string
-	Replicas int
-	Roster   []Slot
-	Selected []Slot
+	Strategy   string `json:",omitempty"`
+	Candidates []Slot `json:",omitempty"`
+	Ref        string
+	Hash       string
+	Replicas   int
+	Roster     []Slot
+	Selected   []Slot
 }
 
 func (p Plan) RegularAllowed(agent string) bool {
@@ -39,4 +41,11 @@ func (p Plan) AssessmentSlots(roster []Slot) []Slot {
 		}
 	}
 	return out
+}
+
+// ResolvedPlacement is Controller-owned state, never a YAML resource.
+type ResolvedPlacement struct {
+	PolicyHash   string
+	TemplateHash string
+	Selected     []Slot
 }

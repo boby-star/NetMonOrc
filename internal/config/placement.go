@@ -45,9 +45,22 @@ func verifyFixedPlacement(placement *monitor.FixedPlacement, agent, zone string)
 	if agent == "" || registered[agent] != zone {
 		return fmt.Errorf("placement requires the authenticated Agent identity and zone")
 	}
+	if placement.Strategy != "" && placement.Strategy != "leastLoaded" && placement.Strategy != "roundRobin" {
+		return fmt.Errorf("invalid placement strategy")
+	}
+	candidates := map[string]bool{}
+	if len(placement.Candidates) > 100 {
+		return fmt.Errorf("too many placement candidates")
+	}
+	for _, slot := range placement.Candidates {
+		if registered[slot.Agent] != slot.Zone || candidates[slot.Agent] {
+			return fmt.Errorf("invalid candidate source")
+		}
+		candidates[slot.Agent] = true
+	}
 	agents, zones := map[string]bool{}, map[string]bool{}
 	for _, slot := range placement.Selected {
-		if registered[slot.Agent] != slot.Zone || agents[slot.Agent] || zones[slot.Zone] {
+		if registered[slot.Agent] != slot.Zone || (placement.Strategy != "" && !candidates[slot.Agent]) || agents[slot.Agent] || zones[slot.Zone] {
 			return fmt.Errorf("invalid selected placement source")
 		}
 		agents[slot.Agent] = true

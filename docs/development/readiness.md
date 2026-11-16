@@ -18,7 +18,7 @@ Monitor catalog на спільних Agent; ACK, assessment і діагност
 | Великий залишок | Що визначає завершення |
 |---|---|
 | Незалежний hot reload Monitor | R30 виконує кілька планів з окремими ACK/replay/lease, REST/React та Assessment; зміни catalog усе ще перезапускають спільні Agent streams; storm/performance вимірювання лишаються |
-| Dynamic placement і replicas | leastLoaded/roundRobin, стабільні фізичні slots, all/any/quorum від planned N, контроль відсутніх результатів; partial лишається вимкненим |
+| Повний placement і replicas | R31 додає sticky leastLoaded/roundRobin, actual telemetry/target policy, persistent cursor і failover на fixed roster; залишаються trusted selectors/failureDomain, per-check overrides, same-zone slots та all/any/quorum; partial вимкнений |
 | Подальший dependency context | R27 закрив окремі Dependency refs/requires DAG/revisioned IR; R28 додав графічний перегляд сторінки; лишився неузгоджений shorthand, автоматичний RCA не додається |
 | Agent lifecycle | Enrollment/recovery/revocation, certificate rotation та UI/API керування; поточний trusted fixed roster цього не замінює |
 | Приймання й експлуатація | Browser user flows, installer/оновлення, фінальна звірка контрактів, backup/recovery та повторні дослідницькі/навантажувальні експерименти |

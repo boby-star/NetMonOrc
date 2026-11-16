@@ -95,6 +95,19 @@ func (s *Store) ReconcileRuntimeOperations(ctx context.Context, runtimes map[str
 			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 				return e
 			}
+			if e == nil && current.UID == target.UID && current.ResourceVersion == target.ResourceVersion && current.Revision != target.EffectiveRevision {
+				var transition bool
+				e = tx.QueryRow(ctx, `WITH RECURSIVE revisions(revision) AS (
+ SELECT $2::text
+ UNION SELECT t.to_revision FROM revisions r JOIN nmo_placement_transitions t ON t.resource_uid=$1 AND t.from_revision=r.revision
+) SELECT EXISTS(SELECT 1 FROM revisions WHERE revision=$3)`, current.UID, target.EffectiveRevision, current.Revision).Scan(&transition)
+				if e != nil {
+					return e
+				}
+				if transition {
+					target.EffectiveRevision = current.Revision
+				}
+			}
 			if errors.Is(e, pgx.ErrNoRows) || current.UID != target.UID || current.ResourceVersion != target.ResourceVersion || current.Revision != target.EffectiveRevision {
 				op.State = "failed"
 				target.Reason = "superseded"

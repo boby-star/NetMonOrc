@@ -1,3 +1,24 @@
+# Динамічне regular placement (R31)
+
+PlacementSpec/PlacementPolicy приймають leastLoaded та roundRobin; strategy
+за замовчуванням у явному placement — leastLoaded. Trusted roster, online
+heartbeat/capacity, capabilities і рекламований локальний CIDR allowlist є
+hard filters. Повний feasible selection зберігається; втрата джерела запускає
+новий відбір. Cursor на policy UID і selections на Monitor UID зберігаються
+у PostgreSQL. Немає partial probes або нового права розширювати Agent policy.
+
+Новий selection змінює effective revision, не source resourceVersion.
+apply operations відстежують лише причинні placement transitions та чекають
+ACK. Додано typed plan preview strategy; нових HTTP routes/DSL fields немає.
+Critical Go, vet і реальний PostgreSQL пройшли; Compose integration
+підтвердила roundRobin, restart/cursor persistence, failover, незмінну
+ревізію сусіднього Monitor, pending без partial probes та default leastLoaded.
+Evidence: docs/experiments/dynamic-placement-r31/.
+Межі: fixed roster, один Agent на зону; legacy режим без placement/ref,
+selectors/failureDomain/per-check overrides, same-zone voting, enrollment,
+independent hot reload і storm/load acceptance ще відкриті.
+Документація: docs/deployment/dynamic-placement.md; ADR 0012.
+
 # Кілька Monitor у спільному runtime (R30)
 
 Controller завантажує весь Monitor catalog, передає незалежні assignments через
