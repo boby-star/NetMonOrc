@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "savedPortRestoredWithoutFlag": true,
+  "administratorPreserved": true,
+  "bootstrapDidNotPromptOrResetPassword": true,
+  "healthyAfterRestart": true,
+  "namedVolumesPreserved": true
+}

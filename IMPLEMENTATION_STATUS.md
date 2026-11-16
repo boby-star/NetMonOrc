@@ -9,7 +9,8 @@ POST/PATCH/DELETE та auth errors не повторюються. Python checks,
 і Chromium fixture retry cases пройшли. Live HTTPS browser acceptance пройшла:
 login, cookie-session reload, Target/Dependency CRUD, graph, derived group
 із реальних probes, reference guard, revision restore та logout. Перевірено
-відсутність host publishing і UI network у приватних сервісів.
+відсутність host publishing і UI network у приватних сервісів. Down/up
+зберегли порт, admin і дані; після рестарту отримано healthy.
 Evidence: docs/experiments/local-release-r29/.
 Quickstart: docs/deployment/quickstart.md. Повний v1alpha1 не оголошується
 завершеним: multi-Monitor, dynamic placement/replica voting, Agent lifecycle
