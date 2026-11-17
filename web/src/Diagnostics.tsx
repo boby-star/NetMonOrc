@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ObservationDetail } from "./History";
-import { startDiagnostic, cancelDiagnostic, type Session, diagnosticSessions, diagnosticSession, diagnosticTasks,
+import { exportDiagnostic, startDiagnostic, cancelDiagnostic, type Session, diagnosticSessions, diagnosticSession, diagnosticTasks,
   type DiagnosticSession, type DiagnosticTask, type DiagnosticPage } from "./api";
 
 export function Diagnostics({ monitor, session }: { monitor: string; session: Session }) {
@@ -16,6 +16,9 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
   const [state, setState] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const exportAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => exportAbort.current?.abort(), []);
+  const [exportNotice, setExportNotice] = useState("");
   const [autoUpdate, setAutoUpdate] = useState(true);
   useEffect(() => {
     if (!autoUpdate || busy || !selected || !["created", "running"].includes(selected.state)) return;
@@ -35,7 +38,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       const session = await diagnosticSession(id);
       const next = await diagnosticTasks(id, cursor);
       setSelected(session); setTasks(next.items); setTaskCursor(next.nextCursor);
-      if (selected?.id !== id) setEvidence(null);
+      if (selected?.id !== id) { setEvidence(null); setExportNotice(""); }
     } catch (e) { setError(e instanceof Error ? e.message : "Сесія недоступна."); }
     finally { setBusy(false); }
   }
@@ -63,6 +66,21 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
     link.href = url; link.download = `diagnostic-${selected.id}.json`;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function downloadEvidence() {
+    if (!selected) return;
+    setBusy(true); setError(""); setExportNotice("Збирання завдань і доказів…");
+    const controller = new AbortController(); exportAbort.current = controller;
+    try {
+      const text = await exportDiagnostic(selected.id, controller.signal);
+      const data = JSON.parse(text) as { complete: boolean; missingObservationIds: string[] };
+      const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url; link.download = `diagnostic-evidence-${selected.id}.json`; link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportNotice(data.complete ? "Повний пакет доказів завантажено." : `Пакет завантажено; відсутніх доказів: ${data.missingObservationIds.length}. Див. missingObservationIds.`);
+    } catch (e) { setExportNotice(""); setError(e instanceof Error ? e.message : "Експорт не завершено."); }
+    finally { exportAbort.current = null; setBusy(false); }
   }
   return <section>
     <h2>Діагностичні сесії</h2>
@@ -111,6 +129,8 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       <p>Спостереження фізичних діагностичних задач: {selected.evidenceIds.length}. Резерв бюджету не гарантує отримання результату.</p>
       <button type="button" disabled={busy} onClick={() => void open(selected.id)}>Оновити деталі</button>
       <button type="button" onClick={download}>Завантажити сесію JSON</button>
+      {canReadEvidence && <button type="button" disabled={busy || !["completed", "inconclusive", "cancelled"].includes(selected.state)} onClick={() => void downloadEvidence()}>Завантажити пакет доказів</button>}
+      {exportNotice && <p role="status">{exportNotice}</p>}
       {selected.explanation ? <div aria-label="Пояснення діагнозу">
         <h4>Журнал вибору діагностичних дій</h4>
         <p>Витрачено {selected.explanation.costUnits} costUnits; час діагностики: {selected.explanation.durationMs === undefined ? "не збережено" : `${selected.explanation.durationMs} мс`}. costUnits не є мережевими байтами.</p>

@@ -1,3 +1,15 @@
+# Повний експорт діагностичної сесії
+
+Реалізовано `netmonorc diagnostics export` та React «Завантажити пакет доказів»:
+усі сторінки фізичних tasks, точні Observation, session revision і decision
+journal у schema=1 JSON. Збережено integer precision; 404 retention видимі
+як missingObservationIds/complete=false; auth/transport помилки не приховуються.
+Перевіряється session/task/Agent/Monitor provenance, зсув сесії й цикли paging.
+CLI створює mode 0600 файл без перезапису, без часткового output при помилці.
+Це послідовний evidence export, не атомарний database backup.
+
+[Використання та межі](docs/deployment/diagnostic-export.md).
+
 # Журнал діагностичних рішень та навігація доказами
 
 Додано persisted explanation до деталей сесії REST/CLI/React: порядок

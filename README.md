@@ -14,6 +14,9 @@ v1alpha1 ще не досягнута. Поточне доручення обм�
 [Пояснення діагнозу](docs/deployment/diagnostic-explanation.md): журнал вибору
 дій, ревізія, confirmation, JSON export та відкриття доказів із оцінок/алертів.
 
+[Повний пакет діагностики](docs/deployment/diagnostic-export.md): CLI та React
+збирають сесію, всі фізичні завдання й Observation для офлайн-аналізу.
+
 ## Поточний обсяг: REST API та React
 
 REST/React інтегровані в дослідницький профіль; [розширений технічний план](docs/specs/thesis-scope-2026-11-13.md)

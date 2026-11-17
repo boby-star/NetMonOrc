@@ -37,6 +37,16 @@ def verify_cli(lab, username, password, report):
         assert observation['diagnosticSessionId']==report['id'] and observation['diagnosticTaskId']==task['id']
         assert observation['agentId']==task['agentId'] and observation['monitorId']=='research-web'
         assert len(json.loads(cli('get','--context-file',context,'agents'))['items'])==2
+        export='/data/acceptance-cli-evidence.json'
+        cli('diagnostics','export','--context-file',context,'--output',export,report['id'])
+        import io,tarfile
+        container=lab.compose('ps','--quiet','controller').decode().strip()
+        archive=subprocess.check_output(['docker','cp',container+':'+export,'-'])
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            package=json.load(tar.extractfile(tar.getmembers()[0]))
+        assert package['schema']==1 and package['complete'] and package['session']['id']==report['id']
+        assert package['tasks'] and package['observations'] and not package['missingObservationIds']
+        assert all(o['diagnosticSessionId']==report['id'] for o in package['observations'])
     finally:
         cli('logout','--context-file',context)
         request('DELETE','/api/v1/auth/tokens/'+token['id'],csrf=session['csrfToken'])
@@ -76,6 +86,7 @@ def verify(lab,output,screenshot,multi_monitor=False):
     result=json.loads(output.read_text());result['administratorBootstrapIdempotent']=True
     result['cliDiagnosticTaskObservationProvenance']=True
     result['cliAgentSnapshots']=True
+    result['cliCompleteDiagnosticExport']=True
     if multi_monitor:
         counts=json.loads(lab.sql("SELECT jsonb_object_agg(monitor,counts) FROM (SELECT monitor,jsonb_build_object('agents',count(DISTINCT agent_id),'observations',count(*),'successes',count(*) FILTER(WHERE payload->>'outcome'='success'),'failures',count(*) FILTER(WHERE payload->>'outcome'='failure')) AS counts FROM nmo_observations WHERE diagnostic_task_id='' GROUP BY monitor) q"))
         if counts.get('research-web',{}).get('agents')!=2 or counts.get('research-other',{}).get('agents')!=2 or counts['research-other']['failures']<2:

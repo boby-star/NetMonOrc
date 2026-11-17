@@ -909,3 +909,65 @@ export async function groupAssessment(name: string): Promise<GroupAssessment> {
   if (!response.ok) throw resourceError(response.status);
   return response.json() as Promise<GroupAssessment>;
 }
+
+// Export exact observation JSON text so int64 values survive browser download.
+// Sequential reads; never infer absent observations or replay a mutation.
+export async function exportDiagnostic(id: string, signal: AbortSignal): Promise<string> {
+  const deadline = AbortSignal.any([signal, AbortSignal.timeout(120000)]);
+  let bytes = 0;
+  async function read(path: string, missingAllowed = false): Promise<string | null> {
+    const response = await apiFetch(path, { credentials: "same-origin", cache: "no-store", signal: deadline });
+    if (missingAllowed && response.status === 404) return null;
+    if (!response.ok) throw new Error(`Експорт не завершено (${response.status}).`);
+    const text = await response.text();
+    bytes += new TextEncoder().encode(text).length;
+    if (bytes > 32 * 1024 * 1024) throw new Error("Пакет перевищує 32 MiB.");
+    return text;
+  }
+  const path = `/api/v1/diagnostics/${encodeURIComponent(id)}`;
+  const first = (await read(path))!;
+  const session = JSON.parse(first) as DiagnosticSession;
+  if (session.id !== id || !["completed", "inconclusive", "cancelled"].includes(session.state))
+    throw new Error("Для експорту потрібна завершена сесія.");
+  const tasks: DiagnosticTask[] = [];
+  const taskIds = new Set<string>();
+  const expectedTasks = new Map<string, DiagnosticTask>();
+  const cursors = new Set<string>();
+  const ids = new Set(session.evidenceIds);
+  let cursor: string | null = null;
+  do {
+    const query = new URLSearchParams({ limit: "200" });
+    if (cursor) query.set("cursor", cursor);
+    const page = JSON.parse((await read(`${path}/tasks?${query}`))!) as { items: DiagnosticTask[]; nextCursor: string | null };
+    for (const task of page.items) {
+      if (!task.id || task.sessionId !== id || taskIds.has(task.id)) throw new Error("Невідповідність завдання сесії.");
+      taskIds.add(task.id); tasks.push(task);
+      task.observationIds.forEach(value => {
+        if (expectedTasks.has(value) && expectedTasks.get(value)!.id !== task.id) throw new Error("Доказ належить різним завданням.");
+        expectedTasks.set(value, task); ids.add(value);
+      });
+    }
+    if (tasks.length > 1000 || ids.size > 10000) throw new Error("Завелика кількість завдань або доказів.");
+    cursor = page.nextCursor;
+    if (cursor !== null) {
+      if (!cursor || cursors.has(cursor) || !page.items.length) throw new Error("Сторінки завдань повторюються.");
+      cursors.add(cursor);
+    }
+  } while (cursor !== null);
+  const observations: string[] = [];
+  const missing: string[] = [];
+  for (const observationId of ids) {
+    const raw = await read(`/api/v1/observations/${encodeURIComponent(observationId)}`, true);
+    if (raw === null) { missing.push(observationId); continue; }
+    const value = JSON.parse(raw) as ObservationRecord;
+    if (value.observationId !== observationId || value.monitorId !== session.monitorId || value.diagnosticSessionId !== id)
+      throw new Error("Походження доказу не відповідає сесії.");
+    const task = expectedTasks.get(observationId);
+    if (task && (value.diagnosticTaskId !== task.id || value.agentId !== task.agentId)) throw new Error("Походження доказу не відповідає фізичному завданню.");
+    observations.push(raw);
+  }
+  if (first !== await read(path)) throw new Error("Сесія змінилася під час експорту. Повторіть запит.");
+  const result = `{"schema":1,"collectedAt":${JSON.stringify(new Date().toISOString())},"complete":${missing.length === 0},"session":${first},"tasks":${JSON.stringify(tasks)},"observations":[${observations.join(",")}],"missingObservationIds":${JSON.stringify(missing)}}`;
+  if (new TextEncoder().encode(result).length > 32 * 1024 * 1024) throw new Error("Пакет перевищує 32 MiB.");
+  return result;
+}

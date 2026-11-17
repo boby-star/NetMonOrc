@@ -12,6 +12,8 @@
 повторюються. Кнопка «Завантажити сесію JSON» зберігає поточний snapshot
 деталей, включно з поясненням; це не архів raw observations або backup БД.
 
+Повний збір завдань та Observation: [пакет доказів](diagnostic-export.md).
+
 ## API та CLI
 
 Наявний `GET /api/v1/diagnostics/{id}` зі scope `diagnostics:read` повертає
