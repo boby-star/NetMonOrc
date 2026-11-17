@@ -1,3 +1,12 @@
+# Програмний мінімум: фінальна інтеграція export та браузера підтверджена
+
+Production CLI і React сформували повний пакет реальної діагностики:
+4 tasks, 4 Observation, decision explanation/confirmation, complete=true.
+Підтверджено також два Monitor, login/CRUD/session restore/logout; console
+exceptions: 0. [Фінальний запуск](docs/experiments/diagnostic-export-2026-11-17/README.md).
+[Стан завершення й явні межі](docs/development/readiness.md).
+Залишок тексту магістерської записки не закривається програмним release.
+
 # Повний експорт діагностичної сесії
 
 Реалізовано `netmonorc diagnostics export` та React «Завантажити пакет доказів»:

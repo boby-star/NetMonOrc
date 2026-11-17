@@ -1,32 +1,39 @@
-> Історичний документ. Поточний обсяг, звірка нової редакції записки та
-> фактичні межі: [матриця від 17.11.2026](../planning/minimal-research-acceptance-2026-11-17.md).
+# Стан завершення дослідницького прототипу
 
-# Оцінка залишку роботи
+Стан на 17.11.2026 (Asia/Jerusalem). Поточний програмний мінімум із
+[узгодженої матриці](../planning/minimal-research-acceptance-2026-11-17.md)
+реалізовано та підтверджено наведеними нижче сценаріями. Історичні оцінки
+65–75% стосувалися ширшого продуктового плану; вони більше не є оцінкою
+цього обсягу. Відсоток без визначеного знаменника не використовується.
 
-Стан на 16.11.2026 (Asia/Jerusalem). Орієнтир для повного погодженого обсягу:
-**приблизно 65–75% готовності, 25–35% роботи залишилось**. Це інженерна оцінка
-трудомісткості й ризику за матрицею T01–T16, а не сертифікований coverage або
-частка файлів/тестів. Старі відсотки мінімального прототипу не застосовуються.
-Не можна отримати 100% лише додаванням інтерфейсів чи проходженням smoke test.
-
-Працює основний наскрізний процес: конфігурація → mTLS Agent → probing →
-Observation → зональна оцінка/CEL → обмежена діагностика → alert/webhook.
-Є persisted resource catalog, залежні ревізії, REST/CLI/React, fixed placement,
-зональні SLA, history, auth/RBAC та відтворюваний приватний Compose stand.
-R26 додає похідні/context ResourceGroup. R30 підключає одночасне виконання
-Monitor catalog на спільних Agent; ACK, assessment і діагностика розділені
-за revision/Monitor. Попередня приблизна оцінка відсотків вище не є новим
-перерахунком після цієї ітерації.
-
-| Великий залишок | Що визначає завершення |
+| Частина | Реалізований результат |
 |---|---|
-| Незалежний hot reload Monitor | R30 виконує кілька планів з окремими ACK/replay/lease, REST/React та Assessment; зміни catalog усе ще перезапускають спільні Agent streams; storm/performance вимірювання лишаються |
-| Повний placement і replicas | R31 додає sticky leastLoaded/roundRobin, actual telemetry/target policy, persistent cursor і failover на fixed roster; залишаються trusted selectors/failureDomain, per-check overrides, compiler-default; R32 додає same-zone slots/all/any/quorum; CEL values/metrics aggregation відкладена; partial вимкнений |
-| Подальший dependency context | R27 закрив окремі Dependency refs/requires DAG/revisioned IR; R28 додав графічний перегляд сторінки; лишився неузгоджений shorthand, автоматичний RCA не додається |
-| Agent lifecycle | Enrollment/recovery/revocation, certificate rotation та UI/API керування; поточний trusted fixed roster цього не замінює |
-| Приймання й експлуатація | Browser user flows, installer/оновлення, фінальна звірка контрактів, backup/recovery та повторні дослідницькі/навантажувальні експерименти |
+| Моніторинг | Declarative registry/refs/validate/plan/apply → кілька Monitor → mTLS Agent → Blackbox/native extraction → PostgreSQL Observation |
+| Оцінка | H/Q/required, revision/TTL/maxSkew, coverage, zones, same-zone all/any/quorum, CEL guards |
+| Діагностика | Static/Fixed/Adaptive, pair gain/cost, eligibility, expiry rebuild, confirmation, durable incident budget, start/cancel/retry |
+| Пояснення | Persisted decision journal, session revision, physical task → exact Observation; evidence links з Assessment та Alert |
+| Сповіщення | Alert FSM, acknowledgement, durable webhook/retry/test, restart recovery |
+| Робота оператора | REST/CLI/React, users/PAT/cookie/CSRF/RBAC, resource management, groups/dependency graph, history |
+| Дослідження | Fault controls, CSV/JSON/HTML, backup/package; повний diagnostic evidence export у CLI та React з integer precision і явними missing IDs |
 
-Семантика CEL values/metrics для кількох replicas раніше відкладена користувачем;
-не можна вигадати усереднення заради формального завершення. Межі й результати
-кожної ітерації фіксуються в IMPLEMENTATION_STATUS.md та docs/experiments/.
-Точні строки завершення без вимірювання решти етапів не обіцяються.
+Підтверджений [базовий запуск і 15 fault trials](../experiments/acceptance-2026-11-17/README.md):
+15 очікуваних states/results, 12 підтриманих класів та 3 multiple inconclusive.
+[Фінальний export/browser run](../experiments/diagnostic-export-2026-11-17/README.md)
+підтвердив decision journal, confirmation, production CLI export, React evidence
+Blob, два Monitor, CRUD, session restore та logout без console exceptions.
+
+## Що лишається поза завершеним програмним мінімумом
+
+Повна відповідність старому v1alpha1: enrollment/certificate lifecycle,
+installer, HA, independent hot reload, повний compiler/placement і production
+storm/load acceptance. Зони стенда логічно розділені на одному хості;
+N=3 physical replicas та фактичний OS suspend не перевірялися цим release.
+Multi-replica aggregation typed values/metrics не вигадується: непогоджені
+випадки відхиляються. Це явні межі поставленого дослідницького профілю.
+
+## Залишок магістерської записки
+
+Перенести результати й межі до роботи, заповнити §2.4–2.6 та експериментальну
+частину, виправити пояснення H/Q і лічильник таблиці 2.2. Завантажений DOCX
+не змінено. Приймання програмного мінімуму не підтверджує завершення тексту
+всієї роботи чи її прийняття кафедрою.

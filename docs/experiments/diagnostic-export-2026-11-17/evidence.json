@@ -1,0 +1,228 @@
+{
+  "schema": 1,
+  "collectedAt": "2026-11-17T18:12:24.616954668Z",
+  "complete": true,
+  "session": {
+    "configRevision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "explanation": {
+      "durationMs": 3275,
+      "costUnits": 4,
+      "decisions": [
+        {
+          "actionId": "d01-office-dns",
+          "agentId": "branch",
+          "attemptNo": 1,
+          "phase": "primary",
+          "hypothesesBefore": [
+            "dns-failure",
+            "http-failure",
+            "office-path-failure",
+            "tcp-failure"
+          ],
+          "gain": 4,
+          "score": 4,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        },
+        {
+          "actionId": "d03-server-tcp",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "phase": "primary",
+          "hypothesesBefore": [
+            "http-failure",
+            "tcp-failure"
+          ],
+          "gain": 1,
+          "score": 1,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        },
+        {
+          "actionId": "d02-server-dns",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "phase": "confirmation",
+          "hypothesesBefore": [
+            "http-failure"
+          ],
+          "gain": 0,
+          "score": 0,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        },
+        {
+          "actionId": "d04-server-http",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "phase": "confirmation",
+          "hypothesesBefore": [
+            "http-failure"
+          ],
+          "gain": 0,
+          "score": 0,
+          "executionStatus": "completed",
+          "probeOutcome": "failure"
+        }
+      ],
+      "confirmation": {
+        "requiredActions": [
+          "d01-office-dns",
+          "d02-server-dns",
+          "d03-server-tcp",
+          "d04-server-http"
+        ],
+        "observedActions": [
+          "d01-office-dns",
+          "d02-server-dns",
+          "d03-server-tcp",
+          "d04-server-http"
+        ],
+        "observations": 4,
+        "distinctFailureDomains": 2,
+        "satisfied": true
+      }
+    },
+    "id": "416778f988f539198cf84bf25ac76699",
+    "monitorId": "research-web",
+    "profileRef": "web-lab",
+    "mode": "adaptive",
+    "state": "completed",
+    "startedAt": "2026-11-17T18:12:11.774509Z",
+    "finishedAt": "2026-11-17T18:12:15.054816Z",
+    "remainingHypotheses": [
+      "http-failure"
+    ],
+    "budgetUsed": {
+      "additionalChecks": 4
+    },
+    "evidenceIds": [
+      "157ae309c21a12c23ca6d7880811d432",
+      "1fb270f1ddaff5ab4539f54a6bec587a",
+      "4dcbcb359156b798a1a5c313bc2d019a",
+      "e9cec7d2911c1b05ae7af25916f5053a"
+    ],
+    "stopReason": "confirmed_class"
+  },
+  "tasks": [
+    {
+      "id": "157ae309c21a12c23ca6d7880811d432",
+      "sessionId": "416778f988f539198cf84bf25ac76699",
+      "actionId": "d02-server-dns",
+      "agentId": "dc",
+      "state": "finished",
+      "attemptNo": 1,
+      "deadline": "2026-11-17T18:12:43.047508Z",
+      "observationIds": [
+        "157ae309c21a12c23ca6d7880811d432"
+      ]
+    },
+    {
+      "id": "1fb270f1ddaff5ab4539f54a6bec587a",
+      "sessionId": "416778f988f539198cf84bf25ac76699",
+      "actionId": "d04-server-http",
+      "agentId": "dc",
+      "state": "finished",
+      "attemptNo": 1,
+      "deadline": "2026-11-17T18:12:44.042656Z",
+      "observationIds": [
+        "1fb270f1ddaff5ab4539f54a6bec587a"
+      ]
+    },
+    {
+      "id": "4dcbcb359156b798a1a5c313bc2d019a",
+      "sessionId": "416778f988f539198cf84bf25ac76699",
+      "actionId": "d01-office-dns",
+      "agentId": "branch",
+      "state": "finished",
+      "attemptNo": 1,
+      "deadline": "2026-11-17T18:12:41.778409Z",
+      "observationIds": [
+        "4dcbcb359156b798a1a5c313bc2d019a"
+      ]
+    },
+    {
+      "id": "e9cec7d2911c1b05ae7af25916f5053a",
+      "sessionId": "416778f988f539198cf84bf25ac76699",
+      "actionId": "d03-server-tcp",
+      "agentId": "dc",
+      "state": "finished",
+      "attemptNo": 1,
+      "deadline": "2026-11-17T18:12:42.053186Z",
+      "observationIds": [
+        "e9cec7d2911c1b05ae7af25916f5053a"
+      ]
+    }
+  ],
+  "observations": [
+    {
+      "observationId": "157ae309c21a12c23ca6d7880811d432",
+      "monitorId": "research-web",
+      "checkId": "d02-server-dns",
+      "agentId": "dc",
+      "networkZone": "server",
+      "configRevision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+      "executionStatus": "completed",
+      "probeOutcome": "success",
+      "reasonCode": "positive_probe",
+      "startedAt": "2026-11-17T18:12:13.074386726Z",
+      "finishedAt": "2026-11-17T18:12:13.077971183Z",
+      "receivedAt": "2026-11-17T18:12:14.038516Z",
+      "durationMs": 3.584457,
+      "diagnosticSessionId": "416778f988f539198cf84bf25ac76699",
+      "diagnosticTaskId": "157ae309c21a12c23ca6d7880811d432"
+    },
+    {
+      "observationId": "1fb270f1ddaff5ab4539f54a6bec587a",
+      "monitorId": "research-web",
+      "checkId": "d04-server-http",
+      "agentId": "dc",
+      "networkZone": "server",
+      "configRevision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+      "executionStatus": "completed",
+      "probeOutcome": "failure",
+      "reasonCode": "negative_probe",
+      "startedAt": "2026-11-17T18:12:14.072810827Z",
+      "finishedAt": "2026-11-17T18:12:14.085147138Z",
+      "receivedAt": "2026-11-17T18:12:15.045643Z",
+      "durationMs": 12.336311,
+      "diagnosticSessionId": "416778f988f539198cf84bf25ac76699",
+      "diagnosticTaskId": "1fb270f1ddaff5ab4539f54a6bec587a"
+    },
+    {
+      "observationId": "4dcbcb359156b798a1a5c313bc2d019a",
+      "monitorId": "research-web",
+      "checkId": "d01-office-dns",
+      "agentId": "branch",
+      "networkZone": "office",
+      "configRevision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+      "executionStatus": "completed",
+      "probeOutcome": "success",
+      "reasonCode": "positive_probe",
+      "startedAt": "2026-11-17T18:12:11.812945964Z",
+      "finishedAt": "2026-11-17T18:12:11.820211072Z",
+      "receivedAt": "2026-11-17T18:12:12.047154Z",
+      "durationMs": 7.265108,
+      "diagnosticSessionId": "416778f988f539198cf84bf25ac76699",
+      "diagnosticTaskId": "4dcbcb359156b798a1a5c313bc2d019a"
+    },
+    {
+      "observationId": "e9cec7d2911c1b05ae7af25916f5053a",
+      "monitorId": "research-web",
+      "checkId": "d03-server-tcp",
+      "agentId": "dc",
+      "networkZone": "server",
+      "configRevision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+      "executionStatus": "completed",
+      "probeOutcome": "success",
+      "reasonCode": "positive_probe",
+      "startedAt": "2026-11-17T18:12:12.074574725Z",
+      "finishedAt": "2026-11-17T18:12:12.077378478Z",
+      "receivedAt": "2026-11-17T18:12:13.038275Z",
+      "durationMs": 2.803753,
+      "diagnosticSessionId": "416778f988f539198cf84bf25ac76699",
+      "diagnosticTaskId": "e9cec7d2911c1b05ae7af25916f5053a"
+    }
+  ],
+  "missingObservationIds": []
+}

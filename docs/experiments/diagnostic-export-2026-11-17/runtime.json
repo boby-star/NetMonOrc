@@ -1,0 +1,5 @@
+{
+  "sourceCommit": "eaf19d70b5d54c4f67e107a8226617c3acd00a12",
+  "image": "sha256:e6eaeacb79930703584db6fec07ba878726e07db844c7f5128234e0fac5e44cc",
+  "snapshotSemantics": "sequential bounded API reads, not an atomic database backup"
+}
