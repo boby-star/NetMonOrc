@@ -158,7 +158,7 @@ export function History({ monitor }: { monitor: string }) {
   );
 }
 
-function ObservationDetail({ id, close }: { id: string; close: () => void }) {
+export function ObservationDetail({ id, close }: { id: string; close: () => void }) {
   const [record, setRecord] = useState<ObservationRecord | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {

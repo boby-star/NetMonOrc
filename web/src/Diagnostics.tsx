@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { ObservationDetail } from "./History";
 import { startDiagnostic, cancelDiagnostic, type Session, diagnosticSessions, diagnosticSession, diagnosticTasks,
   type DiagnosticSession, type DiagnosticTask, type DiagnosticPage } from "./api";
 
@@ -6,8 +7,10 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
   const [profile, setProfile] = useState("");
   const request = useRef<{ profile: string; id: string } | null>(null);
   const canRun = session.role === "admin" && session.scopes.includes("diagnostics:run");
+  const canReadEvidence = session.scopes.includes("resources:read");
   const [page, setPage] = useState<DiagnosticPage | null>(null);
   const [selected, setSelected] = useState<DiagnosticSession | null>(null);
+  const [evidence, setEvidence] = useState<string | null>(null);
   const [tasks, setTasks] = useState<DiagnosticTask[]>([]);
   const [taskCursor, setTaskCursor] = useState<string | null>(null);
   const [state, setState] = useState("");
@@ -25,7 +28,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       // Sequential reads respect the Controller's bounded read admission.
       const session = await diagnosticSession(id);
       const next = await diagnosticTasks(id, cursor);
-      setSelected(session); setTasks(next.items); setTaskCursor(next.nextCursor);
+      setSelected(session); setTasks(next.items); setTaskCursor(next.nextCursor); setEvidence(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Сесія недоступна."); }
     finally { setBusy(false); }
   }
@@ -35,7 +38,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       request.current = { profile, id: crypto.randomUUID() };
     try {
       const started = await startDiagnostic(session, monitor, profile, request.current.id);
-      setSelected(started); setTasks([]); setTaskCursor(null);
+      setSelected(started); setTasks([]); setTaskCursor(null); setEvidence(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Запуск не підтверджено."); }
     finally { setBusy(false); }
   }
@@ -93,10 +96,11 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       <div className="table-scroll"><table>
         <caption>Фізичні задачі Agent</caption>
         <thead><tr><th>Дія</th><th>Agent</th><th>Спроба</th><th>Стан</th><th>Докази</th></tr></thead>
-        <tbody>{tasks.map(t => <tr key={t.id}><td>{t.actionId}<br/><small>{t.id}</small></td><td>{t.agentId}</td><td>{t.attemptNo}</td><td>{t.state}</td><td>{t.observationIds.join(", ") || "не отримано"}</td></tr>)}</tbody>
+        <tbody>{tasks.map(t => <tr key={t.id}><td>{t.actionId}<br/><small>{t.id}</small></td><td>{t.agentId}</td><td>{t.attemptNo}</td><td>{t.state}</td><td>{t.observationIds.length ? t.observationIds.map(id => <p key={id}>{canReadEvidence && <><button type="button" onClick={() => setEvidence(id)}>Відкрити доказ</button><br/></>}<code>{id}</code></p>) : "не отримано"}</td></tr>)}</tbody>
       </table></div>
       <button type="button" disabled={busy || !taskCursor} onClick={() => void open(selected.id, taskCursor)}>Наступна сторінка задач</button>
     </div>}
+    {evidence && <ObservationDetail key={evidence} id={evidence} close={() => setEvidence(null)} />}
     {busy && <p role="status">Завантаження…</p>}
   </section>;
 }

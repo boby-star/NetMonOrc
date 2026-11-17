@@ -54,6 +54,22 @@ try {
   await click(`document.querySelector('main > section')`,'Увійти');
   await wait(`document.body.textContent.includes(${JSON.stringify(config.username+' · admin')})&&${assessment}?.querySelector('.badge')?.textContent==='Працює'`);
   const originalRevision=await evaluate(`(${assessment}).querySelector('details code').textContent`);
+  const history=`[...document.querySelectorAll('main > section')].find(s=>s.querySelector('h2')?.textContent==='Історія перевірок')`;
+  const diagnostics=`[...document.querySelectorAll('main > section')].find(s=>s.querySelector('h2')?.textContent==='Діагностичні сесії')`;
+  const detail=`document.querySelector('aside[aria-label="Деталі спостереження"]')`;
+  stage='regular-observation-detail';
+  await wait(`!!${history}?.querySelector('tbody tr')`);await click(history,'Відкрити доказ');
+  await wait(`${detail}?.textContent.includes('research-web /')&&${detail}?.textContent.includes('completed /')`);
+  await click(detail,'Закрити доказ');
+  stage='diagnostic-session-tasks';await click(diagnostics,'Оновити список');
+  await wait(`!!${diagnostics}?.querySelector('tbody tr')`);await click(diagnostics,'Відкрити');
+  await wait(`${diagnostics}?.querySelector('h3')?.textContent===${JSON.stringify('Сесія '+config.diagnosticSessionId)}&&${diagnostics}?.textContent.includes('http-failure')`);
+  await wait(`[...(${diagnostics}).querySelectorAll('button')].some(b=>b.textContent==='Відкрити доказ')`);
+  const taskEvidence=await evaluate(`[...(${diagnostics}).querySelectorAll('table')].find(t=>t.caption?.textContent==='Фізичні задачі Agent').querySelector('tbody code').textContent`);
+  assert.ok(taskEvidence);
+  stage='diagnostic-observation-detail';await click(diagnostics,'Відкрити доказ');
+  await wait(`${detail}?.textContent.includes(${JSON.stringify(taskEvidence)})&&${detail}?.textContent.includes(${JSON.stringify(config.diagnosticSessionId)})&&${detail}?.textContent.includes('research-web /')`);
+  await click(detail,'Закрити доказ');
   stage='create-target';await create({apiVersion:'netmonorc.io/v1alpha1',kind:'Target',metadata:{name:'browser-dns'},spec:{type:'logical'}});
   stage='create-dependency';await create({apiVersion:'netmonorc.io/v1alpha1',kind:'Dependency',metadata:{name:'browser-link'},spec:{from:{kind:'Monitor',name:'research-web'},to:{kind:'Target',name:'browser-dns'}}});
   await wait(`${assessment}?.querySelector('.badge')?.textContent==='Працює'&&${assessment}?.querySelector('details code')?.textContent!==${JSON.stringify(originalRevision)}`);
@@ -97,7 +113,7 @@ try {
   stage='runtime-errors';assert.deepEqual(errors,[]);
   stage='mutation-replay-check';assert.equal(responses.filter(r=>r.path==='/api/v1/resources/Target/browser-dns'&&r.method==='DELETE'&&r.status===409).length,1);
   assert.equal(responses.filter(r=>r.path==='/api/v1/resources/Target'&&r.method==='POST').length,1);
-  await writeFile(config.output,JSON.stringify({status:'passed',multipleMonitorBrowserFlow:config.multiMonitor===true,browserInteractionTested:true,liveControllerIntegrationTested:true,strictNodeTLS:true,browserTrustedLocalCA:true,insecureTLSFlags:false,realPasswordLogin:true,httpOnlySessionRestoredByBrowser:true,targetCRUD:true,dependencyCRUDAndGraph:true,derivedGroupHealthyFromRealProbes:true,referenceDeleteGuardVisible:true,revisionChangeAndRestoreVisible:true,stablePanels:true,logoutRevokesSession:true,createdResourcesRemoved:true,mutationsNotReplayed:true,consoleExceptions:errors.length,screenshotContainsOwnedDemoDataOnly:true},null,2)+'\n',{flag:'wx',mode:0o600});
+  await writeFile(config.output,JSON.stringify({status:'passed',regularObservationDetail:true,diagnosticSessionAndPhysicalTasks:true,diagnosticObservationDetail:true,multipleMonitorBrowserFlow:config.multiMonitor===true,browserInteractionTested:true,liveControllerIntegrationTested:true,strictNodeTLS:true,browserTrustedLocalCA:true,insecureTLSFlags:false,realPasswordLogin:true,httpOnlySessionRestoredByBrowser:true,targetCRUD:true,dependencyCRUDAndGraph:true,derivedGroupHealthyFromRealProbes:true,referenceDeleteGuardVisible:true,revisionChangeAndRestoreVisible:true,stablePanels:true,logoutRevokesSession:true,createdResourcesRemoved:true,mutationsNotReplayed:true,consoleExceptions:errors.length,screenshotContainsOwnedDemoDataOnly:true},null,2)+'\n',{flag:'wx',mode:0o600});
   console.log('PASS: live HTTPS browser login CRUD graph group and logout; no secrets exported');
 } catch(error) {console.error('Live browser verification failed at stage: '+stage+(typeof error.code==='string'?' ('+error.code+')':''));console.error('Failure category: '+(['Browser condition timeout','Browser evaluation failed','CDP timeout','CDP command failed'].includes(error.message)?error.message:'assertion or transport failure'));console.error('HTTP error metadata: '+JSON.stringify(responses.filter(r=>r.status>=400)));process.exitCode=1;}
 finally {

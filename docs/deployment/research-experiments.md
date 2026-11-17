@@ -7,7 +7,10 @@ python3 scripts/lab_experiment.py --repetitions 1 --output .local/pilot.json
 ```
 
 Результат: JSON із сирими assessment/diagnostic/task records, плоский CSV,
-summary та копія HTML-звіту. Наявні результати не перезаписуються. Скрипт
+summary та копія HTML-звіту у `<output-stem>-report/` (для прикладу вище:
+`.local/pilot-report/`). Наявні JSON/CSV або каталог звіту відхиляються до
+зміни стенда; сусідні експерименти більше не перезаписують спільний lab-report.
+Скрипт
 не зупиняє стенд автоматично, але повертає fixture до healthy. Завершивши,
 запустіть `python3 scripts/lab.py down` для зупинки зі збереженням volumes.
 

@@ -99,7 +99,8 @@ def main():
     if not 1<=args.repetitions<=30 or len(set(modes))!=len(modes) or any(m not in MODES for m in modes) or not modes or len(set(scenarios))!=len(scenarios) or any(s not in TRUTH for s in scenarios):
         parser.error('use 1..30 repetitions and unique known modes/scenarios')
     output=Path(args.output)
-    if output.exists() or output.with_suffix('.csv').exists():
+    report_output=output.with_name(output.stem+'-report')
+    if output.exists() or output.with_suffix('.csv').exists() or report_output.exists():
         parser.error('output already exists; choose a new path to preserve previous evidence')
     lab=Lab(args.project,args.prefix);lab.require()
     if lab.mode() is None:parser.error('start the prepared stand before running experiments')
@@ -142,7 +143,7 @@ def main():
         metadata['finished_at']=datetime.now(timezone.utc).isoformat()
         save(output,metadata,rows)
         lab.healthy()
-        lab.export(output.parent/'lab-report')
+        lab.export(report_output)
     print(f'Saved {len(rows)} live trials to {output} and {output.with_suffix(".csv")}',flush=True)
 
 if __name__=='__main__':
