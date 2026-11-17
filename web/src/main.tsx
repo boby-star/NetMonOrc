@@ -15,6 +15,7 @@ import { Dependencies } from "./Dependencies";
 import { ResourceGroups } from "./ResourceGroups";
 import { Overview } from "./Overview";
 import { History } from "./History";
+import { EvidenceLinks } from "./EvidenceLinks";
 import { Alerts } from "./Alerts";
 import { Tokens } from "./Tokens";
 import { Users } from "./Users";
@@ -425,11 +426,7 @@ function App() {
                           {z.reason}
                           <details>
                             <summary>{z.evidence.length} доказів</summary>
-                            {z.evidence.map((id) => (
-                              <p key={id}>
-                                <code>{id}</code>
-                              </p>
-                            ))}
+                            <EvidenceLinks key={assessment.revision + ":" + z.zone} ids={z.evidence} canRead={session?.scopes.includes("resources:read") === true} />
                           </details>
                         </td>
                       </tr>

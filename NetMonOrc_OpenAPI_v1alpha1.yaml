@@ -3139,6 +3139,48 @@ components:
           type: string
           maxLength: 128
           description: До 128 байтів UTF-8, без control characters; збережіть для безпечного retry протягом 24h.
+    DiagnosticExplanation:
+      type: object
+      additionalProperties: false
+      description: Збережений журнал лише в GET окремої сесії; відсутній для running/legacy без журналу. Без повторного виконання алгоритму.
+      required: [costUnits, decisions]
+      properties:
+        durationMs: {type: integer, minimum: 0}
+        costUnits:
+          type: number
+          minimum: 0
+          description: Умовна вартість; не мережеві байти.
+        decisions:
+          type: array
+          items: {$ref: '#/components/schemas/DiagnosticDecision'}
+        confirmation:
+          type: object
+          additionalProperties: false
+          required: [requiredActions, observedActions, observations, distinctFailureDomains, satisfied]
+          properties:
+            requiredActions: {type: array, items: {type: string}}
+            observedActions: {type: array, items: {type: string}}
+            observations: {type: integer, minimum: 0}
+            distinctFailureDomains: {type: integer, minimum: 0}
+            satisfied: {type: boolean}
+        blockedSteps: {type: array, items: {type: string}}
+        skippedSteps: {type: array, items: {type: string}}
+    DiagnosticDecision:
+      type: object
+      additionalProperties: false
+      required: [actionId, agentId, hypothesesBefore, gain, score, executionStatus, probeOutcome]
+      properties:
+        actionId: {type: string}
+        agentId: {type: string}
+        attemptNo: {type: integer, minimum: 1}
+        phase: {type: string}
+        hypothesesBefore:
+          type: [array, 'null']
+          items: {type: string}
+        gain: {type: integer, minimum: 0}
+        score: {type: number, minimum: 0}
+        executionStatus: {type: string}
+        probeOutcome: {type: string}
     DiagnosticSession:
       type: object
       required:
@@ -3147,6 +3189,11 @@ components:
       - mode
       - state
       properties:
+        configRevision:
+          type: string
+          description: Збережена effective revision діагностичної сесії; не підміняється поточною ревізією Monitor.
+        explanation:
+          $ref: '#/components/schemas/DiagnosticExplanation'
         id:
           type: string
         monitorId:

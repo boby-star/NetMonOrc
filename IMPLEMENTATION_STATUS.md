@@ -1,3 +1,17 @@
+# Журнал діагностичних рішень та навігація доказами
+
+Додано persisted explanation до деталей сесії REST/CLI/React: порядок
+дій/Agent, attempts/phases, hypothesesBefore, gain/score, execution/outcome,
+cost/duration, confirmation і blocked/skipped steps. Lists/Dashboard не
+завантажують повний журнал; legacy без decisions позначається невідомим.
+Сесія показує власну effective revision. React має JSON export та кероване
+оновлення активної сесії без автоматичного повтору start/cancel.
+Докази тепер відкриваються також із зонального Assessment та Alert.
+
+Цільові Go, реальний PostgreSQL/HTTPS і production React build пройшли;
+нового браузерного acceptance чи повторної fault-серії не проводилось.
+[Контракт, використання та межі](docs/deployment/diagnostic-explanation.md).
+
 # Приймання мінімального дослідницького профілю (17.11.2026)
 
 Поточне доручення обмежує обсяг мінімальним дослідницьким прототипом із

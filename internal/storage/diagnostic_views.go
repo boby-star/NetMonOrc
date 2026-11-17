@@ -6,19 +6,25 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
 	"github.com/jackc/pgx/v5"
 )
 
 // No target, check_spec, response body or extracted values are exposed here.
-const diagnosticViewColumns = `r.id,r.monitor,r.profile_ref,r.mode,r.state,r.started_at,r.finished_at,r.used_checks,r.reason,r.report->'hypotheses',
+const diagnosticViewColumns = `r.id,r.monitor,r.profile_ref,r.revision,r.mode,r.state,r.started_at,r.finished_at,r.used_checks,r.reason,r.report->'hypotheses',
  ARRAY(SELECT o.id FROM nmo_diagnostic_tasks t JOIN nmo_observations o ON o.diagnostic_task_id=t.id WHERE t.run_id=r.id AND o.diagnostic_task_id<>'' ORDER BY o.id)`
 
-func scanDiagnosticView(row pgx.Row) (diagnosticview.Session, error) {
+func scanDiagnosticView(row pgx.Row, detail bool) (diagnosticview.Session, error) {
 	var v diagnosticview.Session
 	var reason string
 	var report []byte
-	err := row.Scan(&v.ID, &v.MonitorID, &v.ProfileRef, &v.Mode, &v.State, &v.StartedAt, &v.FinishedAt, &v.BudgetUsed.AdditionalChecks, &reason, &report, &v.EvidenceIDs)
+	var fullReport []byte
+	columns := []any{&v.ID, &v.MonitorID, &v.ProfileRef, &v.ConfigRevision, &v.Mode, &v.State, &v.StartedAt, &v.FinishedAt, &v.BudgetUsed.AdditionalChecks, &reason, &report, &v.EvidenceIDs}
+	if detail {
+		columns = append(columns, &fullReport)
+	}
+	err := row.Scan(columns...)
 	if err != nil {
 		return v, err
 	}
@@ -32,6 +38,34 @@ func scanDiagnosticView(row pgx.Row) (diagnosticview.Session, error) {
 			return v, err
 		}
 		v.RemainingHypotheses = &hypotheses
+	}
+	if detail {
+		v.Explanation, err = diagnosticExplanation(fullReport)
+		if err != nil {
+			return v, err
+		}
+	}
+	return v, nil
+}
+
+func diagnosticExplanation(raw []byte) (*diagnosticview.Explanation, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var r diagnostics.Result
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return nil, err
+	}
+	// Legacy reports without a journal must not acquire an invented empty trace.
+	if r.Decisions == nil {
+		return nil, nil
+	}
+	v := &diagnosticview.Explanation{DurationMS: r.DurationMillis, CostUnits: r.Cost, Decisions: []diagnosticview.Decision{}, BlockedSteps: r.BlockedSteps, SkippedSteps: r.SkippedSteps}
+	for _, d := range r.Decisions {
+		v.Decisions = append(v.Decisions, diagnosticview.Decision{ActionID: d.ActionID, AgentID: d.AgentID, AttemptNo: d.AttemptNo, Phase: d.Phase, HypothesesBefore: d.HypothesesBefore, Gain: d.Gain, Score: d.Score, ExecutionStatus: d.Outcome.Execution, ProbeOutcome: d.Outcome.Outcome})
+	}
+	if c := r.Confirmation; c != nil {
+		v.Confirmation = &diagnosticview.Confirmation{RequiredActions: c.RequiredActions, ObservedActions: c.ObservedActions, Observations: c.Observations, DistinctFailureDomains: c.DistinctFailureDomains, Satisfied: c.Satisfied}
 	}
 	return v, nil
 }
@@ -49,7 +83,7 @@ func (s *Store) DiagnosticSessions(ctx context.Context, q diagnosticview.Query) 
 	defer rows.Close()
 	out := []diagnosticview.Session{}
 	for rows.Next() {
-		v, e := scanDiagnosticView(rows)
+		v, e := scanDiagnosticView(rows, false)
 		if e != nil {
 			return nil, e
 		}
@@ -58,7 +92,7 @@ func (s *Store) DiagnosticSessions(ctx context.Context, q diagnosticview.Query) 
 	return out, rows.Err()
 }
 func (s *Store) DiagnosticSession(ctx context.Context, id string) (diagnosticview.Session, bool, error) {
-	v, err := scanDiagnosticView(s.pool.QueryRow(ctx, `SELECT `+diagnosticViewColumns+` FROM nmo_diagnostic_runs r WHERE r.id=$1`, id))
+	v, err := scanDiagnosticView(s.pool.QueryRow(ctx, `SELECT `+diagnosticViewColumns+`,r.report FROM nmo_diagnostic_runs r WHERE r.id=$1`, id), true)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, false, nil
 	}

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ObservationDetail } from "./History";
 import { startDiagnostic, cancelDiagnostic, type Session, diagnosticSessions, diagnosticSession, diagnosticTasks,
   type DiagnosticSession, type DiagnosticTask, type DiagnosticPage } from "./api";
@@ -16,6 +16,12 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
   const [state, setState] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [autoUpdate, setAutoUpdate] = useState(true);
+  useEffect(() => {
+    if (!autoUpdate || busy || !selected || !["created", "running"].includes(selected.state)) return;
+    const timer = window.setTimeout(() => void open(selected.id), 3000);
+    return () => window.clearTimeout(timer);
+  }, [autoUpdate, busy, selected?.id, selected?.state]);
   async function list(cursor: string | null) {
     setBusy(true); setError("");
     try { setPage(await diagnosticSessions(monitor, state, cursor)); }
@@ -28,7 +34,8 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       // Sequential reads respect the Controller's bounded read admission.
       const session = await diagnosticSession(id);
       const next = await diagnosticTasks(id, cursor);
-      setSelected(session); setTasks(next.items); setTaskCursor(next.nextCursor); setEvidence(null);
+      setSelected(session); setTasks(next.items); setTaskCursor(next.nextCursor);
+      if (selected?.id !== id) setEvidence(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Сесія недоступна."); }
     finally { setBusy(false); }
   }
@@ -48,6 +55,14 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
     try { setSelected(await cancelDiagnostic(session, selected.id)); }
     catch (e) { setError(e instanceof Error ? e.message : "Скасування не підтверджено."); }
     finally { setBusy(false); }
+  }
+  function download() {
+    if (!selected) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(selected, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = `diagnostic-${selected.id}.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section>
     <h2>Діагностичні сесії</h2>
@@ -87,12 +102,38 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
     </>}
     {selected && <div>
       <h3>Сесія {selected.id}</h3>
+      <label><input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} /> Автоматично оновлювати активну сесію</label>
       {canRun && selected.state === "running" && <button type="button" disabled={busy} onClick={() => void cancel()}>Скасувати сесію</button>}
       <p>{selected.profileRef ?? "Історичний профіль не збережено"} · {selected.mode} · {selected.state}</p>
+      <p>Ревізія сесії: <code>{selected.configRevision || "не збережено"}</code>. Це історичний висновок, а не поточна оцінка ресурсу.</p>
       <p>Початок: {selected.startedAt}<br/>Завершення: {selected.finishedAt ?? "ще не завершено"}<br/>Причина: {selected.stopReason ?? "ще не визначена"}</p>
       <p>Сумісні гіпотези: {selected.remainingHypotheses === undefined ? "остаточний звіт відсутній" : selected.remainingHypotheses.join(", ") || "немає"}</p>
       <p>Спостереження фізичних діагностичних задач: {selected.evidenceIds.length}. Резерв бюджету не гарантує отримання результату.</p>
       <button type="button" disabled={busy} onClick={() => void open(selected.id)}>Оновити деталі</button>
+      <button type="button" onClick={download}>Завантажити сесію JSON</button>
+      {selected.explanation ? <div aria-label="Пояснення діагнозу">
+        <h4>Журнал вибору діагностичних дій</h4>
+        <p>Витрачено {selected.explanation.costUnits} costUnits; час діагностики: {selected.explanation.durationMs === undefined ? "не збережено" : `${selected.explanation.durationMs} мс`}. costUnits не є мережевими байтами.</p>
+        <p>Gain — кількість розрізнюваних пар гіпотез; score — gain / costUnits. Для Fixed/Static порядок визначається профілем. Технічна помилка не доводить відмову сервісу.</p>
+        <div className="table-scroll"><table>
+          <caption>Послідовність фактичних рішень Controller</caption>
+          <thead><tr><th>Крок / фаза</th><th>Дія / Agent / спроба</th><th>Гіпотези до кроку</th><th>Gain / score</th><th>Виконання / результат</th></tr></thead>
+          <tbody>{selected.explanation.decisions.map((d, i) => <tr key={i}>
+            <td>{i + 1} / {d.phase || "не збережено"}</td>
+            <td>{d.actionId}<br/>{d.agentId}<br/>{d.attemptNo ?? "не збережено"}</td>
+            <td>{d.hypothesesBefore ? d.hypothesesBefore.join(", ") || "немає" : "не збережено"}</td>
+            <td>{d.gain} / {d.score}</td><td>{d.executionStatus} / {d.probeOutcome}</td>
+          </tr>)}</tbody>
+        </table></div>
+        {selected.explanation.decisions.length === 0 && <p>Додаткових дій у збереженому журналі немає.</p>}
+        {selected.explanation.confirmation ? <div>
+          <h4>Підтвердження висновку</h4>
+          <p>{selected.explanation.confirmation.satisfied ? "Умови виконано" : "Умови не виконано"}. Зарахованих спостережень: {selected.explanation.confirmation.observations}; доменів відмови: {selected.explanation.confirmation.distinctFailureDomains}.</p>
+          <p>Обов’язкові дії: {selected.explanation.confirmation.requiredActions.join(", ")}. Підтверджені дії: {selected.explanation.confirmation.observedActions.join(", ") || "немає"}.</p>
+        </div> : <p>Окреме підтвердження не записане у звіті.</p>}
+        {!!selected.explanation.blockedSteps?.length && <p>Заблоковані кроки: {selected.explanation.blockedSteps.join(", ")}</p>}
+        {!!selected.explanation.skippedSteps?.length && <p>Пропущені кроки: {selected.explanation.skippedSteps.join(", ")}</p>}
+      </div> : <p>Журнал рішень ще не збережено або відсутній в історичному звіті.</p>}
       <div className="table-scroll"><table>
         <caption>Фізичні задачі Agent</caption>
         <thead><tr><th>Дія</th><th>Agent</th><th>Спроба</th><th>Стан</th><th>Докази</th></tr></thead>

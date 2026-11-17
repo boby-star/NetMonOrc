@@ -721,7 +721,24 @@ export async function agents(
   return response.json() as Promise<AgentPage>;
 }
 
+export interface DiagnosticExplanation {
+  durationMs?: number;
+  costUnits: number;
+  decisions: {
+    actionId: string; agentId: string; attemptNo?: number; phase?: string;
+    hypothesesBefore: string[] | null; gain: number; score: number;
+    executionStatus: string; probeOutcome: string;
+  }[];
+  confirmation?: {
+    requiredActions: string[]; observedActions: string[];
+    observations: number; distinctFailureDomains: number; satisfied: boolean;
+  };
+  blockedSteps?: string[];
+  skippedSteps?: string[];
+}
 export interface DiagnosticSession {
+  explanation?: DiagnosticExplanation;
+  configRevision?: string;
   id: string;
   monitorId: string;
   profileRef?: string;

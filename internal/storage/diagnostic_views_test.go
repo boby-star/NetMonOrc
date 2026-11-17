@@ -46,7 +46,7 @@ func testDiagnosticViews(t *testing.T, ctx context.Context, s *Store, server *ht
 		}
 	}
 	_, err := s.pool.Exec(ctx, `UPDATE nmo_diagnostic_runs SET state='inconclusive',reason='controller_restart',finished_at=now(),profile_ref='',mode='static' WHERE id='diag-view-a';
- UPDATE nmo_diagnostic_runs SET state='completed',reason='unique',finished_at=now(),report='{"hypotheses":["tcp-failure"],"status":"completed"}' WHERE id='diag-view-b'`)
+ UPDATE nmo_diagnostic_runs SET state='completed',reason='unique',finished_at=now(),report='{"hypotheses":["tcp-failure"],"status":"completed","costUnits":2,"durationMs":4,"decisions":[{"actionId":"dns-action","agentId":"branch","gain":1,"score":0.5,"hypothesesBefore":["dns-failure","tcp-failure"],"result":{"Execution":"completed","Outcome":"success"}}]}' WHERE id='diag-view-b'`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func testDiagnosticViews(t *testing.T, ctx context.Context, s *Store, server *ht
 	}
 	cursor := url.QueryEscape(*page.NextCursor)
 	code, data = request("GET", "/api/v1/diagnostics?monitor=diagnostic-service&limit=1&cursor="+cursor, "")
-	if code != 200 || json.Unmarshal(data, &page) != nil || page.Items[0].ID != "diag-view-b" || page.Items[0].BudgetUsed.AdditionalChecks != 2 || len(page.Items[0].EvidenceIDs) != 1 || page.Items[0].RemainingHypotheses == nil {
+	if code != 200 || json.Unmarshal(data, &page) != nil || page.Items[0].ID != "diag-view-b" || page.Items[0].BudgetUsed.AdditionalChecks != 2 || len(page.Items[0].EvidenceIDs) != 1 || page.Items[0].RemainingHypotheses == nil || page.Items[0].Explanation != nil {
 		t.Fatal("diagnostics stable cursor/budget", code)
 	}
 	if code, _ = request("GET", "/api/v1/diagnostics?monitor=other&cursor="+cursor, ""); code != 400 {
@@ -78,6 +78,11 @@ func testDiagnosticViews(t *testing.T, ctx context.Context, s *Store, server *ht
 	code, data = request("GET", "/api/v1/diagnostics/diag-view-a", "")
 	if code != 200 || json.Unmarshal(data, &view) != nil || view.Mode != "static" || view.ProfileRef != "" || view.RemainingHypotheses != nil || view.StopReason == nil || *view.StopReason != "controller_restart" {
 		t.Fatal("crash evidence invented", code)
+	}
+	var terminal diagnosticview.Session
+	code, data = request("GET", "/api/v1/diagnostics/diag-view-b", "")
+	if code != 200 || json.Unmarshal(data, &terminal) != nil || terminal.ConfigRevision != "old-revision" || terminal.Explanation == nil || len(terminal.Explanation.Decisions) != 1 || terminal.Explanation.Decisions[0].AgentID != "branch" || terminal.Explanation.CostUnits != 2 {
+		t.Fatal("terminal decision journal missing", code)
 	}
 	var tasks diagnosticview.Tasks
 	code, data = request("GET", "/api/v1/diagnostics/diag-view-b/tasks?limit=1", "")

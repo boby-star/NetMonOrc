@@ -11,6 +11,9 @@ v1alpha1 ще не досягнута. Поточне доручення обм�
 прототипом: [звірка записки й фактичний залишок](docs/planning/minimal-research-acceptance-2026-11-17.md),
 [підтверджений запуск CLI/React та 15 fault trials](docs/experiments/acceptance-2026-11-17/README.md).
 
+[Пояснення діагнозу](docs/deployment/diagnostic-explanation.md): журнал вибору
+дій, ревізія, confirmation, JSON export та відкриття доказів із оцінок/алертів.
+
 ## Поточний обсяг: REST API та React
 
 REST/React інтегровані в дослідницький профіль; [розширений технічний план](docs/specs/thesis-scope-2026-11-13.md)

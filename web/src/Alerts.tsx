@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EvidenceLinks } from "./EvidenceLinks";
 import { testWebhook, webhookTestOperation, type WebhookTestOperation, acknowledgeAlert, type Session, alerts, alertDetail, alertHistory, webhookDeliveries,
   type AlertView, type AlertPage, type AlertHistoryPage, type DeliveryPage } from "./api";
 
@@ -58,7 +59,7 @@ export function Alerts({ monitor, session }: { monitor: string; session: Session
       </form>}
       <p>Початок циклу: {selected.startedAt ?? "історичні дані відсутні"}<br/>Спрацював: {selected.firedAt ?? "немає запису"}<br/>Вирішений: {selected.resolvedAt ?? "немає запису"}</p>
       <p>Причини: {selected.reasonCodes.join(", ") || "немає збережених причин"}</p>
-      <details><summary>Докази ({selected.evidenceIds.length})</summary><ul>{selected.evidenceIds.map(id => <li key={id}>{id}</li>)}</ul></details>
+      <details><summary>Докази ({selected.evidenceIds.length})</summary><EvidenceLinks key={selected.id} ids={selected.evidenceIds} canRead={session.scopes.includes("resources:read")} /></details>
       <button disabled={busy} onClick={() => void act(() => open(selected.id))}>Оновити деталі</button>
       {history && <><div className="table-scroll"><table>
         <caption>Історія переходів</caption><thead><tr><th>Час</th><th>Перехід</th><th>Cooldown</th><th>Ревізія</th></tr></thead>
