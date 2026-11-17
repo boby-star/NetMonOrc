@@ -187,15 +187,54 @@ func TestFixedCannotConfirmThroughTechnicalFailure(t *testing.T) {
 	}
 }
 
-func TestExpiredInitialEvidenceCannotDetermineFinalClass(t *testing.T) {
+func TestExpiredBaselineIsReplacedByFreshEvidence(t *testing.T) {
+	for _, outcome := range []string{"failure", "success"} {
+		t.Run(outcome, func(t *testing.T) {
+			p := repeatProfile()
+			p.Confirmation.MinDistinctFailureDomains = 1
+			expires := time.Now().Add(50 * time.Millisecond)
+			proof := d.Evidence{ActionID: "verify", AgentID: "branch", ObservationID: "expires", ValidUntil: expires, Outcome: d.Outcome{Execution: "completed", Outcome: "failure"}}
+			engine := d.Engine{Eligible: gate, Runner: runFunc(func(context.Context, d.Action, d.Executor) (d.Outcome, error) {
+				// Expire the baseline during the first confirmation probe.
+				if wait := time.Until(expires); wait > 0 {
+					time.Sleep(wait)
+				}
+				return d.Outcome{Execution: "completed", Outcome: outcome}, nil
+			})}
+			ledger := &d.Ledger{}
+			r, err := engine.Run(context.Background(), p, "adaptive", independentAgents(), ledger, []d.Evidence{proof}, "down")
+			want := "fault"
+			if outcome == "success" {
+				want = "other"
+			}
+			if err != nil || r.Status != "completed" || len(r.Hypotheses) != 1 || r.Hypotheses[0] != want || r.Attempts != 2 || ledger.UsedChecks != 2 || !r.Confirmation.Satisfied {
+				t.Fatalf("fresh evidence did not replace expired elimination/support: %+v, %v", r, err)
+			}
+			for _, id := range r.Confirmation.CountedEvidence {
+				if id == "observation:expires" {
+					t.Fatal("expired baseline counted as confirmation")
+				}
+			}
+		})
+	}
+}
+
+func TestExpiredBaselineRestoresHypothesesWithoutRefundingBudget(t *testing.T) {
 	p := repeatProfile()
+	p.Budget.MaxChecks = 1
 	p.Confirmation.MinDistinctFailureDomains = 1
-	p.Confirmation.MinSpacing = 20 * time.Millisecond
-	proof := d.Evidence{ActionID: "verify", AgentID: "branch", ObservationID: "expires", ValidUntil: time.Now().Add(5 * time.Millisecond), Outcome: d.Outcome{Execution: "completed", Outcome: "failure"}}
-	engine := d.Engine{Eligible: gate, Runner: runFunc(failureRunner)}
-	r, e := engine.Run(context.Background(), p, "adaptive", independentAgents(), &d.Ledger{}, []d.Evidence{proof}, "down")
-	if e != nil || r.Status != "inconclusive" || r.Reason != "initial_evidence_expired" {
-		t.Fatal("stale baseline supported a final class", r, e)
+	expires := time.Now().Add(50 * time.Millisecond)
+	proof := d.Evidence{ActionID: "verify", AgentID: "branch", ObservationID: "expires", ValidUntil: expires, Outcome: d.Outcome{Execution: "completed", Outcome: "failure"}}
+	engine := d.Engine{Eligible: gate, Runner: runFunc(func(context.Context, d.Action, d.Executor) (d.Outcome, error) {
+		if wait := time.Until(expires); wait > 0 {
+			time.Sleep(wait)
+		}
+		return d.Outcome{Execution: "execution_failed", Outcome: "unknown"}, nil
+	})}
+	ledger := &d.Ledger{}
+	r, err := engine.Run(context.Background(), p, "adaptive", independentAgents(), ledger, []d.Evidence{proof}, "down")
+	if err != nil || r.Status != "inconclusive" || len(r.Hypotheses) != 2 || r.Attempts != 1 || ledger.UsedChecks != 1 || r.Reason != "catalog_exhausted" {
+		t.Fatalf("expiry retained stale hypotheses or refunded budget: %+v, %v", r, err)
 	}
 }
 func TestConcurrentEpisodeRunIsFenced(t *testing.T) {

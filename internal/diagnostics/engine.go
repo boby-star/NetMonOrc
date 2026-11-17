@@ -265,16 +265,32 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		}
 		r.Hypotheses = remaining
 	}
-	var usedExpiries []time.Time
-	defer func() {
-		if r.Status == "completed" {
-			for _, expiry := range usedExpiries {
-				if !time.Now().Before(expiry) {
-					r.Status = "inconclusive"
-					r.Reason = "initial_evidence_expired"
-					break
-				}
+	// Rebuild from the full catalog when baseline TTLs expire. Removing only
+	// final support leaves stale eliminations in action gain and confirmation.
+	type acceptedProof struct {
+		action  Action
+		outcome Outcome
+		expires time.Time
+	}
+	var proofs []acceptedProof
+	rebuild := func() {
+		r.Hypotheses = append([]string(nil), p.Hypotheses...)
+		sort.Strings(r.Hypotheses)
+		support = map[string]bool{}
+		now := time.Now()
+		for _, proof := range proofs {
+			if proof.expires.IsZero() || now.Before(proof.expires) {
+				accept(proof.action, proof.outcome)
 			}
+		}
+	}
+	defer func() {
+		// Recheck at return as well: a deadline, blocked action or final fixed
+		// step may finish just as a baseline proof expires.
+		rebuild()
+		if r.Status == "completed" && (len(r.Hypotheses) != 1 || !support[r.Hypotheses[0]]) {
+			r.Status = "inconclusive"
+			r.Reason = "initial_evidence_expired"
 		}
 	}()
 	for _, proof := range initial {
@@ -287,10 +303,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 			for _, agent := range agents {
 				if agent.ID == proof.AgentID && placementMatch(a.Placement, agent) {
-					accept(a, proof.Outcome)
-					if !proof.ValidUntil.IsZero() && proof.Outcome.Execution == "completed" && len(a.Expected) == len(p.Hypotheses) {
-						usedExpiries = append(usedExpiries, proof.ValidUntil)
-					}
+					proofs = append(proofs, acceptedProof{a, proof.Outcome, proof.ValidUntil})
 					if proof.ObservationID != "" {
 						tracker.add("observation:"+proof.ObservationID, a, agent, proof.Outcome, started, proof.ValidUntil)
 					}
@@ -298,6 +311,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 		}
 	}
+	rebuild()
 	finish := func(reason string) Result {
 		r.Reason = reason
 		if len(r.Hypotheses) == 0 && len(p.Hypotheses) > 0 {
@@ -329,6 +343,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	steps := append([]Step(nil), p.Steps...)
 	sort.Slice(steps, func(i, j int) bool { return steps[i].ID < steps[j].ID })
 	for {
+		rebuild()
 		if child.Err() != nil {
 			r.Reason = "deadline_or_cancelled"
 			return r, nil
@@ -523,7 +538,8 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 		}
 		tracker.add(fmt.Sprintf("attempt:%d", ledger.UsedChecks), *selected, executor, outcome, time.Now(), deadline)
-		accept(*selected, outcome)
+		proofs = append(proofs, acceptedProof{*selected, outcome, time.Time{}})
+		rebuild()
 		rounds[selected.ID]++
 		if stepID != "" {
 			terminal[stepID] = true
