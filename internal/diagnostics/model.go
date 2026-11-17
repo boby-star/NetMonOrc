@@ -114,6 +114,12 @@ type Ledger struct {
 type Runner interface {
 	Execute(context.Context, Action, Executor) (Outcome, error)
 }
+
+// AdmissionRunner reserves execution capacity before the planner spends budget.
+// The returned runner owns the reservation until release, including retries.
+type AdmissionRunner interface {
+	Admit(context.Context, Action, Executor) (Runner, func(), error)
+}
 type Engine struct {
 	// TaskOverhead reserves orchestration time inside the same global deadline;
 	// it never increases the driver's configured network probe timeout.

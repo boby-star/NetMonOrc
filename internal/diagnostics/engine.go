@@ -273,11 +273,13 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		expires time.Time
 	}
 	var proofs []acceptedProof
+	var evidenceAt time.Time
 	rebuild := func() {
 		r.Hypotheses = append([]string(nil), p.Hypotheses...)
 		sort.Strings(r.Hypotheses)
 		support = map[string]bool{}
 		now := time.Now()
+		evidenceAt = now
 		for _, proof := range proofs {
 			if proof.expires.IsZero() || now.Before(proof.expires) {
 				accept(proof.action, proof.outcome)
@@ -442,6 +444,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			r.Reason = "check_budget_exhausted"
 			return r, nil
 		}
+		_, admissionManaged := e.Runner.(AdmissionRunner)
 		var selected *Action
 		var executor Executor
 		best := -1.0
@@ -455,7 +458,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			var eligible []Executor
 			estimates := map[string]int64{}
 			for _, agent := range agents {
-				if !agent.Online || agent.Capacity <= agent.Active || agent.Capacity <= 0 || !agent.Supported[a.Check.Runner] || !agent.Supported[a.Check.Type] || !placementMatch(a.Placement, agent) || !e.Eligible(*a, agent) {
+				if !agent.Online || (!admissionManaged && agent.Capacity <= agent.Active) || agent.Capacity <= 0 || !agent.Supported[a.Check.Runner] || !agent.Supported[a.Check.Type] || !placementMatch(a.Placement, agent) || !e.Eligible(*a, agent) {
 					continue
 				}
 				if confirming && (unusablePairs[a.ID+"/"+agent.ID] || !tracker.useful(*a, agent, confirmation, covered, domains)) {
@@ -524,8 +527,38 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				phase = "confirmation"
 			}
 		}
-		chain := attemptChain{engine: e, profile: p, ledger: ledger, result: &r, deadline: deadline}
-		outcome, reason := chain.execute(child, *selected, executor, selectedBytes, phase, selectedGain)
+		executionEngine := e
+		release := func() {}
+		if admitter, ok := e.Runner.(AdmissionRunner); ok {
+			wait, stop := context.WithDeadline(child, deadline.Add(-selected.Check.Timeout-e.TaskOverhead))
+			admitted, done, err := admitter.Admit(wait, *selected, executor)
+			stop()
+			if err != nil {
+				r.Reason = "executor_admission_unavailable"
+				if child.Err() != nil {
+					r.Reason = "deadline_or_cancelled"
+				}
+				return r, nil
+			}
+			release = done
+			executionEngine.Runner = admitted
+			expired := false
+			for _, proof := range proofs {
+				if !proof.expires.IsZero() && !proof.expires.Before(evidenceAt) && !time.Now().Before(proof.expires) {
+					expired = true
+					break
+				}
+			}
+			if expired {
+				release()
+				continue
+			}
+		}
+		chain := attemptChain{engine: executionEngine, profile: p, ledger: ledger, result: &r, deadline: deadline}
+		outcome, reason := func() (Outcome, string) {
+			defer release()
+			return chain.execute(child, *selected, executor, selectedBytes, phase, selectedGain)
+		}()
 		if reason != "" {
 			r.Reason = reason
 			return r, nil

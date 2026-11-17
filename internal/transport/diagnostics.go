@@ -49,6 +49,15 @@ type DiagnosticRunner struct {
 }
 
 func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.Outcome, error) {
+	runner, release, err := r.Admit(ctx, a, e)
+	if err != nil {
+		return diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"}, err
+	}
+	defer release()
+	return runner.Execute(ctx, a, e)
+}
+func (bound admittedDiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.Outcome, error) {
+	r := bound.runner
 	s := r.Server
 	unknown := diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"}
 	if a.AttemptNo < 1 || a.AttemptNo > 50 {
@@ -77,6 +86,14 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	if err != nil || len(data) > 64<<10 {
 		return unknown, fmt.Errorf("invalid compiled diagnostic check")
 	}
+	s.mu.Lock()
+	permit := bound.permit
+	if s.diagnosticAdmissions[e.ID] != permit || permit.detached {
+		s.mu.Unlock()
+		return unknown, fmt.Errorf("diagnostic admission expired")
+	}
+	permit.taskID, permit.until, permit.terminal = id, deadline, false
+	s.mu.Unlock()
 	t := storage.DiagnosticTask{ID: id, RunID: r.RunID, Agent: e.ID, Generation: session.generation, Plan: r.Plan, Check: a.Check, Zone: e.Zone, Deadline: deadline, AttemptNo: a.AttemptNo}
 	if err = s.Store.ReserveDiagnostic(ctx, t); err != nil {
 		return unknown, err
@@ -112,6 +129,13 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 }
 func (s *Server) taskResult(id, agent string, o diagnostics.Outcome) {
 	s.mu.Lock()
+	if permit := s.diagnosticAdmissions[agent]; permit != nil && permit.taskID == id {
+		permit.terminal = true
+		if permit.detached {
+			delete(s.diagnosticAdmissions, agent)
+			s.signalAdmissionLocked()
+		}
+	}
 	w, ok := s.tasks[id]
 	s.mu.Unlock()
 	if !ok || w.agent != agent {

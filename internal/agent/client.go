@@ -322,7 +322,6 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 					go func() {
 						defer workers.Done()
 						defer stopTask()
-						defer st.diagnosticBusy.Store(false)
 						if err := executeTask(taskContext, task, a, c, deadline, st, spool, id, blackbox, allowed); err != nil {
 							select {
 							case st.fatal <- err:

@@ -1,0 +1,12 @@
+{
+  "baseCommit": "63e3a030be67945989926572e9e464588deebe5f",
+  "workingChanges": [
+    "shared diagnostic admission",
+    "budget charged only after capacity admission",
+    "baseline expiry recheck after queue wait",
+    "Agent completion published after worker and exporter stop"
+  ],
+  "image": "sha256:103e73e31254164cb2b9f773101529e4d8565930d37e4c30bb5748f924ab10d4",
+  "thesisSection": "2.3",
+  "runtime": "one Controller, PostgreSQL, two mTLS Agents; native HTTP /slow fixture; one shared physical Agent for both diagnoses"
+}

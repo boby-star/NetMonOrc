@@ -10,7 +10,7 @@
 |---|---|
 | Моніторинг | Declarative registry/refs/validate/plan/apply → кілька Monitor → mTLS Agent → Blackbox/native extraction → PostgreSQL Observation |
 | Оцінка | H/Q/required, revision/TTL/maxSkew, coverage, zones, same-zone all/any/quorum, CEL guards |
-| Діагностика | Static/Fixed/Adaptive, pair gain/cost, eligibility, expiry rebuild, confirmation, durable incident budget, start/cancel/retry |
+| Діагностика | Static/Fixed/Adaptive, pair gain/cost, eligibility, expiry rebuild, confirmation, durable incident budget, start/cancel/retry, спільне admission місткості Agent до списання бюджету |
 | Пояснення | Persisted decision journal, session revision, physical task → exact Observation; evidence links з Assessment та Alert |
 | Сповіщення | Alert FSM, acknowledgement, durable webhook/retry/test, restart recovery |
 | Робота оператора | REST/CLI/React, users/PAT/cookie/CSRF/RBAC, resource management, groups/dependency graph, history |
@@ -37,3 +37,10 @@ Multi-replica aggregation typed values/metrics не вигадується: не
 частину, виправити пояснення H/Q і лічильник таблиці 2.2. Завантажений DOCX
 не змінено. Приймання програмного мінімуму не підтверджує завершення тексту
 всієї роботи чи її прийняття кафедрою.
+
+## Координація місткості за §2.3
+
+Після додаткового аудиту закрито contention між діагностиками різних Monitor:
+[shared admission](../architecture/diagnostic-admission.md). Натурний сценарій
+підтвердив неперекривні probes та продовження regular observations.
+Глобальна FIFO fairness/HA не є заявленими можливостями цієї реалізації.

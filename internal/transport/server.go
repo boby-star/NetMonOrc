@@ -37,13 +37,15 @@ type activeSession struct {
 }
 type Server struct {
 	pb.UnimplementedAgentServiceServer
-	Plan   monitor.Plan
-	Plans  []monitor.Plan
-	Slots  []monitor.Slot
-	Store  *storage.Store
-	mu     sync.Mutex
-	active map[string]activeSession
-	tasks  map[string]taskWaiter
+	Plan                 monitor.Plan
+	Plans                []monitor.Plan
+	Slots                []monitor.Slot
+	Store                *storage.Store
+	mu                   sync.Mutex
+	active               map[string]activeSession
+	tasks                map[string]taskWaiter
+	diagnosticAdmissions map[string]*diagnosticAdmission
+	admissionChanged     chan struct{}
 }
 
 func frame(agent string) *pb.ControllerFrame {

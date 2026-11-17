@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "sharedAgent": "dc",
+  "twoMonitors": true,
+  "waitingUsedChecks": [
+    0,
+    1
+  ],
+  "physicalDiagnosticProbes": 2,
+  "physicalIntervalsDoNotOverlap": true,
+  "regularObservationsDuringFirstDiagnostic": 6,
+  "usedChecksTotal": 2,
+  "observations": [
+    {
+      "id": "0f0a7495f263141d75864f768a5dc9db",
+      "zone": "server",
+      "agent": "dc",
+      "check": "slow-http",
+      "reason": "expected_status",
+      "monitor": "research-web",
+      "outcome": "success",
+      "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+      "execution": "completed",
+      "startedAt": "2026-11-17T20:44:02.746756758Z",
+      "finishedAt": "2026-11-17T20:44:14.752478142Z",
+      "statusCode": 200,
+      "diagnosticTaskID": "0f0a7495f263141d75864f768a5dc9db"
+    },
+    {
+      "id": "b4558e230b3e34b6409d1c0c63a21075",
+      "zone": "server",
+      "agent": "dc",
+      "check": "slow-http",
+      "reason": "expected_status",
+      "monitor": "admission-peer",
+      "outcome": "success",
+      "revision": "d3c7cce26770fd3be776af847ddebd4e012a362772b783048a48127ed00f7bce",
+      "execution": "completed",
+      "startedAt": "2026-11-17T20:44:15.334729833Z",
+      "finishedAt": "2026-11-17T20:44:27.342226398Z",
+      "statusCode": 200,
+      "diagnosticTaskID": "b4558e230b3e34b6409d1c0c63a21075"
+    }
+  ],
+  "credentialsOmitted": true
+}

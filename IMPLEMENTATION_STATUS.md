@@ -1,3 +1,19 @@
+# Резервування діагностичної місткості за §2.3 записки
+
+Controller атомарно ділить один diagnostic slot Agent між Monitor до списання
+бюджету. Очікування обмежене спільним deadline; після нього baseline expiry
+перевіряється повторно. Cancellation не звільняє невизначений віддалений task
+раніше result/deadline. Regular slot збережено. Agent завершує probe/exporter
+до публікації результату, усунуто повторне скидання busy старим worker.
+
+Реальний дво-Monitor/mTLS/PostgreSQL сценарій підтвердив два послідовні probes
+на dc без busy-відмов, budget waiting 0/1, всього 2 використані спроби й
+6 regular observations під час першого probe. Go/vet/race пройшли.
+[Алгоритм і межі](docs/architecture/diagnostic-admission.md),
+[натурні докази](docs/experiments/admission-2026-11-17/README.md).
+Попередні записи про завершення описують стан на відповідній ітерації;
+подальший аудит виявив цю прогалину координації, тепер виправлену.
+
 # Програмний мінімум: фінальна інтеграція export та браузера підтверджена
 
 Production CLI і React сформували повний пакет реальної діагностики:
