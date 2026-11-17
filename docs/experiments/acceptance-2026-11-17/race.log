@@ -1,0 +1,5 @@
+ok  	github.com/boby-star/NetMonOrc/internal/agent	7.303s
+ok  	github.com/boby-star/NetMonOrc/internal/monitor	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/diagnostics	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/httpapi	1.058s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	1.041s

@@ -7,11 +7,14 @@ up --ui-port 8443 → admin з прихованим введенням паро�
 Порт доступний лише на 127.0.0.1; дані зберігаються у named volumes.
 Це робочий дослідницький профіль із [кількома Monitor](docs/deployment/multiple-monitors.md)
 на одному Controller та спільних Agent. Повна відповідність
-v1alpha1 ще не досягнута; [великі відкриті блоки](docs/development/readiness.md).
+v1alpha1 ще не досягнута. Поточне доручення обмежене мінімальним дослідницьким
+прототипом: [звірка записки й фактичний залишок](docs/planning/minimal-research-acceptance-2026-11-17.md),
+[підтверджений запуск CLI/React та 15 fault trials](docs/experiments/acceptance-2026-11-17/README.md).
 
 ## Поточний обсяг: REST API та React
 
-За новим дорученням реалізація розширюється за [запискою і технічним планом](docs/specs/thesis-scope-2026-11-13.md).
+REST/React інтегровані в дослідницький профіль; [розширений технічний план](docs/specs/thesis-scope-2026-11-13.md)
+збережений як історичний документ і не розширює нинішній обсяг.
 Реалізовано захищений Assessment REST, парольний вхід/вихід, durable
 cookie-сесії, зміну власного пароля, історію перевірок і керування PAT у React.
 CLI підтримує захищені login/whoami/local logout через особистий токен.

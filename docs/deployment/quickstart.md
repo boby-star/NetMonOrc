@@ -64,8 +64,9 @@ python3 scripts/lab.py backup --project netmonorc-demo --output .local/demo-back
 alerts/webhook, users/PAT, історію, ResourceGroup та граф Dependency.
 Controller виконує [кілька Monitor із каталогу](multiple-monitors.md);
 у верхньому полі панелі можна перемикати перегляд без нового входу.
-Dynamic placement, replica voting та Agent enrollment залишаються відкритими. Фактичний залишок —
-[readiness.md](../development/readiness.md).
+Dynamic placement і same-zone replica voting реалізовані в R31/R32;
+Agent enrollment/cert lifecycle залишаються поза мінімальним профілем. Фактичний залишок —
+[матриця приймання](../planning/minimal-research-acceptance-2026-11-17.md).
 
 ## Перевірка браузером проти справжнього Controller
 

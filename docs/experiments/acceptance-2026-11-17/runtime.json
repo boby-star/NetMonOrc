@@ -1,0 +1,18 @@
+{
+  "baseCommit": "4e60ed027279dd67bea3d2e6557519792e43d02c",
+  "runtimeFixCommit": "12a149c0a05f4004c32cd7334af81c5f47f4bf04",
+  "uiAndHarnessCommit": "34d03537fcc36ea4770a1c27fdd18dd434f86298",
+  "releaseImage": "sha256:d56738bda915c3e276814693b1b40ecf7675ec4e93f3be971aa8f05f0920f591",
+  "seriesExecutionImagesByMode": {
+    "static": "sha256:8a14bb47f4876b4544b11d97b00c77845bd1fb188a808cfa7b88f67ecc108cf2",
+    "adaptive": "sha256:d56738bda915c3e276814693b1b40ecf7675ec4e93f3be971aa8f05f0920f591",
+    "fixed": "sha256:d56738bda915c3e276814693b1b40ecf7675ec4e93f3be971aa8f05f0920f591"
+  },
+  "notes": [
+    "Images differ by React evidence-scope visibility; Controller/Agent/CLI/experiment binaries have identical SHA256 values in image-binaries.json.",
+    "Series raw metadata records the image at series start; per-mode images are recorded here.",
+    "Production image built from working changes before their commits; source commits identify those changes.",
+    "Failed initial DOM-serialization browser attempt and storage fixture setup attempts are not counted as passing verification.",
+    "No existing uncommitted files were present; no .local/PKI/Docker volumes were deleted."
+  ]
+}

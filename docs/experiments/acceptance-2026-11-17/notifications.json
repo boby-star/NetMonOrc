@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "startedAt": "2026-11-17T17:43:57.299073+00:00",
+  "finishedAt": "2026-11-17T17:45:05.725668+00:00",
+  "project": "nmo-final-20261117",
+  "firing": {
+    "event_id": "e12126c9-3fa9-4187-aa56-ef0649db6a0f",
+    "state": "delivered",
+    "attempts": 2,
+    "status_code": 200,
+    "payload": {
+      "zone": null,
+      "state": "down",
+      "monitor": "research-web",
+      "event_id": "e12126c9-3fa9-4187-aa56-ef0649db6a0f",
+      "severity": "critical",
+      "alert_rule": "service-outage",
+      "event_type": "alert.firing",
+      "occurred_at": "2026-11-17T17:44:12.187242527Z",
+      "evidence_ids": [
+        "0135568a0dfe21c58b9265877ddaf31b",
+        "03717548d2cd00ec2941628833a0192a",
+        "70de8860291df168bfc9e2ea38e4689b",
+        "78521275e8870273c7bc8c6b6d6c6453",
+        "bbdcc8b1836e8334d1b3432ef666821d",
+        "d59f8091e1f191cf38ff5e4eabb459ff"
+      ],
+      "reason_codes": [
+        "required_failure"
+      ],
+      "schema_version": "1"
+    }
+  },
+  "firingAttempts": [
+    {
+      "attempt": 1,
+      "status_code": 503,
+      "finished": true
+    },
+    {
+      "attempt": 2,
+      "status_code": 200,
+      "finished": true
+    }
+  ],
+  "resolution": {
+    "event_id": "883c20bc-b050-47c9-9b69-8c628883988b",
+    "state": "delivered",
+    "attempts": 3,
+    "status_code": 200,
+    "payload": {
+      "zone": null,
+      "state": "healthy",
+      "monitor": "research-web",
+      "event_id": "883c20bc-b050-47c9-9b69-8c628883988b",
+      "severity": "critical",
+      "alert_rule": "service-outage",
+      "event_type": "alert.resolved",
+      "occurred_at": "2026-11-17T17:44:49.302147034Z",
+      "evidence_ids": [
+        "0441caf208739511dc208b75329ca6b6",
+        "38a33b98623a0e847fdf370366a41caa",
+        "5a4719b25b872ed01134ba193fdc9426",
+        "687014d3c73f9f25190ef5a500fe6680",
+        "859fa70f140c7c174d41edd328aff569",
+        "d98bd1dd89d1e1ef5aaeb37a106d98c1"
+      ],
+      "reason_codes": [
+        "sufficient_success"
+      ],
+      "schema_version": "1"
+    }
+  },
+  "resolutionAttempts": [
+    {
+      "attempt": 1,
+      "status_code": 503,
+      "finished": true
+    },
+    {
+      "attempt": 2,
+      "status_code": 503,
+      "finished": true
+    },
+    {
+      "attempt": 3,
+      "status_code": 200,
+      "finished": true
+    }
+  ],
+  "receiver": {
+    "events": [
+      [
+        "883c20bc-b050-47c9-9b69-8c628883988b",
+        "{\"alert_rule\":\"service-outage\",\"event_id\":\"883c20bc-b050-47c9-9b69-8c628883988b\",\"event_type\":\"alert.resolved\",\"evidence_ids\":[\"0441caf208739511dc208b75329ca6b6\",\"38a33b98623a0e847fdf370366a41caa\",\"5a4719b25b872ed01134ba193fdc9426\",\"687014d3c73f9f25190ef5a500fe6680\",\"859fa70f140c7c174d41edd328aff569\",\"d98bd1dd89d1e1ef5aaeb37a106d98c1\"],\"monitor\":\"research-web\",\"occurred_at\":\"2026-11-17T17:44:49.302147034Z\",\"reason_codes\":[\"sufficient_success\"],\"schema_version\":\"1\",\"severity\":\"critical\",\"state\":\"healthy\",\"zone\":null}"
+      ],
+      [
+        "e12126c9-3fa9-4187-aa56-ef0649db6a0f",
+        "{\"alert_rule\":\"service-outage\",\"event_id\":\"e12126c9-3fa9-4187-aa56-ef0649db6a0f\",\"event_type\":\"alert.firing\",\"evidence_ids\":[\"0135568a0dfe21c58b9265877ddaf31b\",\"03717548d2cd00ec2941628833a0192a\",\"70de8860291df168bfc9e2ea38e4689b\",\"78521275e8870273c7bc8c6b6d6c6453\",\"bbdcc8b1836e8334d1b3432ef666821d\",\"d59f8091e1f191cf38ff5e4eabb459ff\"],\"monitor\":\"research-web\",\"occurred_at\":\"2026-11-17T17:44:12.187242527Z\",\"reason_codes\":[\"required_failure\"],\"schema_version\":\"1\",\"severity\":\"critical\",\"state\":\"down\",\"zone\":null}"
+      ]
+    ],
+    "attempts": [
+      [
+        "0be12169-a4ec-4a97-8e27-6bf5acf1b0bd",
+        200
+      ],
+      [
+        "e3c1be40-4dad-455d-b153-d47c183da5a3",
+        200
+      ],
+      [
+        "e12126c9-3fa9-4187-aa56-ef0649db6a0f",
+        503
+      ],
+      [
+        "e12126c9-3fa9-4187-aa56-ef0649db6a0f",
+        200
+      ],
+      [
+        "883c20bc-b050-47c9-9b69-8c628883988b",
+        503
+      ],
+      [
+        "883c20bc-b050-47c9-9b69-8c628883988b",
+        503
+      ],
+      [
+        "883c20bc-b050-47c9-9b69-8c628883988b",
+        200
+      ]
+    ]
+  },
+  "unknownHeldFiring": true,
+  "restartKeptEventID": true,
+  "htmlDeliveryVerified": true,
+  "finalAssessment": {
+    "monitor": "research-web",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "at": "2026-11-17T17:45:05.927539383Z",
+    "state": "healthy",
+    "zones": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "2bbeec94d3def81d1bd3342bf03668b9",
+          "98ae2498fcc3e04aa825dd774ab58431",
+          "9f93f9e49916863c678f1b1d7d6d1a33"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "06cf55d4b93d4274b13aabcd5bd7fd1a",
+          "8a927bfc218503253b97aca9f470c53d",
+          "c3f7a9140e8b55504a3ae99fdabc88df"
+        ],
+        "reason": "sufficient_success"
+      }
+    ]
+  },
+  "finalAlert": {
+    "status": "resolved",
+    "ruleHash": "e6538534161920c3cdc7de03a19ecbd7431e2b1e34e97e704091971a2c2a1cd1",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "armed": true,
+    "lastEvaluatedAt": "2026-11-17T17:45:05.927539383Z",
+    "lastTransitionAt": "2026-11-17T17:44:49.302147034Z",
+    "lastFiringQueuedAt": "2026-11-17T17:44:12.187242527Z",
+    "lastResolvedQueuedAt": "2026-11-17T17:44:49.302147034Z"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "nmo-accept-20261117": {
+    "state": "healthy",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "at": "2026-11-17T17:50:34.70885997Z"
+  },
+  "nmo-final-20261117": {
+    "state": "healthy",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "at": "2026-11-17T17:50:34.894029178Z"
+  },
+  "nmo-release-20261117": {
+    "state": "healthy",
+    "revision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+    "at": "2026-11-17T17:50:35.309748537Z"
+  }
+}

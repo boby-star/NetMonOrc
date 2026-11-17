@@ -1,0 +1,13 @@
+=== RUN   TestPostgresWebhookSummaryIsolation
+--- PASS: TestPostgresWebhookSummaryIsolation (0.32s)
+=== RUN   TestPostgresBrowserSessionsAndCSRF
+--- PASS: TestPostgresBrowserSessionsAndCSRF (10.99s)
+=== RUN   TestPostgresDiagnosticBudgetsAndIsolation
+--- PASS: TestPostgresDiagnosticBudgetsAndIsolation (0.61s)
+=== RUN   TestPostgresIndependentRevisionAcknowledgements
+--- PASS: TestPostgresIndependentRevisionAcknowledgements (0.50s)
+=== RUN   TestPostgresDynamicPlacementPersistence
+--- PASS: TestPostgresDynamicPlacementPersistence (0.89s)
+=== RUN   TestPostgresDurabilityAndFencing
+--- PASS: TestPostgresDurabilityAndFencing (0.35s)
+PASS

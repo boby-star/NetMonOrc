@@ -1,0 +1,17 @@
+{
+  "goTestAll": "passed; go.log; PostgreSQL tests require a separate real-DB run",
+  "goVetAll": "passed; exit 0",
+  "criticalRace": "passed; race.log",
+  "expiryRaceUncached": "passed; expiry-race.log",
+  "realPostgreSQL": "passed; postgres.log; fresh separate nmo_accept_tests_final database",
+  "pythonUnitTests": {
+    "status": "passed",
+    "count": 11
+  },
+  "productionImageBuild": "passed; build.log; pinned image with trusted build CA secret",
+  "browserAndProductionCLI": "passed; browser.json",
+  "liveWebhookRecovery": "passed; notifications.json",
+  "existingExperimentReportGuard": "passed; existing report directory rejected before stand access; original sentinel unchanged",
+  "javascriptSyntax": "passed; node --check scripts/live_browser_smoke.mjs",
+  "pythonSyntax": "passed; py_compile lab_browser.py lab_experiment.py"
+}
