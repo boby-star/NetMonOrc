@@ -133,16 +133,18 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       {exportNotice && <p role="status">{exportNotice}</p>}
       {selected.explanation ? <div aria-label="Пояснення діагнозу">
         <h4>Журнал вибору діагностичних дій</h4>
+        {selected.explanation.evidencePolicy && <p>Політика доказів сесії: TTL додаткових probes {selected.explanation.evidencePolicy.maxAgeMs} мс; maxSkew {selected.explanation.evidencePolicy.maxSkewMs} мс. Прострочені та неузгоджені докази не визначають поточний діагноз; витрачений бюджет зберігається.</p>}
         <p>Витрачено {selected.explanation.costUnits} costUnits; час діагностики: {selected.explanation.durationMs === undefined ? "не збережено" : `${selected.explanation.durationMs} мс`}. costUnits не є мережевими байтами.</p>
         <p>Gain — кількість розрізнюваних пар гіпотез; score — gain / costUnits. Для Fixed/Static порядок визначається профілем. Технічна помилка не доводить відмову сервісу.</p>
         <div className="table-scroll"><table>
           <caption>Послідовність фактичних рішень Controller</caption>
-          <thead><tr><th>Крок / фаза</th><th>Дія / Agent / спроба</th><th>Гіпотези до кроку</th><th>Gain / score</th><th>Виконання / результат</th></tr></thead>
+          <thead><tr><th>Крок / фаза</th><th>Дія / Agent / спроба</th><th>Гіпотези до кроку</th><th>Gain / score</th><th>Виконання / результат</th><th>Час доказу / TTL</th></tr></thead>
           <tbody>{selected.explanation.decisions.map((d, i) => <tr key={i}>
             <td>{i + 1} / {d.phase || "не збережено"}</td>
             <td>{d.actionId}<br/>{d.agentId}<br/>Домен: {d.failureDomain || "невідомий"}<br/>{d.attemptNo ?? "не збережено"}</td>
             <td>{d.hypothesesBefore ? d.hypothesesBefore.join(", ") || "немає" : "не збережено"}</td>
             <td>{d.gain} / {d.score}</td><td>{d.executionStatus} / {d.probeOutcome}</td>
+            <td>{d.finishedAt || "не збережено"}<br/>TTL/deadline до: {d.validUntil || "не збережено"}<br/>{d.observationId && <code>{d.observationId}</code>}</td>
           </tr>)}</tbody>
         </table></div>
         {selected.explanation.decisions.length === 0 && <p>Додаткових дій у збереженому журналі немає.</p>}

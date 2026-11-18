@@ -11,25 +11,33 @@ type BudgetUsed struct {
 }
 
 // Explanation is a persisted terminal report projection, not a replay of the planner.
+type EvidencePolicy struct {
+	MaxAgeMS  int64 `json:"maxAgeMs"`
+	MaxSkewMS int64 `json:"maxSkewMs"`
+}
 type Explanation struct {
-	DurationMS   *int64        `json:"durationMs,omitempty"`
-	CostUnits    float64       `json:"costUnits"`
-	Decisions    []Decision    `json:"decisions"`
-	Confirmation *Confirmation `json:"confirmation,omitempty"`
-	BlockedSteps []string      `json:"blockedSteps,omitempty"`
-	SkippedSteps []string      `json:"skippedSteps,omitempty"`
+	EvidencePolicy *EvidencePolicy `json:"evidencePolicy,omitempty"`
+	DurationMS     *int64          `json:"durationMs,omitempty"`
+	CostUnits      float64         `json:"costUnits"`
+	Decisions      []Decision      `json:"decisions"`
+	Confirmation   *Confirmation   `json:"confirmation,omitempty"`
+	BlockedSteps   []string        `json:"blockedSteps,omitempty"`
+	SkippedSteps   []string        `json:"skippedSteps,omitempty"`
 }
 type Decision struct {
-	FailureDomain    string   `json:"failureDomain,omitempty"`
-	ActionID         string   `json:"actionId"`
-	AgentID          string   `json:"agentId"`
-	AttemptNo        int      `json:"attemptNo,omitempty"`
-	Phase            string   `json:"phase,omitempty"`
-	HypothesesBefore []string `json:"hypothesesBefore"`
-	Gain             int      `json:"gain"`
-	Score            float64  `json:"score"`
-	ExecutionStatus  string   `json:"executionStatus"`
-	ProbeOutcome     string   `json:"probeOutcome"`
+	ObservationID    string     `json:"observationId,omitempty"`
+	FinishedAt       *time.Time `json:"finishedAt,omitempty"`
+	ValidUntil       *time.Time `json:"validUntil,omitempty"`
+	FailureDomain    string     `json:"failureDomain,omitempty"`
+	ActionID         string     `json:"actionId"`
+	AgentID          string     `json:"agentId"`
+	AttemptNo        int        `json:"attemptNo,omitempty"`
+	Phase            string     `json:"phase,omitempty"`
+	HypothesesBefore []string   `json:"hypothesesBefore"`
+	Gain             int        `json:"gain"`
+	Score            float64    `json:"score"`
+	ExecutionStatus  string     `json:"executionStatus"`
+	ProbeOutcome     string     `json:"probeOutcome"`
 }
 type Confirmation struct {
 	EvidenceDomains        map[string]string `json:"evidenceDomains,omitempty"`

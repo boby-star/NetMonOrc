@@ -72,6 +72,7 @@ type Executor struct {
 	Supported         map[string]bool
 }
 type Evidence struct {
+	FinishedAt    time.Time
 	ObservationID string
 	ValidUntil    time.Time
 	ActionID      string
@@ -79,17 +80,25 @@ type Evidence struct {
 	Outcome       Outcome
 }
 type Decision struct {
-	FailureDomain    string   `json:"failureDomain,omitempty"`
-	AttemptNo        int      `json:"attemptNo,omitempty"`
-	Phase            string   `json:"phase,omitempty"`
-	ActionID         string   `json:"actionId"`
-	AgentID          string   `json:"agentId"`
-	HypothesesBefore []string `json:"hypothesesBefore"`
-	Gain             int      `json:"gain"`
-	Score            float64  `json:"score"`
-	Outcome          Outcome  `json:"result"`
+	ObservationID    string     `json:"observationId,omitempty"`
+	FinishedAt       *time.Time `json:"finishedAt,omitempty"`
+	ValidUntil       *time.Time `json:"validUntil,omitempty"`
+	FailureDomain    string     `json:"failureDomain,omitempty"`
+	AttemptNo        int        `json:"attemptNo,omitempty"`
+	Phase            string     `json:"phase,omitempty"`
+	ActionID         string     `json:"actionId"`
+	AgentID          string     `json:"agentId"`
+	HypothesesBefore []string   `json:"hypothesesBefore"`
+	Gain             int        `json:"gain"`
+	Score            float64    `json:"score"`
+	Outcome          Outcome    `json:"result"`
+}
+type EvidencePolicy struct {
+	MaxAgeMS  int64 `json:"maxAgeMs"`
+	MaxSkewMS int64 `json:"maxSkewMs"`
 }
 type Result struct {
+	EvidencePolicy *EvidencePolicy     `json:"evidencePolicy,omitempty"`
 	Confirmation   *ConfirmationResult `json:"confirmation,omitempty"`
 	BlockedSteps   []string            `json:"blockedSteps,omitempty"`
 	DurationMillis *int64              `json:"durationMs,omitempty"`
@@ -123,7 +132,19 @@ type Runner interface {
 type AdmissionRunner interface {
 	Admit(context.Context, Action, Executor) (Runner, func(), error)
 }
+
+// ObservedOutcome carries the committed Observation's time, not delivery time.
+type ObservedOutcome struct {
+	Outcome       Outcome
+	ObservationID string
+	FinishedAt    time.Time
+}
+type EvidenceRunner interface {
+	ExecuteEvidence(context.Context, Action, Executor) (ObservedOutcome, error)
+}
 type Engine struct {
+	EvidenceMaxAge  time.Duration
+	EvidenceMaxSkew time.Duration
 	// TaskOverhead reserves orchestration time inside the same global deadline;
 	// it never increases the driver's configured network probe timeout.
 	TaskOverhead time.Duration

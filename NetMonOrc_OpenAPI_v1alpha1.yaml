@@ -3146,6 +3146,13 @@ components:
       description: Збережений журнал лише в GET окремої сесії; відсутній для running/legacy без журналу. Без повторного виконання алгоритму.
       required: [costUnits, decisions]
       properties:
+        evidencePolicy:
+          type: object
+          additionalProperties: false
+          required: [maxAgeMs, maxSkewMs]
+          properties:
+            maxAgeMs: {type: integer, minimum: 0}
+            maxSkewMs: {type: integer, minimum: 0}
         durationMs: {type: integer, minimum: 0}
         costUnits:
           type: number
@@ -3175,6 +3182,12 @@ components:
       additionalProperties: false
       required: [actionId, agentId, hypothesesBefore, gain, score, executionStatus, probeOutcome]
       properties:
+        observationId: {type: string}
+        finishedAt: {type: string, format: date-time}
+        validUntil:
+          type: string
+          format: date-time
+          description: Верхня межа TTL/session deadline; maxSkew і latest-pair придатність перевіряються окремо.
         failureDomain:
           type: string
           description: Controller-owned домен виконавця на момент рішення; відсутній для невідомого або legacy.

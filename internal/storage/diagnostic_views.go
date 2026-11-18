@@ -61,8 +61,11 @@ func diagnosticExplanation(raw []byte) (*diagnosticview.Explanation, error) {
 		return nil, nil
 	}
 	v := &diagnosticview.Explanation{DurationMS: r.DurationMillis, CostUnits: r.Cost, Decisions: []diagnosticview.Decision{}, BlockedSteps: r.BlockedSteps, SkippedSteps: r.SkippedSteps}
+	if r.EvidencePolicy != nil {
+		v.EvidencePolicy = &diagnosticview.EvidencePolicy{MaxAgeMS: r.EvidencePolicy.MaxAgeMS, MaxSkewMS: r.EvidencePolicy.MaxSkewMS}
+	}
 	for _, d := range r.Decisions {
-		v.Decisions = append(v.Decisions, diagnosticview.Decision{FailureDomain: d.FailureDomain, ActionID: d.ActionID, AgentID: d.AgentID, AttemptNo: d.AttemptNo, Phase: d.Phase, HypothesesBefore: d.HypothesesBefore, Gain: d.Gain, Score: d.Score, ExecutionStatus: d.Outcome.Execution, ProbeOutcome: d.Outcome.Outcome})
+		v.Decisions = append(v.Decisions, diagnosticview.Decision{ObservationID: d.ObservationID, FinishedAt: d.FinishedAt, ValidUntil: d.ValidUntil, FailureDomain: d.FailureDomain, ActionID: d.ActionID, AgentID: d.AgentID, AttemptNo: d.AttemptNo, Phase: d.Phase, HypothesesBefore: d.HypothesesBefore, Gain: d.Gain, Score: d.Score, ExecutionStatus: d.Outcome.Execution, ProbeOutcome: d.Outcome.Outcome})
 	}
 	if c := r.Confirmation; c != nil {
 		v.Confirmation = &diagnosticview.Confirmation{EvidenceDomains: c.EvidenceDomains, RequiredActions: c.RequiredActions, ObservedActions: c.ObservedActions, Observations: c.Observations, DistinctFailureDomains: c.DistinctFailureDomains, Satisfied: c.Satisfied}

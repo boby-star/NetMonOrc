@@ -121,7 +121,7 @@ func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Pla
 			c.mu.Unlock()
 		}()
 		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: plan}
-		engine := diagnostics.Engine{TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
+		engine := diagnostics.Engine{EvidenceMaxAge: plan.MaxAge, EvidenceMaxSkew: plan.MaxSkew, TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
 			return agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
 		}}
 		mode := profile.Mode

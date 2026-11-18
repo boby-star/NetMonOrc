@@ -723,9 +723,11 @@ export async function agents(
 }
 
 export interface DiagnosticExplanation {
+  evidencePolicy?: { maxAgeMs: number; maxSkewMs: number };
   durationMs?: number;
   costUnits: number;
   decisions: {
+    observationId?: string; finishedAt?: string; validUntil?: string;
     actionId: string; agentId: string; failureDomain?: string; attemptNo?: number; phase?: string;
     hypothesesBefore: string[] | null; gain: number; score: number;
     executionStatus: string; probeOutcome: string;

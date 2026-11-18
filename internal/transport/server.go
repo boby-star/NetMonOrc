@@ -350,7 +350,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			}
 			for _, o := range observations {
 				if o.DiagnosticTaskID != "" {
-					s.taskResult(o.DiagnosticTaskID, id, diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome})
+					s.taskEvidenceResult(o.DiagnosticTaskID, id, diagnostics.ObservedOutcome{ObservationID: o.ID, FinishedAt: o.FinishedAt, Outcome: diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome}})
 				}
 			}
 			ack := &pb.ObservationAck{}

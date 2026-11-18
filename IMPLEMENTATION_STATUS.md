@@ -1,3 +1,12 @@
+# Часове вікно діагностичних доказів за §2.1–2.3
+
+Runtime тепер застосовує Monitor TTL/maxSkew і до нових diagnostic results,
+а не лише до початкових регулярних proofs. Transport передає фактичний
+finishedAt durable Observation. Робочі hypotheses/support і confirmation
+перевіряють latest-pair, TTL та coherent window, зберігаючи spent budget.
+Нові звіти/API/React містять policy та physical timing; legacy час не вигадується.
+[Алгоритм і межі](docs/architecture/diagnostic-evidence-window.md).
+
 # Controller-owned домени відмови за §2.1/§2.3 записки
 
 Додано явний -failure-domains Agent=domain для trusted roster. Немає fallback

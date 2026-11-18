@@ -54,3 +54,10 @@ trigger; execution_failed не є доказом несправності сер
 нового detail та відсутності explanation у списку, production React build.
 Повні натурні серії й browser acceptance попередньої ітерації повторно не
 запускалися; нові кліки та auto-refresh у браузері цією ітерацією не підтверджені.
+
+## Часова придатність
+
+Нові звіти показують policy TTL/maxSkew та physical finishedAt/validUntil кожного
+отриманого доказу. Докладно: [часове вікно](../architecture/diagnostic-evidence-window.md).
+Колишні натурні серії залишаються історичними; їх не слід подавати як новий
+запуск із цією temporal policy.

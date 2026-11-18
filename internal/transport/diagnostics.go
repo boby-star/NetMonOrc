@@ -21,7 +21,7 @@ type taskRequest struct {
 }
 type taskWaiter struct {
 	agent  string
-	result chan diagnostics.Outcome
+	result chan diagnostics.ObservedOutcome
 }
 
 func (s *Server) Executors(now time.Time) []diagnostics.Executor {
@@ -61,9 +61,21 @@ func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e d
 	return runner.Execute(ctx, a, e)
 }
 func (bound admittedDiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.Outcome, error) {
+	observed, err := bound.ExecuteEvidence(ctx, a, e)
+	return observed.Outcome, err
+}
+func (r DiagnosticRunner) ExecuteEvidence(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.ObservedOutcome, error) {
+	runner, release, err := r.Admit(ctx, a, e)
+	if err != nil {
+		return diagnostics.ObservedOutcome{Outcome: diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"}}, err
+	}
+	defer release()
+	return runner.(diagnostics.EvidenceRunner).ExecuteEvidence(ctx, a, e)
+}
+func (bound admittedDiagnosticRunner) ExecuteEvidence(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.ObservedOutcome, error) {
 	r := bound.runner
 	s := r.Server
-	unknown := diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"}
+	unknown := diagnostics.ObservedOutcome{Outcome: diagnostics.Outcome{Execution: "execution_failed", Outcome: "unknown"}}
 	if a.AttemptNo < 1 || a.AttemptNo > 50 {
 		return unknown, fmt.Errorf("invalid diagnostic attempt number")
 	}
@@ -110,7 +122,7 @@ func (bound admittedDiagnosticRunner) Execute(ctx context.Context, a diagnostics
 			}
 		}
 	}()
-	result := make(chan diagnostics.Outcome, 1)
+	result := make(chan diagnostics.ObservedOutcome, 1)
 	s.mu.Lock()
 	if s.tasks == nil {
 		s.tasks = map[string]taskWaiter{}
@@ -132,6 +144,9 @@ func (bound admittedDiagnosticRunner) Execute(ctx context.Context, a diagnostics
 	}
 }
 func (s *Server) taskResult(id, agent string, o diagnostics.Outcome) {
+	s.taskEvidenceResult(id, agent, diagnostics.ObservedOutcome{Outcome: o})
+}
+func (s *Server) taskEvidenceResult(id, agent string, o diagnostics.ObservedOutcome) {
 	s.mu.Lock()
 	if permit := s.diagnosticAdmissions[agent]; permit != nil && permit.taskID == id {
 		permit.terminal = true

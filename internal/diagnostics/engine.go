@@ -192,6 +192,15 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	if mode == "fixed" && p.Mode != "fixed" {
 		return r, fmt.Errorf("fixed requires a fixed profile")
 	}
+	if e.EvidenceMaxAge < 0 || e.EvidenceMaxSkew < 0 {
+		return r, fmt.Errorf("negative evidence freshness limit")
+	}
+	if e.EvidenceMaxAge > 0 || e.EvidenceMaxSkew > 0 {
+		if _, ok := e.Runner.(EvidenceRunner); !ok {
+			return r, fmt.Errorf("evidence freshness requires committed Observation timing")
+		}
+		r.EvidencePolicy = &EvidencePolicy{MaxAgeMS: e.EvidenceMaxAge.Milliseconds(), MaxSkewMS: e.EvidenceMaxSkew.Milliseconds()}
+	}
 	if e.TaskOverhead < 0 || e.TaskOverhead > 30*time.Second {
 		return r, fmt.Errorf("invalid task overhead allowance")
 	}
@@ -233,7 +242,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	child, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	sort.Strings(r.Hypotheses)
-	tracker := confirmationTracker{policy: p.Confirmation}
+	tracker := confirmationTracker{policy: p.Confirmation, maxSkew: e.EvidenceMaxSkew}
 	if p.Confirmation != nil {
 		defer func() {
 			h := ""
@@ -267,12 +276,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	}
 	// Rebuild from the full catalog when baseline TTLs expire. Removing only
 	// final support leaves stale eliminations in action gain and confirmation.
-	type acceptedProof struct {
-		action  Action
-		outcome Outcome
-		expires time.Time
-	}
-	var proofs []acceptedProof
+	var proofs []timedProof
 	var evidenceAt time.Time
 	rebuild := func() {
 		r.Hypotheses = append([]string(nil), p.Hypotheses...)
@@ -280,10 +284,8 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		support = map[string]bool{}
 		now := time.Now()
 		evidenceAt = now
-		for _, proof := range proofs {
-			if proof.expires.IsZero() || now.Before(proof.expires) {
-				accept(proof.action, proof.outcome)
-			}
+		for _, proof := range workingProofs(proofs, now, e.EvidenceMaxSkew) {
+			accept(proof.action, proof.outcome)
 		}
 	}
 	defer func() {
@@ -292,7 +294,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		rebuild()
 		if r.Status == "completed" && (len(r.Hypotheses) != 1 || !support[r.Hypotheses[0]]) {
 			r.Status = "inconclusive"
-			r.Reason = "initial_evidence_expired"
+			r.Reason = "evidence_no_longer_usable"
 		}
 	}()
 	for _, proof := range initial {
@@ -305,9 +307,13 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 			for _, agent := range agents {
 				if agent.ID == proof.AgentID && placementMatch(a.Placement, agent) {
-					proofs = append(proofs, acceptedProof{a, proof.Outcome, proof.ValidUntil})
+					at := proof.FinishedAt
+					if at.IsZero() && e.EvidenceMaxAge == 0 && e.EvidenceMaxSkew == 0 {
+						at = started
+					}
+					proofs = append(proofs, timedProof{action: a, agent: agent.ID, outcome: proof.Outcome, expires: proof.ValidUntil, at: at})
 					if proof.ObservationID != "" {
-						tracker.add("observation:"+proof.ObservationID, a, agent, proof.Outcome, started, proof.ValidUntil)
+						tracker.add("observation:"+proof.ObservationID, a, agent, proof.Outcome, at, proof.ValidUntil)
 					}
 				}
 			}
@@ -542,24 +548,20 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 			release = done
 			executionEngine.Runner = admitted
-			expired := false
-			for _, proof := range proofs {
-				if !proof.expires.IsZero() && !proof.expires.Before(evidenceAt) && !time.Now().Before(proof.expires) {
-					expired = true
-					break
-				}
-			}
-			if expired {
+			before := workingProofs(proofs, evidenceAt, e.EvidenceMaxSkew)
+			after := workingProofs(proofs, time.Now(), e.EvidenceMaxSkew)
+			if !sameWorkingProofs(before, after) {
 				release()
 				continue
 			}
 		}
+		attemptsBefore := len(r.Decisions)
 		chain := attemptChain{engine: executionEngine, profile: p, ledger: ledger, result: &r, deadline: deadline}
 		outcome, reason := func() (Outcome, string) {
 			defer release()
 			return chain.execute(child, *selected, executor, selectedBytes, phase, selectedGain)
 		}()
-		if reason != "" {
+		if reason != "" && len(r.Decisions) == attemptsBefore {
 			r.Reason = reason
 			return r, nil
 		}
@@ -570,13 +572,32 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				fixedIncomplete = true
 			}
 		}
-		tracker.add(fmt.Sprintf("attempt:%d", ledger.UsedChecks), *selected, executor, outcome, time.Now(), deadline)
-		proofs = append(proofs, acceptedProof{*selected, outcome, time.Time{}})
+		decision := r.Decisions[len(r.Decisions)-1]
+		at := time.Now()
+		expires := deadline
+		proofID := fmt.Sprintf("attempt:%d", ledger.UsedChecks)
+		if decision.FinishedAt != nil {
+			at = *decision.FinishedAt
+		} else if e.EvidenceMaxAge > 0 || e.EvidenceMaxSkew > 0 {
+			at = time.Time{}
+		}
+		if decision.ValidUntil != nil {
+			expires = *decision.ValidUntil
+		}
+		if decision.ObservationID != "" {
+			proofID = "observation:" + decision.ObservationID
+		}
+		tracker.add(proofID, *selected, executor, outcome, at, expires)
+		proofs = append(proofs, timedProof{action: *selected, agent: executor.ID, outcome: outcome, at: at, expires: expires})
 		rebuild()
 		rounds[selected.ID]++
 		if stepID != "" {
 			terminal[stepID] = true
 			tasks[stepID] = outcome
+		}
+		if reason != "" {
+			r.Reason = reason
+			return r, nil
 		}
 	}
 }
