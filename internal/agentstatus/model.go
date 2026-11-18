@@ -4,6 +4,7 @@ package agentstatus
 import "time"
 
 type View struct {
+	FailureDomain             string            `json:"failureDomain,omitempty"`
 	RegularMonitoringAssigned *bool             `json:"regularMonitoringAssigned,omitempty"`
 	AgentID                   string            `json:"agentId"`
 	Name                      string            `json:"name"`

@@ -169,6 +169,7 @@ try:
     pki = work/'pki'
     controller_args = ['-config', str(manifest), '-listen', f'127.0.0.1:{rpc_port}',
                        '-database-file', str(dsn), '-slots', 'branch=office,dc=server',
+                       '-failure-domains', 'branch=office-path,dc=server-path',
                        '-ca', str(pki/'ca.crt'), '-cert', str(pki/'controller.crt'),
                        '-key', str(pki/'controller.key'), '-assessment-file', str(work/'assessment.json'),
                        '-report-file',str(work/'report.html')]

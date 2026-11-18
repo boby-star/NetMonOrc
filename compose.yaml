@@ -94,6 +94,7 @@ services:
       - -listen=0.0.0.0:9443
       - -database-file=/run/netmonorc/database.dsn
       - -slots=branch=office,dc=server
+      - -failure-domains=branch=office-path,dc=server-path
       - -ca=/run/netmonorc/ca.crt
       - -cert=/run/netmonorc/controller.crt
       - -key=/run/netmonorc/controller.key

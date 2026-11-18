@@ -21,6 +21,19 @@ func TestBaselineEquivalenceAndFreshness(t *testing.T) {
 	if got := d.MatchBaseline(plan, p, []monitor.Observation{o}, agents(), now); len(got) != 1 || got[0].ActionID != "d01-dns" {
 		t.Fatalf("matching baseline missing: %+v", got)
 	}
+	sources := agents()
+	for i := range sources {
+		sources[i].FailureDomain = "new-domain"
+		sources[i].EvidenceNotBefore = now.Add(-500 * time.Millisecond)
+	}
+	if got := d.MatchBaseline(plan, p, []monitor.Observation{o}, sources, now); len(got) != 0 {
+		t.Fatal("old probe reinterpreted under new failure-domain mapping")
+	}
+	fresh := o
+	fresh.StartedAt = now.Add(-100 * time.Millisecond)
+	if got := d.MatchBaseline(plan, p, []monitor.Observation{fresh}, sources, now); len(got) != 1 {
+		t.Fatal("fresh probe after trusted topology not admitted")
+	}
 	old := o
 	old.Revision = "previous"
 	if got := d.MatchBaseline(plan, p, []monitor.Observation{old}, agents(), now); len(got) != 0 {

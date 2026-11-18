@@ -36,6 +36,9 @@ type activeSession struct {
 	heartbeatSequence uint64
 }
 type Server struct {
+	// Immutable Controller-owned domains, configured before serving.
+	FailureDomains        map[string]string
+	FailureDomainsKnownAt time.Time
 	pb.UnimplementedAgentServiceServer
 	Plan                 monitor.Plan
 	Plans                []monitor.Plan

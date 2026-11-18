@@ -37,7 +37,11 @@ func (s *Server) Executors(now time.Time) []diagnostics.Executor {
 		for k, b := range v.capabilities {
 			caps[k] = b
 		}
-		out = append(out, diagnostics.Executor{ID: slot.Agent, Zone: slot.Zone, FailureDomain: slot.Zone, Online: true, Capacity: v.capacity, Active: v.active, Supported: caps})
+		knownAt := time.Time{}
+		if s.FailureDomains[slot.Agent] != "" {
+			knownAt = s.FailureDomainsKnownAt
+		}
+		out = append(out, diagnostics.Executor{EvidenceNotBefore: knownAt, ID: slot.Agent, Zone: slot.Zone, FailureDomain: s.FailureDomains[slot.Agent], Online: true, Capacity: v.capacity, Active: v.active, Supported: caps})
 	}
 	return out
 }

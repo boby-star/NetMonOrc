@@ -684,6 +684,7 @@ export async function operations(
 }
 
 export interface AgentView {
+  failureDomain?: string;
   regularMonitoringAssigned?: boolean;
   agentId: string;
   name: string;
@@ -725,13 +726,14 @@ export interface DiagnosticExplanation {
   durationMs?: number;
   costUnits: number;
   decisions: {
-    actionId: string; agentId: string; attemptNo?: number; phase?: string;
+    actionId: string; agentId: string; failureDomain?: string; attemptNo?: number; phase?: string;
     hypothesesBefore: string[] | null; gain: number; score: number;
     executionStatus: string; probeOutcome: string;
   }[];
   confirmation?: {
     requiredActions: string[]; observedActions: string[];
     observations: number; distinctFailureDomains: number; satisfied: boolean;
+    evidenceDomains?: Record<string, string>;
   };
   blockedSteps?: string[];
   skippedSteps?: string[];

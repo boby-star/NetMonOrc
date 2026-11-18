@@ -31,7 +31,7 @@ export function Agents() {
       <h2>Агенти</h2>
       <p>
         Знімок фіксованого roster та чинних mTLS-сесій. Стан агента й
-        доступність контрольованого сервісу оцінюються окремо.
+        доступність контрольованого сервісу оцінюються окремо. Домен відмови задає Controller; невідомий домен не підтверджує незалежність.
       </p>
       <form
         onSubmit={(e) => {
@@ -86,6 +86,7 @@ export function Agents() {
               <thead>
                 <tr>
                   <th>Агент / зона</th>
+                  <th>Домен відмови</th>
                   <th>Стан / heartbeat</th>
                   <th>Регулярне призначення</th>
                   <th>Активні probes / ліміт</th>
@@ -106,6 +107,7 @@ export function Agents() {
                           "Capabilities відсутні у поточній сесії"}
                       </small>
                     </td>
+                    <td>{a.failureDomain || "Невідомий"}</td>
                     <td>
                       {labels[a.onlineState]}
                       <br />

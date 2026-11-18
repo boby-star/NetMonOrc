@@ -57,7 +57,7 @@ func (c attemptChain) execute(ctx context.Context, a Action, executor Executor, 
 		}
 		done()
 		outcome = observed
-		c.result.Decisions = append(c.result.Decisions, Decision{ActionID: a.ID, AgentID: executor.ID, HypothesesBefore: before, Gain: gain, Score: float64(gain) / a.Cost, Outcome: outcome, Phase: phase, AttemptNo: n})
+		c.result.Decisions = append(c.result.Decisions, Decision{FailureDomain: executor.FailureDomain, ActionID: a.ID, AgentID: executor.ID, HypothesesBefore: before, Gain: gain, Score: float64(gain) / a.Cost, Outcome: outcome, Phase: phase, AttemptNo: n})
 		if outcome.Execution != "execution_failed" {
 			break
 		}

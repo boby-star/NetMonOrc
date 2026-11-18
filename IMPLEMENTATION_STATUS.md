@@ -1,3 +1,12 @@
+# Controller-owned домени відмови за §2.1/§2.3 записки
+
+Додано явний -failure-domains Agent=domain для trusted roster. Немає fallback
+із zone/Agent ID: невідомі домени не підтверджують незалежність. Agent API/React
+показує поточний домен; diagnostic decisions та confirmation зберігають домени
+на момент висновку. Baseline до нового topology epoch не переінтерпретується.
+Compose та distributed fixture задають свої логічні domain IDs явно.
+[Використання, сумісність і межі](docs/deployment/failure-domains.md).
+
 # Резервування діагностичної місткості за §2.3 записки
 
 Controller атомарно ділить один diagnostic slot Agent між Monitor до списання

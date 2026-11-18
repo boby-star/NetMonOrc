@@ -58,6 +58,7 @@ func run() error {
 	cert := flag.String("cert", "", "Controller certificate")
 	key := flag.String("key", "", "Controller private key file")
 	roster := flag.String("slots", "", "fixed planned agent=zone pairs")
+	failureDomains := flag.String("failure-domains", "", "Controller-owned agent=domain pairs; omitted domains remain unknown")
 	output := flag.String("assessment-file", ".local/assessment.json", "local assessment snapshot")
 	profilePath := flag.String("diagnostic-profile", "", "referenced DiagnosticProfile file; no diagnostics without enabled binding")
 	reportPath := flag.String("diagnostic-file", ".local/diagnostic.json", "latest persisted diagnostic report")
@@ -119,6 +120,10 @@ func run() error {
 				if !registeredZones[zone] {
 					return fmt.Errorf("bootstrap zone is absent from roster")
 				}
+			}
+			domains, e := transport.ParseFailureDomains(*failureDomains, rosterSlots)
+			if e != nil {
+				return e
 			}
 			var profile diagnostics.Profile
 			b, e = os.ReadFile(*database)
@@ -302,7 +307,7 @@ func run() error {
 			}
 			defer lis.Close()
 			server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
-			agentServer := &transport.Server{Plan: p, Plans: plans, Slots: rosterSlots, Store: store}
+			agentServer := &transport.Server{Plan: p, Plans: plans, Slots: rosterSlots, FailureDomains: domains, FailureDomainsKnownAt: time.Now(), Store: store}
 			pb.RegisterAgentServiceServer(server, agentServer)
 			{
 				c, done := context.WithTimeout(ctx, 5*time.Second)

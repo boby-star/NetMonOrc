@@ -2962,6 +2962,7 @@ components:
           type: string
         failureDomain:
           type: string
+          description: Відомий Controller-owned домен відмови. Відсутній, якщо не задано; зона не підміняє домен.
         labels:
           type: object
           additionalProperties:
@@ -3158,6 +3159,10 @@ components:
           additionalProperties: false
           required: [requiredActions, observedActions, observations, distinctFailureDomains, satisfied]
           properties:
+            evidenceDomains:
+              type: object
+              additionalProperties: {type: string}
+              description: Збережені домени зарахованих доказів; порожній рядок означає невідомий домен. Legacy без цієї інформації поле не містить.
             requiredActions: {type: array, items: {type: string}}
             observedActions: {type: array, items: {type: string}}
             observations: {type: integer, minimum: 0}
@@ -3170,6 +3175,9 @@ components:
       additionalProperties: false
       required: [actionId, agentId, hypothesesBefore, gain, score, executionStatus, probeOutcome]
       properties:
+        failureDomain:
+          type: string
+          description: Controller-owned домен виконавця на момент рішення; відсутній для невідомого або legacy.
         actionId: {type: string}
         agentId: {type: string}
         attemptNo: {type: integer, minimum: 1}

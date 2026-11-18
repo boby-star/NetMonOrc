@@ -41,3 +41,5 @@ CLI використовує той самий захищений PAT context і
 відключення branch та повернення online після fenced reconnect/heartbeat.
 Попередні apply/diagnostics та regular assessment проходять у тому самому
 сценарії. Browser DOM clicks не автоматизовані; production React build пройшов.
+
+Controller-owned failureDomain і його невідомий стан: [домени відмови](failure-domains.md).

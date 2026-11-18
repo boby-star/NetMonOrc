@@ -44,3 +44,11 @@ Multi-replica aggregation typed values/metrics не вигадується: не
 [shared admission](../architecture/diagnostic-admission.md). Натурний сценарій
 підтвердив неперекривні probes та продовження regular observations.
 Глобальна FIFO fairness/HA не є заявленими можливостями цієї реалізації.
+
+## Відомі домени відмови (§2.1 та §2.3)
+
+Controller приймає явне trusted agent=domain призначення через -failure-domains.
+Невідомі домени не зараховуються як незалежні; зона не є fallback. Decisions
+та confirmation зберігають історичні домени; baseline перед новим topology
+mapping не переінтерпретується. [Контракт і сумісність](../deployment/failure-domains.md).
+Це не додає автоматичного визначення топології або placement distinctBy=failureDomain.

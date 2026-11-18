@@ -61,13 +61,15 @@ type Profile struct {
 	Steps               []Step
 }
 type Executor struct {
-	ID            string
-	Zone          string
-	FailureDomain string
-	Online        bool
-	Capacity      int
-	Active        int
-	Supported     map[string]bool
+	// Evidence before this trusted topology epoch cannot establish independence.
+	EvidenceNotBefore time.Time
+	ID                string
+	Zone              string
+	FailureDomain     string
+	Online            bool
+	Capacity          int
+	Active            int
+	Supported         map[string]bool
 }
 type Evidence struct {
 	ObservationID string
@@ -77,6 +79,7 @@ type Evidence struct {
 	Outcome       Outcome
 }
 type Decision struct {
+	FailureDomain    string   `json:"failureDomain,omitempty"`
 	AttemptNo        int      `json:"attemptNo,omitempty"`
 	Phase            string   `json:"phase,omitempty"`
 	ActionID         string   `json:"actionId"`

@@ -20,6 +20,7 @@ type Explanation struct {
 	SkippedSteps []string      `json:"skippedSteps,omitempty"`
 }
 type Decision struct {
+	FailureDomain    string   `json:"failureDomain,omitempty"`
 	ActionID         string   `json:"actionId"`
 	AgentID          string   `json:"agentId"`
 	AttemptNo        int      `json:"attemptNo,omitempty"`
@@ -31,11 +32,12 @@ type Decision struct {
 	ProbeOutcome     string   `json:"probeOutcome"`
 }
 type Confirmation struct {
-	RequiredActions        []string `json:"requiredActions"`
-	ObservedActions        []string `json:"observedActions"`
-	Observations           int      `json:"observations"`
-	DistinctFailureDomains int      `json:"distinctFailureDomains"`
-	Satisfied              bool     `json:"satisfied"`
+	EvidenceDomains        map[string]string `json:"evidenceDomains,omitempty"`
+	RequiredActions        []string          `json:"requiredActions"`
+	ObservedActions        []string          `json:"observedActions"`
+	Observations           int               `json:"observations"`
+	DistinctFailureDomains int               `json:"distinctFailureDomains"`
+	Satisfied              bool              `json:"satisfied"`
 }
 type Session struct {
 	ConfigRevision      string       `json:"configRevision,omitempty"`

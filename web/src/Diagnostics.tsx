@@ -140,7 +140,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
           <thead><tr><th>Крок / фаза</th><th>Дія / Agent / спроба</th><th>Гіпотези до кроку</th><th>Gain / score</th><th>Виконання / результат</th></tr></thead>
           <tbody>{selected.explanation.decisions.map((d, i) => <tr key={i}>
             <td>{i + 1} / {d.phase || "не збережено"}</td>
-            <td>{d.actionId}<br/>{d.agentId}<br/>{d.attemptNo ?? "не збережено"}</td>
+            <td>{d.actionId}<br/>{d.agentId}<br/>Домен: {d.failureDomain || "невідомий"}<br/>{d.attemptNo ?? "не збережено"}</td>
             <td>{d.hypothesesBefore ? d.hypothesesBefore.join(", ") || "немає" : "не збережено"}</td>
             <td>{d.gain} / {d.score}</td><td>{d.executionStatus} / {d.probeOutcome}</td>
           </tr>)}</tbody>
@@ -150,6 +150,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
           <h4>Підтвердження висновку</h4>
           <p>{selected.explanation.confirmation.satisfied ? "Умови виконано" : "Умови не виконано"}. Зарахованих спостережень: {selected.explanation.confirmation.observations}; доменів відмови: {selected.explanation.confirmation.distinctFailureDomains}.</p>
           <p>Обов’язкові дії: {selected.explanation.confirmation.requiredActions.join(", ")}. Підтверджені дії: {selected.explanation.confirmation.observedActions.join(", ") || "немає"}.</p>
+          {selected.explanation.confirmation.evidenceDomains && <ul>{Object.entries(selected.explanation.confirmation.evidenceDomains).map(([proof, domain]) => <li key={proof}><code>{proof}</code> → {domain || "домен невідомий"}</li>)}</ul>}
         </div> : <p>Окреме підтвердження не записане у звіті.</p>}
         {!!selected.explanation.blockedSteps?.length && <p>Заблоковані кроки: {selected.explanation.blockedSteps.join(", ")}</p>}
         {!!selected.explanation.skippedSteps?.length && <p>Пропущені кроки: {selected.explanation.skippedSteps.join(", ")}</p>}

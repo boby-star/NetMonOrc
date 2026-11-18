@@ -8,12 +8,13 @@ import (
 
 // ConfirmationResult describes observed evidence, never a probability.
 type ConfirmationResult struct {
-	RequiredActions        []string `json:"requiredActions"`
-	ObservedActions        []string `json:"observedActions"`
-	Observations           int      `json:"observations"`
-	DistinctFailureDomains int      `json:"distinctFailureDomains"`
-	Satisfied              bool     `json:"satisfied"`
-	CountedEvidence        []string `json:"countedEvidence"`
+	EvidenceDomains        map[string]string `json:"evidenceDomains,omitempty"`
+	RequiredActions        []string          `json:"requiredActions"`
+	ObservedActions        []string          `json:"observedActions"`
+	Observations           int               `json:"observations"`
+	DistinctFailureDomains int               `json:"distinctFailureDomains"`
+	Satisfied              bool              `json:"satisfied"`
+	CountedEvidence        []string          `json:"countedEvidence"`
 }
 type confirmationProof struct {
 	id, action, domain string
@@ -67,7 +68,7 @@ func (t *confirmationTracker) required(id string) bool {
 // Admission times are conservative upper bounds on physical completion; the
 // engine waits before dispatch, so spacing never comes from delayed delivery.
 func (t *confirmationTracker) state(h string, actions []Action, now time.Time) (*ConfirmationResult, map[string]bool, map[string]bool, time.Time) {
-	r := &ConfirmationResult{RequiredActions: append([]string(nil), t.policy.ActionRefs...), ObservedActions: []string{}, CountedEvidence: []string{}}
+	r := &ConfirmationResult{EvidenceDomains: map[string]string{}, RequiredActions: append([]string(nil), t.policy.ActionRefs...), ObservedActions: []string{}, CountedEvidence: []string{}}
 	sort.Strings(r.RequiredActions)
 	expected := map[string]string{}
 	for _, a := range actions {
@@ -91,6 +92,7 @@ func (t *confirmationTracker) state(h string, actions []Action, now time.Time) (
 		last = p.at
 		r.Observations++
 		r.CountedEvidence = append(r.CountedEvidence, p.id)
+		r.EvidenceDomains[p.id] = p.domain
 		if p.domain != "" {
 			domains[p.domain] = true
 		}

@@ -81,24 +81,51 @@ func failureRunner(_ context.Context, _ d.Action, _ d.Executor) (d.Outcome, erro
 	return d.Outcome{Execution: "completed", Outcome: "failure"}, nil
 }
 func TestConfirmationIndependentDomains(t *testing.T) {
-	for _, shared := range []bool{false, true} {
-		a := independentAgents()
-		if shared {
-			a[1].FailureDomain = a[0].FailureDomain
-		}
-		p := repeatProfile()
-		engine := d.Engine{Eligible: gate, Runner: runFunc(failureRunner)}
-		r, e := engine.Run(context.Background(), p, "adaptive", a, &d.Ledger{}, nil, "down")
-		if e != nil {
-			t.Fatal(e)
-		}
-		if shared {
-			if r.Status != "inconclusive" || r.Attempts != 1 || r.Confirmation.DistinctFailureDomains != 1 {
-				t.Fatal("shared path counted independent", r)
+	for _, domainCase := range []string{"independent", "shared", "unknown"} {
+		t.Run(domainCase, func(t *testing.T) {
+			a := independentAgents()
+			for i := range a {
+				if domainCase == "shared" {
+					a[i].FailureDomain = "shared-gateway"
+				}
+				if domainCase == "unknown" {
+					a[i].FailureDomain = ""
+				}
 			}
-		} else if r.Status != "completed" || r.Attempts != 2 || r.Decisions[0].AgentID == r.Decisions[1].AgentID {
-			t.Fatal("independent confirmation failed", r)
-		}
+			p := repeatProfile()
+			engine := d.Engine{Eligible: gate, Runner: runFunc(failureRunner)}
+			r, e := engine.Run(context.Background(), p, "adaptive", a, &d.Ledger{}, nil, "down")
+			if e != nil {
+				t.Fatal(e)
+			}
+			for _, decision := range r.Decisions {
+				if domainCase == "unknown" && decision.FailureDomain != "" {
+					t.Fatal("unknown domain invented in decision")
+				}
+			}
+			for _, domain := range r.Confirmation.EvidenceDomains {
+				if domainCase == "shared" && domain != "shared-gateway" {
+					t.Fatal("historical domain lost")
+				}
+				if domainCase == "unknown" && domain != "" {
+					t.Fatal("unknown proof domain invented")
+				}
+			}
+			switch domainCase {
+			case "independent":
+				if r.Status != "completed" || r.Attempts != 2 || r.Decisions[0].AgentID == r.Decisions[1].AgentID {
+					t.Fatal("independent confirmation failed", r)
+				}
+			case "shared", "unknown":
+				want := 1
+				if domainCase == "unknown" {
+					want = 0
+				}
+				if r.Status != "inconclusive" || r.Attempts != 1 || r.Confirmation.DistinctFailureDomains != want {
+					t.Fatal("unsupported independence counted", r)
+				}
+			}
+		})
 	}
 }
 func TestConfirmationBudgetAndUnusableEvidence(t *testing.T) {
