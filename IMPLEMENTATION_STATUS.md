@@ -5,6 +5,11 @@
 показує поточний домен; diagnostic decisions та confirmation зберігають домени
 на момент висновку. Baseline до нового topology epoch не переінтерпретується.
 Compose та distributed fixture задають свої логічні domain IDs явно.
+Натурні HTTP-fault сценарії дали: distinct → completed/2 domains,
+shared → inconclusive/1 domain, unknown → inconclusive/0 domains; по 4
+reserved checks. Збережені domain snapshots збігаються між report та API.
+Нові browser clicks не проводились, production React build пройшов.
+[Натурні докази](docs/experiments/failure-domains-2026-11-18/README.md).
 [Використання, сумісність і межі](docs/deployment/failure-domains.md).
 
 # Резервування діагностичної місткості за §2.3 записки

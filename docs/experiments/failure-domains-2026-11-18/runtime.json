@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "57f8ecbd99586ce83f0eddcddb6f6cd81cdaf050",
+  "image": "sha256:c7a5a3ad4f330d69357c911cfa7b79736dd41f4dbe23b0414dd28f3bb438f1a1",
+  "thesisSourceSHA256": "df5f9d1f6154a65713b48455d58a69c17e961f2eabab61e359f8d3610d184d8c",
+  "thesisSections": [
+    "2.1",
+    "2.3"
+  ],
+  "note": "Image built with the working code changes before their commit; fresh owned project, three Controller domain configurations."
+}

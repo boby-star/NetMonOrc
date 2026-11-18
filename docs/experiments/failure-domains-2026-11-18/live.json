@@ -1,0 +1,62 @@
+{
+  "status": "passed",
+  "twoRealAgents": true,
+  "trustedHTTPS": true,
+  "domainsFromControllerOnly": true,
+  "historicalDomainsPersistedInAPI": true,
+  "browserInteractionTested": false,
+  "cases": {
+    "distinct": {
+      "status": "completed",
+      "satisfied": true,
+      "distinctDomains": 2,
+      "observations": 4,
+      "evidenceDomains": {
+        "attempt:1": "office-path",
+        "attempt:2": "server-path",
+        "attempt:3": "server-path",
+        "attempt:4": "server-path"
+      },
+      "agentDomains": {
+        "branch": "office-path",
+        "dc": "server-path"
+      },
+      "checks": 4
+    },
+    "shared": {
+      "status": "inconclusive",
+      "satisfied": false,
+      "distinctDomains": 1,
+      "observations": 4,
+      "evidenceDomains": {
+        "attempt:1": "shared-gateway",
+        "attempt:2": "shared-gateway",
+        "attempt:3": "shared-gateway",
+        "attempt:4": "shared-gateway"
+      },
+      "agentDomains": {
+        "branch": "shared-gateway",
+        "dc": "shared-gateway"
+      },
+      "checks": 4
+    },
+    "unknown": {
+      "status": "inconclusive",
+      "satisfied": false,
+      "distinctDomains": 0,
+      "observations": 4,
+      "evidenceDomains": {
+        "attempt:1": "",
+        "attempt:2": "",
+        "attempt:3": "",
+        "attempt:4": ""
+      },
+      "agentDomains": {
+        "branch": "",
+        "dc": ""
+      },
+      "checks": 4
+    }
+  },
+  "credentialsOmitted": true
+}
