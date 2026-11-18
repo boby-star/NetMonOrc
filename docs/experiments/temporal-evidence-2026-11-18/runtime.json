@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "b32171eb48768f5cff4e73570702dd08f49866e6",
+  "image": "sha256:430aefe3fcf942e6c1e64239292ca178cca27b0e3b5f38b929b029e1fc9355f8",
+  "thesisSourceSHA256": "df5f9d1f6154a65713b48455d58a69c17e961f2eabab61e359f8d3610d184d8c",
+  "thesisSections": [
+    "2.1",
+    "2.2",
+    "2.3"
+  ],
+  "note": "Image built with working code changes before the source commit. Fresh owned project; regular probes from two mTLS Agents, diagnostic native HTTP probes on dc."
+}

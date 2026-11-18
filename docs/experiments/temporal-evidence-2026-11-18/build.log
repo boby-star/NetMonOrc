@@ -1,0 +1,118 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 791B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.30kB 0.0s done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+#5 DONE 0.0s
+
+#6 [internal] load .dockerignore
+#6 transferring context:
+#6 transferring context: 125B done
+#6 DONE 0.0s
+
+#7 [build 1/8] FROM docker.io/library/golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb
+#7 DONE 0.0s
+
+#8 [exporter 1/1] FROM docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#8 DONE 0.0s
+
+#9 [web 1/7] FROM docker.io/library/node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+#9 DONE 0.0s
+
+#10 [internal] load build context
+#10 transferring context: 38.75kB 0.1s done
+#10 DONE 0.1s
+
+#11 [build 2/8] WORKDIR /src
+#11 CACHED
+
+#12 [build 3/8] COPY go.mod go.sum ./
+#12 CACHED
+
+#13 [build 4/8] RUN --mount=type=secret,id=build_ca     if [ -s /run/secrets/build_ca ]; then SSL_CERT_FILE=/run/secrets/build_ca go mod download; else go mod download; fi
+#13 CACHED
+
+#14 [build 5/8] COPY cmd ./cmd
+#14 CACHED
+
+#15 [build 6/8] COPY internal ./internal
+#15 DONE 6.6s
+
+#16 [build 7/8] COPY proto ./proto
+#16 DONE 1.8s
+
+#17 [build 8/8] RUN --mount=type=cache,target=/root/.cache/go-build go build -trimpath -ldflags='-s -w' -o /out/controller ./cmd/netmonorc-controller &&     go build -trimpath -ldflags='-s -w' -o /out/admin ./cmd/netmonorc-admin &&     go build -trimpath -ldflags='-s -w' -o /out/agent ./cmd/netmonorc-agent &&     go build -trimpath -ldflags='-s -w' -o /out/netmonorc ./cmd/netmonorc &&     go build -trimpath -ldflags='-s -w' -o /out/experiment ./cmd/netmonorc-experiment &&     mkdir -p /runtime/data && chmod 0700 /runtime/data && chown 10001:10001 /runtime/data
+#17 DONE 9.0s
+
+#8 [exporter 1/1] FROM docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#8 CACHED
+
+#18 [web 3/7] COPY web/package.json web/package-lock.json ./
+#18 CACHED
+
+#19 [web 5/7] COPY web/index.html web/tsconfig.json ./
+#19 CACHED
+
+#20 [web 2/7] WORKDIR /web
+#20 CACHED
+
+#21 [web 4/7] RUN --mount=type=secret,id=build_ca     if [ -s /run/secrets/build_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/build_ca npm ci --ignore-scripts; else npm ci --ignore-scripts; fi
+#21 CACHED
+
+#22 [web 6/7] COPY web/src ./src
+#22 CACHED
+
+#23 [web 7/7] RUN npm run build
+#23 CACHED
+
+#24 [stage-3  1/10] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#24 CACHED
+
+#25 [stage-3  2/10] COPY --from=build --chmod=0755 /out/controller /usr/local/bin/netmonorc-controller
+#25 DONE 0.1s
+
+#26 [stage-3  3/10] COPY --from=build --chmod=0755 /out/admin /usr/local/bin/netmonorc-admin
+#26 DONE 0.1s
+
+#27 [stage-3  4/10] COPY --from=build --chmod=0755 /out/agent /usr/local/bin/netmonorc-agent
+#27 DONE 0.0s
+
+#28 [stage-3  5/10] COPY --from=build --chmod=0755 /out/netmonorc /usr/local/bin/netmonorc
+#28 DONE 0.1s
+
+#29 [stage-3  6/10] COPY --from=build --chmod=0755 /out/experiment /usr/local/bin/netmonorc-experiment
+#29 DONE 0.1s
+
+#30 [stage-3  7/10] COPY --from=exporter --chmod=0755 /bin/blackbox_exporter /usr/local/bin/blackbox_exporter
+#30 DONE 0.5s
+
+#31 [stage-3  8/10] COPY --from=build --chown=10001:10001 /runtime /
+#31 DONE 0.2s
+
+#32 [stage-3  9/10] COPY --from=web /web/dist /usr/local/share/netmonorc/web
+#32 DONE 0.2s
+
+#33 [stage-3 10/10] WORKDIR /data
+#33 DONE 0.1s
+
+#34 exporting to image
+#34 exporting layers
+#34 exporting layers 0.5s done
+#34 writing image sha256:430aefe3fcf942e6c1e64239292ca178cca27b0e3b5f38b929b029e1fc9355f8
+#34 writing image sha256:430aefe3fcf942e6c1e64239292ca178cca27b0e3b5f38b929b029e1fc9355f8 done
+#34 naming to docker.io/library/netmonorc-research:local done
+#34 DONE 0.5s
+
+#35 resolving provenance for metadata file
+#35 DONE 0.0s
+ netmonorc-research:local  Built

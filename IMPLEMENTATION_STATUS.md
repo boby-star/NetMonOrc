@@ -5,6 +5,10 @@ Runtime тепер застосовує Monitor TTL/maxSkew і до нових d
 finishedAt durable Observation. Робочі hypotheses/support і confirmation
 перевіряють latest-pair, TTL та coherent window, зберігаючи spent budget.
 Нові звіти/API/React містять policy та physical timing; legacy час не вигадується.
+Реальні probes дали completed при 20s/15s та inconclusive при 20s/5s і
+10s/15s; у кожному сценарії spent checks=2, physical finishedAt збігся з
+Observation. Go/race/vet та production React build пройшли; browser clicks
+не проводились. [Натурні докази](docs/experiments/temporal-evidence-2026-11-18/README.md).
 [Алгоритм і межі](docs/architecture/diagnostic-evidence-window.md).
 
 # Controller-owned домени відмови за §2.1/§2.3 записки

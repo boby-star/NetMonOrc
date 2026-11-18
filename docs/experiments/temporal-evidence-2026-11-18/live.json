@@ -1,0 +1,151 @@
+{
+  "status": "passed",
+  "trustedHTTPS": true,
+  "realPostgreSQLAndAgentProbes": true,
+  "physicalCompletionMatchesObservation": true,
+  "budgetNeverRefunded": true,
+  "browserInteractionTested": false,
+  "cases": {
+    "coherent": {
+      "state": "completed",
+      "hypotheses": [
+        "class-a"
+      ],
+      "usedChecks": 2,
+      "evidencePolicy": {
+        "maxAgeMs": 20000,
+        "maxSkewMs": 15000
+      },
+      "decisions": [
+        {
+          "observationId": "8c7e2aa2de502116a4f02a759b1914e0",
+          "finishedAt": "2026-11-18T19:05:28.336709894Z",
+          "validUntil": "2026-11-18T19:05:48.336709894Z",
+          "failureDomain": "server-path",
+          "actionId": "early",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "class-a",
+            "class-b"
+          ],
+          "gain": 1,
+          "score": 1,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        },
+        {
+          "observationId": "e5d1c2657ec5d07621f9a86db8aca689",
+          "finishedAt": "2026-11-18T19:05:41.216428429Z",
+          "validUntil": "2026-11-18T19:06:01.216428429Z",
+          "failureDomain": "server-path",
+          "actionId": "late",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "class-a"
+          ],
+          "gain": 0,
+          "score": 0,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        }
+      ]
+    },
+    "maxSkew": {
+      "state": "inconclusive",
+      "hypotheses": [
+        "class-a",
+        "class-b"
+      ],
+      "usedChecks": 2,
+      "evidencePolicy": {
+        "maxAgeMs": 20000,
+        "maxSkewMs": 5000
+      },
+      "decisions": [
+        {
+          "observationId": "60df2204105d55dd137e3325120229ce",
+          "finishedAt": "2026-11-18T19:05:52.61671481Z",
+          "validUntil": "2026-11-18T19:06:12.61671481Z",
+          "failureDomain": "server-path",
+          "actionId": "early",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "class-a",
+            "class-b"
+          ],
+          "gain": 1,
+          "score": 1,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        },
+        {
+          "observationId": "bd61daf3d5cc6f850aca2223036a0ee6",
+          "finishedAt": "2026-11-18T19:06:05.623972018Z",
+          "validUntil": "2026-11-18T19:06:25.623972018Z",
+          "failureDomain": "server-path",
+          "actionId": "late",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "class-a"
+          ],
+          "gain": 0,
+          "score": 0,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        }
+      ]
+    },
+    "TTL": {
+      "state": "inconclusive",
+      "hypotheses": [
+        "class-a",
+        "class-b"
+      ],
+      "usedChecks": 2,
+      "evidencePolicy": {
+        "maxAgeMs": 10000,
+        "maxSkewMs": 15000
+      },
+      "decisions": [
+        {
+          "observationId": "8b1c5c96e15779bb4d0128d742b0320a",
+          "finishedAt": "2026-11-18T19:06:17.923410307Z",
+          "validUntil": "2026-11-18T19:06:27.923410307Z",
+          "failureDomain": "server-path",
+          "actionId": "early",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "class-a",
+            "class-b"
+          ],
+          "gain": 1,
+          "score": 1,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        },
+        {
+          "observationId": "bd09e733816c3508fed29e00ad1e3d2c",
+          "finishedAt": "2026-11-18T19:06:30.038480252Z",
+          "validUntil": "2026-11-18T19:06:40.038480252Z",
+          "failureDomain": "server-path",
+          "actionId": "late",
+          "agentId": "dc",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "class-a"
+          ],
+          "gain": 0,
+          "score": 0,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        }
+      ]
+    }
+  },
+  "credentialsOmitted": true
+}

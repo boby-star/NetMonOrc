@@ -52,3 +52,12 @@ Controller приймає явне trusted agent=domain призначення �
 та confirmation зберігають історичні домени; baseline перед новим topology
 mapping не переінтерпретується. [Контракт і сумісність](../deployment/failure-domains.md).
 Це не додає автоматичного визначення топології або placement distinctBy=failureDomain.
+
+## Часова придатність діагностичних доказів (§2.1–2.3)
+
+Після додаткової звірки закрито накопичення нових diagnostic proofs без
+спільного TTL/maxSkew: [часове вікно](../architecture/diagnostic-evidence-window.md).
+Планувальник і confirmation використовують фізичний час записаного Observation,
+latest-pair semantics і зберігають budget після відкидання доказів. Нові report,
+API та React показують policy/timing; legacy timestamps не реконструюються.
+[Три натурні сценарії](../experiments/temporal-evidence-2026-11-18/README.md).
