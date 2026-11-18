@@ -268,7 +268,7 @@ func substitute(raw json.RawMessage, parameters map[string]ProfileParameter, val
 	return json.Marshal(check)
 }
 func validateProfileCheck(raw json.RawMessage) error {
-	document := map[string]any{"apiVersion": "netmonorc.io/v1alpha1", "kind": "Monitor", "metadata": map[string]string{"name": "profile-validation"}, "spec": map[string]any{"target": map[string]string{"address": "192.0.2.1"}, "checks": []json.RawMessage{raw}, "assessment": map[string]any{"requiredZones": []string{"validation"}}}}
+	document := map[string]any{"apiVersion": "netmonorc.io/v1alpha1", "kind": "Monitor", "metadata": map[string]string{"name": "profile-validation"}, "spec": map[string]any{"enabled": false, "target": map[string]string{"address": "192.0.2.1"}, "checks": []json.RawMessage{raw}, "assessment": map[string]any{"requiredZones": []string{"validation"}}}}
 	data, err := json.Marshal(document)
 	if err != nil {
 		return err

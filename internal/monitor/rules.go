@@ -50,6 +50,9 @@ var ruleID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 var ruleReason = regexp.MustCompile(`^[A-Z0-9_]+$`)
 
 func NewAssessor(p Plan) (*Assessor, error) {
+	if p.DefaultState != "" && p.DefaultState != "unknown" && p.DefaultState != "healthy" && p.DefaultState != "degraded" && p.DefaultState != "down" {
+		return nil, fmt.Errorf("invalid defaultState")
+	}
 	if p.ZoneAggregation != "" && p.ZoneAggregation != "all-required" && p.ZoneAggregation != "any" {
 		return nil, fmt.Errorf("invalid zone aggregation")
 	}

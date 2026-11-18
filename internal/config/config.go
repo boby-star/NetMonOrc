@@ -25,8 +25,12 @@ type Manifest struct {
 		Name string `yaml:"name"`
 	} `yaml:"metadata"`
 	Spec struct {
-		Target struct {
-			Address string `yaml:"address"`
+		Enabled *bool `yaml:"enabled"`
+		Target  struct {
+			Type        string `yaml:"type"`
+			NetworkZone string `yaml:"networkZone"`
+			Criticality *int   `yaml:"criticality"`
+			Address     string `yaml:"address"`
 		} `yaml:"target"`
 		Checks      []checkSpec            `yaml:"checks"`
 		Assessment  assessmentSpec         `yaml:"assessment"`
@@ -34,6 +38,9 @@ type Manifest struct {
 	} `yaml:"spec"`
 }
 type checkSpec struct {
+	Enabled  *bool         `yaml:"enabled"`
+	Priority *int          `yaml:"priority"`
+	Jitter   string        `yaml:"jitter"`
 	Extract  []extractSpec `yaml:"extract"`
 	ID       string        `yaml:"id"`
 	Type     string        `yaml:"type"`
@@ -131,7 +138,35 @@ func Compile(data []byte) (monitor.Plan, error) {
 		return p, fmt.Errorf("spec.target.address is required")
 	}
 	p.Name = m.Metadata.Name
+	p.Disabled = m.Spec.Enabled != nil && !*m.Spec.Enabled
 	p.TargetAddress = m.Spec.Target.Address
+	if t := m.Spec.Target.Type; t != "" {
+		switch t {
+		case "host", "network-device", "service", "endpoint", "logical":
+		default:
+			return p, fmt.Errorf("spec.target.type is unsupported")
+		}
+	}
+	if len(m.Spec.Target.NetworkZone) > 63 {
+		return p, fmt.Errorf("spec.target.networkZone exceeds 63 bytes")
+	}
+	criticality := 3
+	if m.Spec.Target.Criticality != nil {
+		criticality = *m.Spec.Target.Criticality
+	}
+	if criticality < 1 || criticality > 5 {
+		return p, fmt.Errorf("spec.target.criticality must be within 1..5")
+	}
+	if (m.Spec.Target.Type != "" && m.Spec.Target.Type != "endpoint") || (m.Spec.Target.NetworkZone != "" && m.Spec.Target.NetworkZone != "unspecified") || criticality != 3 {
+		typ, zone := m.Spec.Target.Type, m.Spec.Target.NetworkZone
+		if typ == "" {
+			typ = "endpoint"
+		}
+		if zone == "" {
+			zone = "unspecified"
+		}
+		p.TargetContext = &monitor.TargetContext{Type: typ, NetworkZone: zone, Criticality: criticality, Labels: map[string]string{}}
+	}
 	if m.Spec.Diagnostics != nil {
 		var err error
 		p.Diagnostics, err = compileBinding(*m.Spec.Diagnostics)
@@ -146,8 +181,11 @@ func Compile(data []byte) (monitor.Plan, error) {
 	if a.SameZoneAggregation == "any" || a.SameZoneAggregation == "quorum" {
 		p.SameZoneAggregation = a.SameZoneAggregation
 	}
-	if a.DefaultState != "" && a.DefaultState != "unknown" {
-		return p, fmt.Errorf("only defaultState=unknown is implemented")
+	if a.DefaultState != "" && a.DefaultState != "unknown" && a.DefaultState != "healthy" && a.DefaultState != "degraded" && a.DefaultState != "down" {
+		return p, fmt.Errorf("invalid assessment.defaultState")
+	}
+	if a.DefaultState != "unknown" {
+		p.DefaultState = a.DefaultState
 	}
 	if a.ZoneAggregation != "" && a.ZoneAggregation != "all-required" && a.ZoneAggregation != "any" {
 		return p, fmt.Errorf("zoneAggregation must be all-required or any")
@@ -157,7 +195,7 @@ func Compile(data []byte) (monitor.Plan, error) {
 		p.ZoneAggregation = "any"
 	}
 	if a.Weighted.Enabled != nil && !*a.Weighted.Enabled {
-		return p, fmt.Errorf("weighted.enabled=false is not implemented")
+		p.WeightedDisabled = true
 	}
 	var e error
 	if p.MinCoverage, e = number(a.MinCoverage, 1); e != nil {
@@ -188,6 +226,9 @@ func Compile(data []byte) (monitor.Plan, error) {
 	}
 	sort.Strings(p.Zones)
 	seen = map[string]bool{}
+	if len(m.Spec.Checks) > 100 {
+		return p, fmt.Errorf("at most 100 checks per Monitor")
+	}
 	var ttl, maxInterval time.Duration
 	for i, c := range m.Spec.Checks {
 		if !idPattern.MatchString(c.ID) || seen[c.ID] {
@@ -210,6 +251,23 @@ func Compile(data []byte) (monitor.Plan, error) {
 		if x.Interval < 10*time.Second || x.Interval > 24*time.Hour || x.Timeout < 100*time.Millisecond || x.Timeout > 60*time.Second || x.Timeout >= x.Interval {
 			return p, fmt.Errorf("check %s: invalid interval or timeout", c.ID)
 		}
+		if c.Priority != nil {
+			if *c.Priority < 1 || *c.Priority > 100 {
+				return p, fmt.Errorf("spec.checks[%d].priority must be within 1..100", i)
+			}
+			if *c.Priority != 50 {
+				x.Priority = *c.Priority
+			}
+		}
+		if c.Jitter != "" && c.Jitter != "0s" && c.Jitter != "0ms" {
+			x.Jitter, e = duration(c.Jitter, 0)
+			if e != nil || x.Jitter > x.Interval/4 {
+				return p, fmt.Errorf("spec.checks[%d].jitter must be within 0..interval/4", i)
+			}
+		}
+		if c.Enabled != nil && !*c.Enabled {
+			continue
+		}
 		age := max(3*x.Interval, x.Interval+2*x.Timeout)
 		x.MaxAge = age
 		ttl = max(ttl, age)
@@ -219,8 +277,11 @@ func Compile(data []byte) (monitor.Plan, error) {
 	if len(p.Checks) > 100 {
 		return p, fmt.Errorf("research slice supports at most 100 checks per Monitor")
 	}
-	if len(p.Checks) == 0 {
+	if len(p.Checks) == 0 && !p.Disabled {
 		return p, fmt.Errorf("checks cannot be empty")
+	}
+	if ttl == 0 {
+		ttl = 30 * time.Second
 	}
 	if p.MaxAge, e = duration(a.Freshness.MaxAge, ttl); e != nil {
 		return p, e
@@ -279,7 +340,7 @@ func Compile(data []byte) (monitor.Plan, error) {
 	for _, c := range p.Checks {
 		total += c.Weight
 	}
-	if total == 0 {
+	if total == 0 && !p.Disabled {
 		return p, fmt.Errorf("assessment weights sum to zero")
 	}
 	for j := range p.Checks {

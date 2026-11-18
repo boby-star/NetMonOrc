@@ -34,6 +34,8 @@ Admin-панель підтримує [керування користувача
 збережена конфігурація доходить до агентів та визначає новий Assessment.
 [Batch apply та operations](docs/deployment/batch-apply.md) підтримують атомарні
 пакети, idempotency та підтвердження застосування агентами.
+[YAML controls і валідація](docs/deployment/yaml-controls.md): enabled, priority/jitter,
+канонічні діагностичні hashes та offline multi-document validate.
 [Remote CLI](docs/deployment/remote-cli.md) має validate/plan/apply --wait
 і читання Monitor/операцій через PAT.
 [diagnostics.enabled](docs/deployment/diagnostic-toggle.md) перемикається

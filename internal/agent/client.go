@@ -156,7 +156,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	for _, cidr := range allowed {
 		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "target-cidr:"+cidr.Masked().String())
 	}
@@ -397,6 +397,7 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 	tick := time.NewTicker(250 * time.Millisecond)
 	defer tick.Stop()
 	next := map[string]time.Time{}
+	attempts := map[string]uint64{}
 	type cached struct {
 		exporter *probe.Exporter
 		used     time.Time
@@ -436,18 +437,20 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 			revision, _, _ := strings.Cut(key, "/")
 			if !live[revision] {
 				delete(next, key)
+				delete(attempts, key)
 			}
 		}
-		for _, a := range assignments {
-			if !leaseValid(a) || spool.Full() || !a.plan.RegularAllowed(id) {
-				continue
-			}
-			for _, c := range a.plan.Checks {
+		for _, job := range dueRegular(assignments, id, next, time.Now()) {
+			a, c := job.assignment, job.check
+			{
 				if ctx.Err() != nil {
 					return nil
 				}
-				if spool.Full() || !leaseValid(a) {
+				if spool.Full() {
 					break
+				}
+				if !leaseValid(a) {
+					continue
 				}
 				key := a.plan.Revision + "/" + c.ID
 				if time.Now().Before(next[key]) {
@@ -456,7 +459,8 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 				if !spool.Reserve() {
 					break
 				}
-				next[key] = time.Now().Add(c.Interval)
+				next[key] = time.Now().Add(c.Interval + scheduleJitter(id, key, attempts[key]+1, c.Jitter))
+				attempts[key]++
 				child, cancel := context.WithDeadline(ctx, a.deadline)
 				slot := monitor.Slot{Agent: id, Zone: a.zone}
 				var o monitor.Observation

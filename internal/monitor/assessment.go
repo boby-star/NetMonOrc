@@ -19,6 +19,12 @@ func Evaluate(p Plan, slots []Slot, history []Observation, now time.Time) (Asses
 func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time.Time) (Assessment, error) {
 	p := assessor.plan
 	a := Assessment{Monitor: p.Name, Revision: p.Revision, At: now, State: "unknown"}
+	if p.Disabled {
+		for _, zone := range p.Zones {
+			a.Zones = append(a.Zones, ZoneAssessment{Zone: zone, State: "unknown", Coverage: "coverage_degraded", Evidence: []string{}, Reason: "monitor_disabled"})
+		}
+		return a, nil
+	}
 	if err := assessor.ValidateSources(slots); err != nil {
 		return a, err
 	}
@@ -173,6 +179,12 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 		case !coherent:
 			z.Reason = "missing_or_incoherent_evidence"
 		case requiredMissing || z.Q < p.MinCoverage || z.H == nil:
+		case p.WeightedDisabled:
+			z.State = p.DefaultState
+			if z.State == "" {
+				z.State = "unknown"
+			}
+			z.Reason = "default_state"
 		case *z.H < p.DegradedMin:
 			z.State = "down"
 			z.Reason = "weighted_failure"

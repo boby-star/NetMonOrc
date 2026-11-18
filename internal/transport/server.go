@@ -121,6 +121,13 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
+		controls := plan.Disabled || plan.WeightedDisabled || plan.DefaultState != "" || (plan.TargetContext != nil && plan.TargetRef == "")
+		for _, c := range plan.Checks {
+			controls = controls || c.Priority != 0 || c.Jitter != 0
+		}
+		if controls && !capabilities["yaml:controls-v1"] {
+			return status.Error(codes.FailedPrecondition, "YAML controls capability required")
+		}
 		if (plan.SameZoneAggregation != "" || len(plan.ReplicaSources()) > 1 || (plan.FixedPlacement != nil && plan.FixedPlacement.DistinctBy != "")) && !capabilities["assessment:replicas"] {
 			return status.Error(codes.FailedPrecondition, "replica assessment capability required")
 		}

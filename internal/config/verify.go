@@ -25,7 +25,7 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 		return e
 	}
 	sum := sha256.Sum256(b)
-	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || len(p.Checks) == 0 || len(p.Checks) > 100 {
+	if revision != hex.EncodeToString(sum[:]) || !namePattern.MatchString(p.Name) || (len(p.Checks) == 0 && !p.Disabled) || len(p.Checks) > 100 {
 		return fmt.Errorf("invalid plan revision or size")
 	}
 	if err := dependency.ValidateGraph(p.Dependencies, nil); err != nil {
@@ -40,7 +40,7 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 		default:
 			return fmt.Errorf("invalid Target context type")
 		}
-		if p.TargetRef == "" || context.Criticality < 1 || context.Criticality > 5 {
+		if context.Criticality < 1 || context.Criticality > 5 || len(context.NetworkZone) > 63 {
 			return fmt.Errorf("invalid Target context binding")
 		}
 	}
@@ -112,6 +112,9 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 			return fmt.Errorf("invalid check identity or runner")
 		}
 		seen[c.ID] = true
+		if c.Priority < 0 || c.Priority > 100 || c.Jitter < 0 || c.Jitter > c.Interval/4 {
+			return fmt.Errorf("invalid check priority/jitter")
+		}
 		if c.Timeout < 100*time.Millisecond || c.Timeout > 60*time.Second || c.Interval < 10*time.Second || c.Interval > 24*time.Hour || c.Timeout >= c.Interval || c.MaxAge < c.Interval {
 			return fmt.Errorf("invalid check limits")
 		}
@@ -124,7 +127,7 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 		}
 		total += c.Weight
 	}
-	if total <= 0 {
+	if total <= 0 && !p.Disabled {
 		return fmt.Errorf("zero total weight")
 	}
 	_, e = monitor.NewAssessor(p)

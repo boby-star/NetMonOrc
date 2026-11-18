@@ -50,13 +50,8 @@ func Decode(data []byte) (Manifest, error) {
 	if len(data) > 1<<20 {
 		return m, fmt.Errorf("resource exceeds 1 MiB")
 	}
-	d := json.NewDecoder(bytes.NewReader(data))
-	d.DisallowUnknownFields()
-	if err := d.Decode(&m); err != nil {
+	if err := DecodeJSON(data, &m); err != nil {
 		return m, fmt.Errorf("invalid resource envelope: %w", err)
-	}
-	if d.Decode(new(yaml.Node)) != io.EOF {
-		return m, fmt.Errorf("one resource required")
 	}
 	return m, nil
 }

@@ -1,0 +1,41 @@
+package main
+import("encoding/json";"fmt";"os";"bytes";"strings";"sort";"github.com/boby-star/NetMonOrc/internal/resources";"github.com/boby-star/NetMonOrc/internal/monitor";"github.com/boby-star/NetMonOrc/internal/config";"github.com/boby-star/NetMonOrc/internal/diagnostics")
+type finding struct{Name string `json:"name"`;Accepted bool `json:"accepted"`;Error string `json:"error,omitempty"`;Revision string `json:"revision,omitempty"`}
+func main(){
+ out:=[]finding{}
+ r:=resources.Registry{Zones:[]string{"office","server"},Roster:[]monitor.Slot{{Agent:"branch",Zone:"office"},{Agent:"dc",Zone:"server"}}}
+ original,_:=os.ReadFile("deployment/lab/monitor.yaml")
+ m,e:=resources.DecodeYAML(original);if e!=nil{panic(e)}
+ var spec map[string]any;json.Unmarshal(m.Spec,&spec);delete(spec,"diagnostics");m.Spec,_=json.Marshal(spec)
+ raw,_:=json.Marshal(m)
+ compile:=func(name string,m resources.Manifest){c,e:=r.CompileResource(m);f:=finding{Name:name,Accepted:e==nil,Revision:c.Revision};if e!=nil{f.Error=e.Error()};out=append(out,f)}
+ mutate:=func(name string,f func(map[string]any)){var v map[string]any;json.Unmarshal(raw,&v);f(v["spec"].(map[string]any));b,_:=json.Marshal(v);x,e:=resources.Decode(b);if e!=nil{out=append(out,finding{Name:name,Error:e.Error()});return};compile(name,x)}
+ compile("supported regular Monitor",m)
+ mutate("check order reversed",func(s map[string]any){x:=s["checks"].([]any);sort.Slice(x,func(i,j int)bool{return x[i].(map[string]any)["id"].(string)>x[j].(map[string]any)["id"].(string)})})
+ mutate("Monitor.enabled=false",func(s map[string]any){s["enabled"]=false})
+ mutate("Check.enabled=false",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["enabled"]=false})
+ mutate("Check.priority=80",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["priority"]=80})
+ mutate("Check.jitter=1s",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["jitter"]="1s"})
+ mutate("Check.placement override",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["placement"]=map[string]any{"agentRefs":[]string{"branch"},"strategy":"fixed"}})
+ mutate("Check.fallback enabled",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["fallback"]=map[string]any{"enabled":true,"on":[]string{"runner_unavailable"},"strategy":"same-zone","maxAttempts":1}})
+ mutate("weighted.enabled=false",func(s map[string]any){s["assessment"].(map[string]any)["weighted"]=map[string]any{"enabled":false}})
+ mutate("placement selector",func(s map[string]any){s["placement"]=map[string]any{"selector":map[string]any{"matchLabels":map[string]string{"role":"probe"}}}})
+ mutate("distinctBy=failureDomain",func(s map[string]any){s["placement"]=map[string]any{"distinctBy":"failureDomain"}})
+ mutate("placement=leastLoaded",func(s map[string]any){s["placement"]=map[string]any{"strategy":"leastLoaded","replicas":1}})
+ mutate("HTTP connectIP",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["config"].(map[string]any)["connectIP"]="198.18.0.80"})
+ mutate("HTTP followRedirects=true",func(s map[string]any){s["checks"].([]any)[0].(map[string]any)["config"].(map[string]any)["followRedirects"]=true})
+ for _,kind:=range []string{"Target","Monitor","CheckProfile","PlacementPolicy","AssessmentPolicy","DiagnosticProfile","AlertRule","ResourceGroup","Dependency","Component","WebhookEndpoint"}{out=append(out,finding{Name:"supported kind: "+kind,Accepted:resources.Supported(kind)})}
+ profileRaw,_:=os.ReadFile("deployment/lab/adaptive.yaml")
+ p,_:=resources.DecodeYAML(profileRaw);compile("supported adaptive profile",p)
+
+ profile1,_:=config.CompileDiagnostics(profileRaw);h1,_:=config.DiagnosticProfileHash(profile1)
+ shuffled:=profile1;shuffled.Actions=append([]diagnostics.Action(nil),profile1.Actions...);sort.Slice(shuffled.Actions,func(i,j int)bool{return shuffled.Actions[i].ID>shuffled.Actions[j].ID});h2,_:=config.DiagnosticProfileHash(shuffled)
+ out=append(out,finding{Name:"reordered equivalent adaptive actions keep revision",Accepted:h1==h2,Error:fmt.Sprintf("before=%s after=%s",h1,h2)})
+var ps map[string]any;json.Unmarshal(p.Spec,&ps);ps["adaptive"].(map[string]any)["maxNoGainSteps"]=1;p.Spec,_=json.Marshal(ps);compile("adaptive.maxNoGainSteps=1",p)
+ pm,_:=resources.DecodeYAML(profileRaw);json.Unmarshal(pm.Spec,&ps);ps["adaptive"].(map[string]any)["maxNoGainSteps"]=0;ps["budget"].(map[string]any)["maxEstimatedBytes"]=4096;pm.Spec,_=json.Marshal(ps);compile("live maxEstimatedBytes=4096",pm)
+ dsl,_:=os.ReadFile("NetMonOrc_DSL_Schema_v1alpha1.md");part:=strings.Split(string(dsl),"### 23.1.")[1];example:=strings.Split(strings.Split(part,"```yaml\n")[1],"```")[0];x,e:=resources.DecodeYAML([]byte(example));if e!=nil{panic(e)};compile("normative DSL example 23.1 unchanged",x)
+ syntax:=map[string]string{"duplicate keys":"kind: Monitor\nkind: Target\n","NaN":"spec: {a: .nan}\n","alias cycle":"spec: &a {x: *a}\n","YAML merge":"spec: {<<: {a: 1}}\n"}
+ for name,s:=range syntax{_,e:=resources.DecodeYAML([]byte(s));v:=finding{Name:name,Accepted:e==nil};if e!=nil{v.Error=e.Error()};out=append(out,v)}
+ local,_:=config.Compile(original);repeat,_:=config.Compile(original);out=append(out,finding{Name:"same local input produces identical plan revision",Accepted:local.Revision!="" && local.Revision==repeat.Revision})
+ encoded,_:=json.MarshalIndent(out,"","  ");fmt.Println(string(bytes.TrimSpace(encoded)))
+}

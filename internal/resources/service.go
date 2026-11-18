@@ -79,6 +79,12 @@ func (s *Service) Status(v View, activeRevision string) View {
 			status.Conditions[0] = Condition{Type: "Reconciled", Status: "True", Reason: "controller_loaded"}
 		}
 	}
+	var controls struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if json.Unmarshal(v.Manifest.Spec, &controls) == nil && controls.Enabled != nil && !*controls.Enabled {
+		status.State = "disabled"
+	}
 	v.Status = status
 	return v
 }

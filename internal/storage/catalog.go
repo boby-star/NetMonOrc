@@ -138,6 +138,23 @@ func (s *Store) LoadRuntime(ctx context.Context, base resources.Registry) (resou
 	if err != nil {
 		return base, nil, err
 	}
+	// Compiler upgrades may canonicalize an existing profile differently. Refresh
+	// its derived hash in the same transaction as dependent Monitor revisions;
+	// retain source versions and historical sessions, which describe older code.
+	keys := make([]string, 0, len(compiled))
+	for key := range compiled {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		entry := compiled[key]
+		if entry.Profile == nil {
+			continue
+		}
+		if _, err = tx.Exec(ctx, `UPDATE nmo_resources SET effective_revision=$2 WHERE kind='DiagnosticProfile' AND name=$1 AND effective_revision<>$2`, entry.Profile.Name, entry.Revision); err != nil {
+			return base, nil, err
+		}
+	}
 	if _, err = refreshDependents(ctx, tx, compiled, nil); err != nil {
 		return base, nil, err
 	}

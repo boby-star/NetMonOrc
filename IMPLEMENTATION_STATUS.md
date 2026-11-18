@@ -1,3 +1,21 @@
+# YAML controls, канонізація та єдина валідація
+
+DiagnosticProfile hash більше не залежить від порядку actions/hypotheses/
+steps/dependsOn; порядок fixed agentRefs збережено. Offline CLI validate
+використовує registry, multi-document/ref resolution та stdin; видає validation
+summary, не готовий виконуваний Plan. JSON duplicate keys блокуються до decode.
+Додано inline target context, Monitor/check enabled, regular priority/jitter,
+unweighted/defaultState з required/coverage guards і maxNoGainSteps=0..5.
+Старі default Plan hashes збережено. Upgrade refresh не переписує source
+version/generation/history. [Контракт і точний залишок](docs/deployment/yaml-controls.md).
+
+Натурний mTLS/PG/HTTPS сценарій підтвердив незмінний hash після перестановки,
+healthy/complete без disabled DNS, production CLI stdin validate, disabled
+Monitor без probes і manual diagnostic, відновлення healthy. Окремий restart
+підтвердив repair похідного hash без зміни джерела. Go/race/vet та production
+React build пройшли; нових browser clicks не було. [Докази](docs/experiments/yaml-controls-2026-11-18/README.md).
+Повну реалізацію решти полів старого ТЗ не оголошено.
+
 # Початкові регулярні докази діагностики (§2.1–2.3)
 
 Нові звіти зберігають baseline Observation з action/check відповідністю,

@@ -2515,7 +2515,7 @@ components:
       properties:
         state:
           type: string
-          description: Поточний зріз — active/pending для Monitor або stored для DiagnosticProfile, окремо від Assessment state.
+          description: Поточний зріз — active/pending/disabled для Monitor або stored для DiagnosticProfile, окремо від Assessment state.
         desiredRevision:
           type: string
         assignedRevisions:

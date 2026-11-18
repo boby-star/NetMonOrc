@@ -46,14 +46,9 @@ func resourceJSON(w http.ResponseWriter, r *http.Request, in any) bool {
 		failure(w, 400, "INVALID_ARGUMENT", "JSON required")
 		return false
 	}
-	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
-	d.DisallowUnknownFields()
-	if err = d.Decode(in); err != nil {
-		failure(w, 400, "INVALID_ARGUMENT", "Invalid resource request")
-		return false
-	}
-	if d.Decode(new(any)) != io.EOF {
-		failure(w, 400, "INVALID_ARGUMENT", "One request required")
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err != nil || resources.DecodeJSON(data, in) != nil {
+		failure(w, 400, "INVALID_ARGUMENT", "Invalid, duplicate or unknown resource field")
 		return false
 	}
 	return true

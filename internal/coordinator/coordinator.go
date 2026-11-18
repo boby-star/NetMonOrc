@@ -49,6 +49,9 @@ func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store
 	return &Coordinator{Plan: p, Profile: profile, Server: s, Store: store, ReportPath: path, trigger: t, errors: make(chan error, 1)}, nil
 }
 func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observations []monitor.Observation) error {
+	if c.Plan.Disabled {
+		return nil
+	}
 	select {
 	case e := <-c.errors:
 		return e

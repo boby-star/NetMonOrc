@@ -112,24 +112,35 @@ func scalarTypes(n *yaml.Node, t reflect.Type) error {
 		if n.Kind != yaml.MappingNode {
 			return fmt.Errorf("expected mapping")
 		}
+		seen := map[string]bool{}
 		for i := 0; i < len(n.Content); i += 2 {
+			key := n.Content[i].Value
+			if n.Content[i].Tag != "!!str" || seen[key] {
+				return fmt.Errorf("%s: duplicate or non-string key", key)
+			}
+			seen[key] = true
+			found := false
 			for j := 0; j < t.NumField(); j++ {
 				f := t.Field(j)
 				if strings.Split(f.Tag.Get("yaml"), ",")[0] == n.Content[i].Value {
+					found = true
 					if e := scalarTypes(n.Content[i+1], f.Type); e != nil {
 						return fmt.Errorf("%s: %w", n.Content[i].Value, e)
 					}
 					break
 				}
 			}
+			if !found {
+				return fmt.Errorf("%s: unknown field (line %d)", key, n.Content[i].Line)
+			}
 		}
 	case reflect.Slice:
 		if n.Kind != yaml.SequenceNode {
 			return fmt.Errorf("expected list")
 		}
-		for _, x := range n.Content {
+		for i, x := range n.Content {
 			if e := scalarTypes(x, t.Elem()); e != nil {
-				return e
+				return fmt.Errorf("[%d]: %w", i, e)
 			}
 		}
 	case reflect.String:

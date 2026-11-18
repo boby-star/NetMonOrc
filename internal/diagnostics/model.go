@@ -51,6 +51,7 @@ type Confirmation struct {
 	MinSpacing                time.Duration
 }
 type Profile struct {
+	MaxNoGainSteps      int           `json:",omitempty"`
 	Confirmation        *Confirmation `json:",omitempty"`
 	ContinueAfterUnique bool          `json:",omitempty"`
 	Name                string
@@ -141,6 +142,7 @@ type Ledger struct {
 	EstimatedBytes    int64
 	policy            *Budget
 	adaptiveAttempted map[string]bool
+	noGainSteps       int
 }
 type Runner interface {
 	Execute(context.Context, Action, Executor) (Outcome, error)

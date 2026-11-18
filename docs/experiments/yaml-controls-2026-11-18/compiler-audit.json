@@ -1,0 +1,165 @@
+[
+  {
+    "name": "supported regular Monitor",
+    "accepted": true,
+    "revision": "f3f3eea88cc76fb3239d3f226973b3ca9c1f99f3ede975c349678c05d2b396ba"
+  },
+  {
+    "name": "check order reversed",
+    "accepted": true,
+    "revision": "f3f3eea88cc76fb3239d3f226973b3ca9c1f99f3ede975c349678c05d2b396ba"
+  },
+  {
+    "name": "Monitor.enabled=false",
+    "accepted": true,
+    "revision": "3d0d961e3d7ce72351d071b424bb9a86a212a7868f18582803ccb6352cf543d9"
+  },
+  {
+    "name": "Check.enabled=false",
+    "accepted": false,
+    "error": "assessment.checks must cover every check"
+  },
+  {
+    "name": "Check.priority=80",
+    "accepted": true,
+    "revision": "82ebc1b2db4c03714f74b822752c3d85559a497d50b91507befdcb2555127524"
+  },
+  {
+    "name": "Check.jitter=1s",
+    "accepted": true,
+    "revision": "904852400724d3e7d0c8d83f6dfb5062c6bef522d0df4ce9b808acd2f445a2c7"
+  },
+  {
+    "name": "Check.placement override",
+    "accepted": false,
+    "error": "spec: checks: [0]: placement: unknown field (line 1)"
+  },
+  {
+    "name": "Check.fallback enabled",
+    "accepted": false,
+    "error": "spec: checks: [0]: fallback: unknown field (line 1)"
+  },
+  {
+    "name": "weighted.enabled=false",
+    "accepted": true,
+    "revision": "2c7dd7726ceccd382ef42dea01e2006434c681228481164acc2f0a5752bdc0b9"
+  },
+  {
+    "name": "placement selector",
+    "accepted": false,
+    "error": "regular selectors require Controller-managed Agent labels"
+  },
+  {
+    "name": "distinctBy=failureDomain",
+    "accepted": false,
+    "error": "failureDomain placement requires a trusted domain registry"
+  },
+  {
+    "name": "placement=leastLoaded",
+    "accepted": true,
+    "revision": "3e34edbda089d6fa24f2efd437f6c25d7cf94d156681c91fd4c703a39c37c720"
+  },
+  {
+    "name": "HTTP connectIP",
+    "accepted": false,
+    "error": "spec.checks[0] (http): connectIP: unknown field (line 1)"
+  },
+  {
+    "name": "HTTP followRedirects=true",
+    "accepted": false,
+    "error": "spec.checks[0] (http): redirects and disabled TLS verification are not supported"
+  },
+  {
+    "name": "supported kind: Target",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: Monitor",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: CheckProfile",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: PlacementPolicy",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: AssessmentPolicy",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: DiagnosticProfile",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: AlertRule",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: ResourceGroup",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: Dependency",
+    "accepted": true
+  },
+  {
+    "name": "supported kind: Component",
+    "accepted": false
+  },
+  {
+    "name": "supported kind: WebhookEndpoint",
+    "accepted": true
+  },
+  {
+    "name": "supported adaptive profile",
+    "accepted": true,
+    "revision": "dcfdf6ce939d722e0b8775f53890af8d4989d6375a5d29333b049a126ad1a84d"
+  },
+  {
+    "name": "reordered equivalent adaptive actions keep revision",
+    "accepted": true,
+    "error": "before=dcfdf6ce939d722e0b8775f53890af8d4989d6375a5d29333b049a126ad1a84d after=dcfdf6ce939d722e0b8775f53890af8d4989d6375a5d29333b049a126ad1a84d"
+  },
+  {
+    "name": "adaptive.maxNoGainSteps=1",
+    "accepted": true,
+    "revision": "5e95a92bfa79c58ffaa536e55729828f2db47f9356b8286f276a0e0df5e6f742"
+  },
+  {
+    "name": "live maxEstimatedBytes=4096",
+    "accepted": false,
+    "error": "live diagnostic byte estimates are not measured; byte budget unsupported"
+  },
+  {
+    "name": "normative DSL example 23.1 unchanged",
+    "accepted": true,
+    "revision": "b309264a2cb2410459db0ed7ef90a85b16390d1712110ffdcad5e5896652a794"
+  },
+  {
+    "name": "YAML merge",
+    "accepted": false,
+    "error": "JSON-compatible resource required"
+  },
+  {
+    "name": "duplicate keys",
+    "accepted": false,
+    "error": "JSON-compatible resource required"
+  },
+  {
+    "name": "NaN",
+    "accepted": false,
+    "error": "JSON-compatible resource required"
+  },
+  {
+    "name": "alias cycle",
+    "accepted": false,
+    "error": "JSON-compatible resource required"
+  },
+  {
+    "name": "same local input produces identical plan revision",
+    "accepted": true
+  }
+]

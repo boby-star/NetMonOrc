@@ -90,7 +90,7 @@ func (s *Store) admitDiagnostic(ctx context.Context, p monitor.Plan, profile dia
 	if (err == nil && desired != p.Revision) || (manual != nil && errors.Is(err, pgx.ErrNoRows)) {
 		return "", resources.ErrConflict
 	}
-	if p.Diagnostics == nil || !p.Diagnostics.Enabled {
+	if p.Disabled || p.Diagnostics == nil || !p.Diagnostics.Enabled {
 		return "", resources.ErrConflict
 	}
 	healthy := false

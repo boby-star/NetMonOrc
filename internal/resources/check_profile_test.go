@@ -162,3 +162,15 @@ func TestProfileExpansionIsBoundedBeforeIRCompilation(t *testing.T) {
 		t.Fatal("expanded byte budget not enforced", err)
 	}
 }
+
+func TestResourceJSONRejectsDuplicateEnvelopeAndNestedKeys(t *testing.T) {
+	for _, data := range []string{
+		`{"apiVersion":"netmonorc.io/v1alpha1","kind":"Target","kind":"Monitor","metadata":{"name":"x"},"spec":{}}`,
+		`{"apiVersion":"netmonorc.io/v1alpha1","kind":"Target","metadata":{"name":"x","name":"y"},"spec":{}}`,
+		`{"apiVersion":"netmonorc.io/v1alpha1","kind":"Target","metadata":{"name":"x"},"spec":{"type":"host","type":"logical"}}`,
+	} {
+		if _, err := Decode([]byte(data)); err == nil {
+			t.Fatal("duplicate envelope/spec accepted", data)
+		}
+	}
+}

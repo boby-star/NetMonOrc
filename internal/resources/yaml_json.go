@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -97,4 +98,22 @@ func YAMLJSON(node *yaml.Node) ([]byte, error) {
 		return nil, err
 	}
 	return json.Marshal(value)
+}
+
+// DecodeJSON rejects duplicate keys before encoding/json can overwrite them.
+// It shares YAML structural/numeric bounds and keeps the original JSON numbers.
+func DecodeJSON(data []byte, out any) error {
+	if len(data) > 1<<20 || !json.Valid(data) {
+		return fmt.Errorf("one JSON value within 1 MiB required")
+	}
+	var tree yaml.Node
+	if err := yaml.Unmarshal(data, &tree); err != nil {
+		return err
+	}
+	if _, err := YAMLJSON(&tree); err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(out)
 }

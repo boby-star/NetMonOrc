@@ -65,6 +65,13 @@ func run(args []string) error {
 	if f.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
 	}
+	if args[0] == "validate" {
+		b, err := readCLIInput(*manifest)
+		if err != nil {
+			return err
+		}
+		return localValidate(b, *slotsArg, *allow)
+	}
 	file, e := os.Open(*manifest)
 	if e != nil {
 		return e

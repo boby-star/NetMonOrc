@@ -14,6 +14,9 @@ type FixedPlacement struct {
 }
 
 func (p Plan) RegularAllowed(agent string) bool {
+	if p.Disabled {
+		return false
+	}
 	if p.FixedPlacement == nil {
 		return true
 	}

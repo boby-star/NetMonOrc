@@ -69,3 +69,12 @@ API та React показують policy/timing; legacy timestamps не реко
 його Observation до пакета з окремою перевіркою regular provenance.
 Legacy без збереженого набору позначається невідомим; baselineEvidenceKnown
 не підміняється поточним Assessment. [Натурний zero-task сценарій і CLI export](../experiments/baseline-evidence-2026-11-18/README.md).
+
+## YAML controls та детермінованість
+
+Додано enabled, priority/jitter, inline target, unweighted/defaultState,
+maxNoGainSteps; канонізовано diagnostic hash, посилено YAML/JSON validation,
+offline validate використовує registry. [Контракт із явним залишком](../deployment/yaml-controls.md).
+[Натурні сценарії та compiler audit](../experiments/yaml-controls-2026-11-18/README.md).
+Це не завершення per-check placement, fallback, selectors, Component та інших
+полів повного старого DSL.

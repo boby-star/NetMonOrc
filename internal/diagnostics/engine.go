@@ -34,6 +34,9 @@ func Gain(hypotheses []string, expected map[string]string) int {
 	return gain
 }
 func Validate(p Profile) error {
+	if p.MaxNoGainSteps < 0 || p.MaxNoGainSteps > 5 || (p.Mode != "adaptive" && p.MaxNoGainSteps != 0) {
+		return fmt.Errorf("invalid maxNoGainSteps")
+	}
 	if p.Mode != "fixed" && p.Mode != "adaptive" {
 		return fmt.Errorf("profile mode must be fixed/adaptive")
 	}
@@ -511,7 +514,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 			return r, nil
 		}
-		if mode == "adaptive" && !confirming && best <= 0 {
+		if mode == "adaptive" && !confirming && best <= 0 && ledger.noGainSteps >= p.MaxNoGainSteps {
 			r.Reason = "no_gain"
 			return r, nil
 		}
@@ -569,6 +572,9 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			return r, nil
 		}
 		visited[selected.ID] = true
+		if mode == "adaptive" && !confirming && selectedGain == 0 {
+			ledger.noGainSteps++
+		}
 		if outcome.Execution != "completed" || (outcome.Outcome != "success" && outcome.Outcome != "failure") {
 			unusablePairs[selected.ID+"/"+executor.ID] = true
 			if mode == "fixed" {

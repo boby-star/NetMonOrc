@@ -6,8 +6,11 @@ import (
 )
 
 type Check struct {
-	BodyMatchesRegex string      `json:",omitempty"`
-	Extract          []Extractor `json:",omitempty"`
+	// Zero Priority is the historical/default priority 50.
+	Priority         int           `json:",omitempty"`
+	Jitter           time.Duration `json:",omitempty"`
+	BodyMatchesRegex string        `json:",omitempty"`
+	Extract          []Extractor   `json:",omitempty"`
 	Type             string
 	TCP              *TCPConfig
 	DNS              *DNSConfig
@@ -40,6 +43,9 @@ type TargetContext struct {
 }
 
 type Plan struct {
+	Disabled            bool                  `json:",omitempty"`
+	WeightedDisabled    bool                  `json:",omitempty"`
+	DefaultState        string                `json:",omitempty"`
 	Dependencies        []dependency.Edge     `json:",omitempty"`
 	SameZoneAggregation string                `json:",omitempty"`
 	ZoneAggregation     string                `json:",omitempty"`

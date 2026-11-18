@@ -30,7 +30,7 @@ func (c *Coordinator) StartManual(runtime, requestContext context.Context, actor
 	} else if prior != "" {
 		return prior, nil
 	}
-	if runtime.Err() != nil || c.running || time.Since(c.assessment.At) > 5*time.Second || time.Until(c.assessment.At) > 5*time.Second {
+	if c.Plan.Disabled || runtime.Err() != nil || c.running || time.Since(c.assessment.At) > 5*time.Second || time.Until(c.assessment.At) > 5*time.Second {
 		return "", resources.ErrConflict
 	}
 	agents := c.Server.Executors(time.Now())

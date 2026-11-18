@@ -14,7 +14,7 @@ func TestDiagnosticProfiles(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, change := range [][2]string{{"costUnits: 1", "costUnits: 0"}, {"costUnits: 1", "costUnits: .nan"}, {"maxAdditionalChecks: 6", "maxAdditionalChecks: 0"}, {"adaptive: {}", "adaptive: {stopWhenUnique: false}"}, {"adaptive: {}", "adaptive: {maxNoGainSteps: 1}"}, {"strategy: fixed", "strategy: fixed, replicas: 2"}, {"mode: adaptive", "mode: static"}, {"dns-failure: failure, service-failure: success, zone-path-failure: success", "dns-failure: failure"}} {
+	for _, change := range [][2]string{{"costUnits: 1", "costUnits: 0"}, {"costUnits: 1", "costUnits: .nan"}, {"maxAdditionalChecks: 6", "maxAdditionalChecks: 0"}, {"adaptive: {}", "adaptive: {stopWhenUnique: false}"}, {"adaptive: {}", "adaptive: {maxNoGainSteps: 6}"}, {"strategy: fixed", "strategy: fixed, replicas: 2"}, {"mode: adaptive", "mode: static"}, {"dns-failure: failure, service-failure: success, zone-path-failure: success", "dns-failure: failure"}} {
 		if _, e = CompileDiagnostics([]byte(strings.ReplaceAll(string(b), change[0], change[1]))); e == nil {
 			t.Fatalf("invalid profile accepted: %v", change)
 		}

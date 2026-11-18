@@ -18,6 +18,8 @@ func equivalent(a, b monitor.Check) bool {
 	b.Weight = 0
 	a.Required = false
 	b.Required = false
+	a.Priority, b.Priority = 0, 0
+	a.Jitter, b.Jitter = 0, 0
 	return reflect.DeepEqual(a, b)
 }
 

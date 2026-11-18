@@ -64,3 +64,24 @@ func TestBudgetEstimatesAndDeadline(t *testing.T) {
 		t.Fatal("future episode timestamp extended budget")
 	}
 }
+
+func TestExplicitNoGainStepsRemainBoundedByEpisode(t *testing.T) {
+	p, _ := profiles(t)
+	p.Actions = p.Actions[:1]
+	for h := range p.Actions[0].Expected {
+		p.Actions[0].Expected[h] = "either"
+	}
+	p.MaxNoGainSteps = 1
+	engine := d.Engine{Eligible: gate, Runner: runFunc(func(context.Context, d.Action, d.Executor) (d.Outcome, error) {
+		return d.Outcome{Execution: "completed", Outcome: "success"}, nil
+	})}
+	ledger := &d.Ledger{}
+	r, err := engine.Run(context.Background(), p, "adaptive", agents(), ledger, nil, "down")
+	if err != nil || r.Attempts != 1 || r.Status != "inconclusive" || ledger.UsedChecks != 1 {
+		t.Fatal("explicit zero-gain allowance ignored", r, err)
+	}
+	r, err = engine.Run(context.Background(), p, "adaptive", agents(), ledger, nil, "down")
+	if err != nil || r.Attempts != 0 || ledger.UsedChecks != 1 {
+		t.Fatal("rerun replenished zero-gain or check budget", r, err)
+	}
+}

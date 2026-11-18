@@ -1,0 +1,30 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: controlled-http}
+spec:
+  enabled: true
+  target: {type: endpoint, address: 127.0.0.1}
+  checks:
+    - id: application
+      enabled: true
+      type: http
+      runner: native-http
+      priority: 90
+      jitter: 1s
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://127.0.0.1:18080/', expectedStatus: [200]}
+    - id: optional-ping
+      enabled: false
+      type: icmp
+      config: {}
+  assessment:
+    requiredZones: [office]
+    weighted: {enabled: false}
+    defaultState: unknown
+    checks: [{id: application, weight: 1, required: true}]
+    rules:
+      - id: application-ok
+        priority: 100
+        when: 'checks["application"].outcome == "success"'
+        then: {state: healthy, reason: APPLICATION_OK}

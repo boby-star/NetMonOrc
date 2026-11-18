@@ -115,12 +115,39 @@ func WithStaticComparison(p monitor.Plan) (monitor.Plan, error) {
 }
 
 func DiagnosticProfileHash(profile diagnostics.Profile) (string, error) {
+	profile = CanonicalDiagnosticProfile(profile)
 	data, err := json.Marshal(profile)
 	if err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// CanonicalDiagnosticProfile copies unordered catalog collections before sorting.
+// Fixed placement AgentRefs retain their order: it is executor preference.
+func CanonicalDiagnosticProfile(p diagnostics.Profile) diagnostics.Profile {
+	p.Hypotheses = append([]string(nil), p.Hypotheses...)
+	sort.Strings(p.Hypotheses)
+	p.Actions = append([]diagnostics.Action(nil), p.Actions...)
+	for i := range p.Actions {
+		p.Actions[i].Placement.Zones = append([]string(nil), p.Actions[i].Placement.Zones...)
+		sort.Strings(p.Actions[i].Placement.Zones)
+	}
+	sort.Slice(p.Actions, func(i, j int) bool { return p.Actions[i].ID < p.Actions[j].ID })
+	p.Steps = append([]diagnostics.Step(nil), p.Steps...)
+	for i := range p.Steps {
+		p.Steps[i].DependsOn = append([]string(nil), p.Steps[i].DependsOn...)
+		sort.Strings(p.Steps[i].DependsOn)
+	}
+	sort.Slice(p.Steps, func(i, j int) bool { return p.Steps[i].ID < p.Steps[j].ID })
+	if p.Confirmation != nil {
+		c := *p.Confirmation
+		c.ActionRefs = append([]string(nil), c.ActionRefs...)
+		sort.Strings(c.ActionRefs)
+		p.Confirmation = &c
+	}
+	return p
 }
 
 // ResolveTargetReference makes changes to the normalized reusable target part

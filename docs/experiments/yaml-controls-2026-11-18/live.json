@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "realPostgreSQLAndAgentProbes": true,
+  "trustedHTTPS": true,
+  "cases": {
+    "canonicalProfile": {
+      "sameProfileRevision": true,
+      "sameMonitorRevision": true
+    },
+    "regularControls": {
+      "healthy": true,
+      "completeZones": 2,
+      "enabledCheckTypesObserved": 2,
+      "disabledDNSObservations": 0,
+      "productionCLIStdinBatchValidated": true
+    },
+    "disabledMonitor": {
+      "state": "unknown",
+      "reason": "monitor_disabled",
+      "regularObservations": 0,
+      "manualDiagnosticRejected": true,
+      "resourceState": "disabled"
+    }
+  },
+  "restoredHealthy": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

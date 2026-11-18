@@ -197,9 +197,10 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 			sort.Strings(refs)
 			p.Confirmation = &diagnostics.Confirmation{ActionRefs: refs, MinObservations: *c.MinObservations, MinDistinctFailureDomains: *c.MinDistinctFailureDomains, MinSpacing: spacing}
 		}
-		if v.MaxNoGainSteps != 0 {
-			return p, fmt.Errorf("this slice supports maxNoGainSteps=0 only")
+		if v.MaxNoGainSteps < 0 || v.MaxNoGainSteps > 5 {
+			return p, fmt.Errorf("adaptive.maxNoGainSteps must be within 0..5")
 		}
+		p.MaxNoGainSteps = v.MaxNoGainSteps
 		if v.TieBreak != "" && v.TieBreak != "actionIdAsc" {
 			return p, fmt.Errorf("invalid adaptive tieBreak")
 		}
