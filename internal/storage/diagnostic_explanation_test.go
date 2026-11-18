@@ -37,3 +37,25 @@ func TestDiagnosticExplanationProjection(t *testing.T) {
 		t.Fatal("corrupt report accepted")
 	}
 }
+
+func TestBaselineEvidenceProjectionAndLegacy(t *testing.T) {
+	raw := []byte(`{"decisions":[],"baselineEvidence":[{"observationId":"regular","actionId":"dns-action","checkId":"dns","agentId":"branch","zone":"office","configRevision":"old","finishedAt":"2026-11-18T12:00:00Z","validUntil":"2026-11-18T12:00:20Z","executionStatus":"completed","probeOutcome":"failure","target":"secret"}]}`)
+	v, err := diagnosticExplanation(raw)
+	if err != nil || v == nil || v.BaselineEvidence == nil || len(*v.BaselineEvidence) != 1 {
+		t.Fatal(v, err)
+	}
+	b := (*v.BaselineEvidence)[0]
+	if b.ObservationID != "regular" || b.ConfigRevision != "old" || b.CheckID != "dns" || b.ProbeOutcome != "failure" {
+		t.Fatal(b)
+	}
+	encoded, _ := json.Marshal(v)
+	if strings.Contains(string(encoded), "secret") {
+		t.Fatal("private baseline field exposed")
+	}
+	for _, input := range []string{`{"decisions":[]}`, `{"decisions":[],"baselineEvidence":[]}`} {
+		v, err := diagnosticExplanation([]byte(input))
+		if err != nil || v == nil || (v.BaselineEvidence != nil) != strings.Contains(input, "baselineEvidence") {
+			t.Fatal("unknown and known-empty baseline conflated", v, err)
+		}
+	}
+}

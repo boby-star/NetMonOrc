@@ -3140,12 +3140,32 @@ components:
           type: string
           maxLength: 128
           description: До 128 байтів UTF-8, без control characters; збережіть для безпечного retry протягом 24h.
+    DiagnosticBaselineEvidence:
+      type: object
+      additionalProperties: false
+      required: [observationId, actionId, checkId, agentId, zone, configRevision, finishedAt, validUntil, executionStatus, probeOutcome]
+      properties:
+        observationId: {type: string}
+        actionId: {type: string}
+        checkId: {type: string}
+        agentId: {type: string}
+        zone: {type: string}
+        configRevision: {type: string}
+        failureDomain: {type: string}
+        finishedAt: {type: string, format: date-time}
+        validUntil: {type: string, format: date-time}
+        executionStatus: {type: string}
+        probeOutcome: {type: string}
     DiagnosticExplanation:
       type: object
       additionalProperties: false
       description: Збережений журнал лише в GET окремої сесії; відсутній для running/legacy без журналу. Без повторного виконання алгоритму.
       required: [costUnits, decisions]
       properties:
+        baselineEvidence:
+          type: array
+          description: Збережені регулярні вхідні докази, не остаточні підтвердження. Порожній масив означає відомий порожній набір; відсутність поля — legacy невідомо.
+          items: {$ref: '#/components/schemas/DiagnosticBaselineEvidence'}
         evidencePolicy:
           type: object
           additionalProperties: false

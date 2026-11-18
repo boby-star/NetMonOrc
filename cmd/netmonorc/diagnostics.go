@@ -72,7 +72,7 @@ func diagnosticCommand(args []string) error {
 		if err = json.Unmarshal(data, &summary); err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stdout, "Diagnostic evidence exported: %s (complete=%t, missing=%d)\n", *output, summary.Complete, len(summary.MissingObservationIDs))
+		fmt.Fprintf(os.Stdout, "Diagnostic evidence exported: %s (complete=%t, missing=%d, baselineEvidenceKnown=%t)\n", *output, summary.Complete, len(summary.MissingObservationIDs), summary.BaselineEvidenceKnown)
 		return nil
 	}
 	route := "/api/v1/diagnostics/" + url.PathEscape(f.Arg(0)) + "/cancel"

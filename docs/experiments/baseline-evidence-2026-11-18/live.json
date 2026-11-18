@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "trustedHTTPS": true,
+  "realPostgreSQLAndAgentProbes": true,
+  "state": "completed",
+  "usedChecks": 0,
+  "physicalTasks": 0,
+  "baselineEvidence": [
+    {
+      "observationId": "a647d958e620c44ba130e4c5ec0b91bb",
+      "actionId": "same-http",
+      "checkId": "http",
+      "agentId": "branch",
+      "zone": "office",
+      "configRevision": "5bf918386becc22bbb88ced594c70a459e84a6ad56fb983bb3a484b76d10bc43",
+      "failureDomain": "office-path",
+      "finishedAt": "2026-11-18T20:00:28.375320579Z",
+      "validUntil": "2026-11-18T20:00:48.375320579Z",
+      "executionStatus": "completed",
+      "probeOutcome": "success"
+    }
+  ],
+  "productionCLIExport": {
+    "complete": true,
+    "baselineEvidenceKnown": true,
+    "observationCount": 1
+  },
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

@@ -16,6 +16,7 @@ import (
 // Reads are sequential, not an atomic database snapshot. Missing retention
 // evidence is explicit; authorization and transport failures abort the export.
 type DiagnosticExport struct {
+	BaselineEvidenceKnown bool              `json:"baselineEvidenceKnown"`
 	Schema                int               `json:"schema"`
 	CollectedAt           time.Time         `json:"collectedAt"`
 	Complete              bool              `json:"complete"`
@@ -68,6 +69,24 @@ func (c *Client) ExportDiagnostic(ctx context.Context, id string) ([]byte, error
 	}
 	for _, id := range session.EvidenceIDs {
 		add(id)
+	}
+	baseline := map[string]diagnosticview.BaselineEvidence{}
+	if session.Explanation != nil && session.Explanation.BaselineEvidence != nil {
+		out.BaselineEvidenceKnown = true
+		for _, b := range *session.Explanation.BaselineEvidence {
+			if b.ObservationID == "" || b.ActionID == "" || b.CheckID == "" || b.AgentID == "" || b.Zone == "" || b.ConfigRevision == "" || b.ConfigRevision != session.ConfigRevision || b.FinishedAt.IsZero() || !b.ValidUntil.After(b.FinishedAt) {
+				return nil, fmt.Errorf("invalid baseline evidence provenance")
+			}
+			if old, ok := baseline[b.ObservationID]; ok {
+				// A physical sample can match several equivalent catalog actions.
+				old.ActionID = b.ActionID
+				if old != b {
+					return nil, fmt.Errorf("conflicting baseline evidence provenance")
+				}
+			}
+			baseline[b.ObservationID] = b
+			add(b.ObservationID)
+		}
 	}
 	expectedTasks := map[string]diagnosticview.Task{}
 	seenTasks := map[string]bool{}
@@ -132,13 +151,26 @@ func (c *Client) ExportDiagnostic(ctx context.Context, id string) ([]byte, error
 			return nil, err
 		}
 		var o struct {
-			ID      string `json:"observationId"`
-			Monitor string `json:"monitorId"`
-			Session string `json:"diagnosticSessionId"`
-			Task    string `json:"diagnosticTaskId"`
-			Agent   string `json:"agentId"`
+			ID         string    `json:"observationId"`
+			Monitor    string    `json:"monitorId"`
+			Session    string    `json:"diagnosticSessionId"`
+			Task       string    `json:"diagnosticTaskId"`
+			Agent      string    `json:"agentId"`
+			Check      string    `json:"checkId"`
+			Zone       string    `json:"networkZone"`
+			Revision   string    `json:"configRevision"`
+			FinishedAt time.Time `json:"finishedAt"`
+			Execution  string    `json:"executionStatus"`
+			Outcome    string    `json:"probeOutcome"`
 		}
-		if json.Unmarshal(b, &o) != nil || o.ID != observationID || o.Monitor != session.MonitorID || o.Session != id {
+		if json.Unmarshal(b, &o) != nil || o.ID != observationID || o.Monitor != session.MonitorID {
+			return nil, fmt.Errorf("observation provenance does not match diagnostic session")
+		}
+		if proof, ok := baseline[observationID]; ok {
+			if _, task := expectedTasks[observationID]; task || o.Session != "" || o.Task != "" || o.Agent != proof.AgentID || o.Check != proof.CheckID || o.Zone != proof.Zone || o.Revision != proof.ConfigRevision || !o.FinishedAt.Equal(proof.FinishedAt) || o.Execution != proof.ExecutionStatus || o.Outcome != proof.ProbeOutcome {
+				return nil, fmt.Errorf("observation provenance does not match regular baseline")
+			}
+		} else if o.Session != id {
 			return nil, fmt.Errorf("observation provenance does not match diagnostic session")
 		}
 		if task, ok := expectedTasks[observationID]; ok && (o.Task != task.ID || o.Agent != task.AgentID) {

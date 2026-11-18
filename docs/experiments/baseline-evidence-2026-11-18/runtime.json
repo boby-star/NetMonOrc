@@ -1,0 +1,24 @@
+{
+  "baseCommit": "20ee208c4485f73f857494fdca432ee31eff6e28",
+  "imageID": "sha256:a419c37aead8f9980ac735c22c85daa97a092792d744fd3065f1ec001d6d5f5d",
+  "note": "Image built from working implementation before this commit; file fingerprints identify accepted code. No browser clicks in this iteration.",
+  "implementationSHA256": {
+    "internal/diagnostics/model.go": "7803c6a5bb7525961fe090e2934005b8a5242f4682ef5d8069034fe561d6030d",
+    "internal/diagnostics/engine.go": "a5150268e160a4e8375bef0a4125100f89e51ebc2a6f750980e97366fe49e9d8",
+    "internal/diagnostics/baseline.go": "3ce25c27526bb0739b4fb856bf6f1bd07130c029c8adf6e169bfe30cda82491d",
+    "internal/diagnosticview/model.go": "a968aad500554f702c1251c7442d69493ac9e9d8765a5ff5cdc5012f4c2a39b9",
+    "internal/storage/diagnostic_views.go": "8447b8ea9a336c5d05389b7afae1c91355eb9b46e04c555ba2258c8b0ef0026c",
+    "internal/apiclient/diagnostic_export.go": "36cbd151a543413288c911da936de0633fb5a78bcb8050613ec6ff077236b5ef",
+    "cmd/netmonorc/diagnostics.go": "6412818d3f707bc1f59f1b1c79bc7865b80a18265d875d5fc14dc58c7d889053",
+    "web/src/api.ts": "65f12ca779b6b7891d055a94d9cd8e4781111c118d252c1fb991c5e24eafc956",
+    "web/src/Diagnostics.tsx": "76e595fdd855b8d19084feea0f9b0ebfa0eff5b81434679b0b94f793ac100c2a",
+    "NetMonOrc_OpenAPI_v1alpha1.yaml": "a12cbacfe94d015672fcefb78d858d1cda579c56f8b45a7e3207073aa6d23b74",
+    "scripts/lab_baseline_evidence.py": "101bb29f29ec2fffe11f06473cba267f6a938208f25da15ed9655db50d73ec5a"
+  },
+  "thesisSHA256": "df5f9d1f6154a65713b48455d58a69c17e961f2eabab61e359f8d3610d184d8c",
+  "thesisSections": [
+    "2.1",
+    "2.2",
+    "2.3"
+  ]
+}

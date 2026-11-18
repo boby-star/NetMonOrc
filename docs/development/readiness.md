@@ -61,3 +61,11 @@ mapping не переінтерпретується. [Контракт і сум
 latest-pair semantics і зберігають budget після відкидання доказів. Нові report,
 API та React показують policy/timing; legacy timestamps не реконструюються.
 [Три натурні сценарії](../experiments/temporal-evidence-2026-11-18/README.md).
+
+## Початкові докази діагностики (§2.1–2.3)
+
+Збережено provenance регулярного baseline, який може звузити гіпотези без
+додаткових запусків. API/React показують історичний вхід, CLI/React включають
+його Observation до пакета з окремою перевіркою regular provenance.
+Legacy без збереженого набору позначається невідомим; baselineEvidenceKnown
+не підміняється поточним Assessment. [Натурний zero-task сценарій і CLI export](../experiments/baseline-evidence-2026-11-18/README.md).

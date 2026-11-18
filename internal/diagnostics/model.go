@@ -72,12 +72,30 @@ type Executor struct {
 	Supported         map[string]bool
 }
 type Evidence struct {
-	FinishedAt    time.Time
-	ObservationID string
-	ValidUntil    time.Time
-	ActionID      string
-	AgentID       string
-	Outcome       Outcome
+	CheckID        string
+	ConfigRevision string
+	FinishedAt     time.Time
+	ObservationID  string
+	ValidUntil     time.Time
+	ActionID       string
+	AgentID        string
+	Outcome        Outcome
+}
+
+// BaselineEvidence records regular observations supplied to the planner. It is
+// a historical input snapshot, not a claim that every input remained usable.
+type BaselineEvidence struct {
+	ObservationID   string    `json:"observationId"`
+	ActionID        string    `json:"actionId"`
+	CheckID         string    `json:"checkId"`
+	AgentID         string    `json:"agentId"`
+	Zone            string    `json:"zone"`
+	ConfigRevision  string    `json:"configRevision"`
+	FailureDomain   string    `json:"failureDomain,omitempty"`
+	FinishedAt      time.Time `json:"finishedAt"`
+	ValidUntil      time.Time `json:"validUntil"`
+	ExecutionStatus string    `json:"executionStatus"`
+	ProbeOutcome    string    `json:"probeOutcome"`
 }
 type Decision struct {
 	ObservationID    string     `json:"observationId,omitempty"`
@@ -98,18 +116,19 @@ type EvidencePolicy struct {
 	MaxSkewMS int64 `json:"maxSkewMs"`
 }
 type Result struct {
-	EvidencePolicy *EvidencePolicy     `json:"evidencePolicy,omitempty"`
-	Confirmation   *ConfirmationResult `json:"confirmation,omitempty"`
-	BlockedSteps   []string            `json:"blockedSteps,omitempty"`
-	DurationMillis *int64              `json:"durationMs,omitempty"`
-	Mode           string              `json:"mode"`
-	Status         string              `json:"status"`
-	Reason         string              `json:"reason"`
-	Hypotheses     []string            `json:"hypotheses"`
-	Attempts       int                 `json:"attempts"`
-	Cost           float64             `json:"costUnits"`
-	Decisions      []Decision          `json:"decisions"`
-	SkippedSteps   []string            `json:"skippedSteps,omitempty"`
+	BaselineEvidence *[]BaselineEvidence `json:"baselineEvidence,omitempty"`
+	EvidencePolicy   *EvidencePolicy     `json:"evidencePolicy,omitempty"`
+	Confirmation     *ConfirmationResult `json:"confirmation,omitempty"`
+	BlockedSteps     []string            `json:"blockedSteps,omitempty"`
+	DurationMillis   *int64              `json:"durationMs,omitempty"`
+	Mode             string              `json:"mode"`
+	Status           string              `json:"status"`
+	Reason           string              `json:"reason"`
+	Hypotheses       []string            `json:"hypotheses"`
+	Attempts         int                 `json:"attempts"`
+	Cost             float64             `json:"costUnits"`
+	Decisions        []Decision          `json:"decisions"`
+	SkippedSteps     []string            `json:"skippedSteps,omitempty"`
 }
 
 // The coordinator must reuse the same ledger for an incident episode. This

@@ -61,6 +61,13 @@ func diagnosticExplanation(raw []byte) (*diagnosticview.Explanation, error) {
 		return nil, nil
 	}
 	v := &diagnosticview.Explanation{DurationMS: r.DurationMillis, CostUnits: r.Cost, Decisions: []diagnosticview.Decision{}, BlockedSteps: r.BlockedSteps, SkippedSteps: r.SkippedSteps}
+	if r.BaselineEvidence != nil {
+		baseline := []diagnosticview.BaselineEvidence{}
+		for _, b := range *r.BaselineEvidence {
+			baseline = append(baseline, diagnosticview.BaselineEvidence(b))
+		}
+		v.BaselineEvidence = &baseline
+	}
 	if r.EvidencePolicy != nil {
 		v.EvidencePolicy = &diagnosticview.EvidencePolicy{MaxAgeMS: r.EvidencePolicy.MaxAgeMS, MaxSkewMS: r.EvidencePolicy.MaxSkewMS}
 	}

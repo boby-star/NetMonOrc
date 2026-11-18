@@ -242,6 +242,8 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	child, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	sort.Strings(r.Hypotheses)
+	baseline := []BaselineEvidence{}
+	r.BaselineEvidence = &baseline
 	tracker := confirmationTracker{policy: p.Confirmation, maxSkew: e.EvidenceMaxSkew}
 	if p.Confirmation != nil {
 		defer func() {
@@ -313,6 +315,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 					}
 					proofs = append(proofs, timedProof{action: a, agent: agent.ID, outcome: proof.Outcome, expires: proof.ValidUntil, at: at})
 					if proof.ObservationID != "" {
+						baseline = append(baseline, BaselineEvidence{ObservationID: proof.ObservationID, ActionID: a.ID, CheckID: proof.CheckID, AgentID: agent.ID, Zone: agent.Zone, ConfigRevision: proof.ConfigRevision, FailureDomain: agent.FailureDomain, FinishedAt: proof.FinishedAt, ValidUntil: proof.ValidUntil, ExecutionStatus: proof.Outcome.Execution, ProbeOutcome: proof.Outcome.Outcome})
 						tracker.add("observation:"+proof.ObservationID, a, agent, proof.Outcome, at, proof.ValidUntil)
 					}
 				}

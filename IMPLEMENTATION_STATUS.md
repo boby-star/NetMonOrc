@@ -1,3 +1,18 @@
+# Початкові регулярні докази діагностики (§2.1–2.3)
+
+Нові звіти зберігають baseline Observation з action/check відповідністю,
+Agent/zone/domain, effective revision, physical time/TTL і результатом.
+REST detail та React відкривають ці докази. CLI/React export включають їх
+навіть для діагнозу без додаткових tasks; regular provenance перевіряється
+окремо від diagnostic session/task. Legacy unknown не стає порожнім набором;
+пакет має явний baselineEvidenceKnown. Бюджет/алгоритм оцінювання не змінено.
+
+Натурний Controller–Agent–PostgreSQL–HTTPS сценарій підтвердив completed,
+0 additional checks, 0 tasks, 1 regular proof та production CLI export
+complete=true/baselineEvidenceKnown=true. Go/race/vet і production React
+build пройшли; нових browser clicks не проводилось.
+[Докази й межі](docs/experiments/baseline-evidence-2026-11-18/README.md).
+
 # Часове вікно діагностичних доказів за §2.1–2.3
 
 Runtime тепер застосовує Monitor TTL/maxSkew і до нових diagnostic results,

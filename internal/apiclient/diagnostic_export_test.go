@@ -74,3 +74,58 @@ func TestDiagnosticExportEvidenceAndFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestDiagnosticExportRegularBaselineProvenance(t *testing.T) {
+	for _, mode := range []string{"complete", "missing", "foreign-monitor", "foreign-revision", "foreign-agent", "foreign-check", "foreign-zone", "foreign-time", "foreign-outcome", "diagnostic-instead-of-regular", "forbidden"} {
+		t.Run(mode, func(t *testing.T) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/diagnostics/run":
+					fmt.Fprint(w, `{"id":"run","monitorId":"web","configRevision":"r1","state":"completed","evidenceIds":[],"explanation":{"decisions":[],"baselineEvidence":[{"observationId":"regular","actionId":"http","checkId":"regular-http","agentId":"branch","zone":"office","configRevision":"r1","finishedAt":"2026-11-18T12:00:00Z","validUntil":"2026-11-18T12:00:20Z","executionStatus":"completed","probeOutcome":"success"},{"observationId":"regular","actionId":"same-probe-alias","checkId":"regular-http","agentId":"branch","zone":"office","configRevision":"r1","finishedAt":"2026-11-18T12:00:00Z","validUntil":"2026-11-18T12:00:20Z","executionStatus":"completed","probeOutcome":"success"}]}}`)
+				case "/api/v1/diagnostics/run/tasks":
+					fmt.Fprint(w, `{"items":[],"nextCursor":null}`)
+				case "/api/v1/observations/regular":
+					if mode == "missing" {
+						w.WriteHeader(404)
+						return
+					}
+					if mode == "forbidden" {
+						w.WriteHeader(403)
+						return
+					}
+					o := map[string]string{"observationId": "regular", "monitorId": "web", "checkId": "regular-http", "agentId": "branch", "networkZone": "office", "configRevision": "r1", "finishedAt": "2026-11-18T12:00:00Z", "executionStatus": "completed", "probeOutcome": "success"}
+					fields := map[string]string{"foreign-monitor": "monitorId", "foreign-revision": "configRevision", "foreign-agent": "agentId", "foreign-check": "checkId", "foreign-zone": "networkZone", "foreign-time": "finishedAt", "foreign-outcome": "probeOutcome", "diagnostic-instead-of-regular": "diagnosticSessionId"}
+					if field := fields[mode]; field != "" {
+						o[field] = "foreign"
+					}
+					_ = json.NewEncoder(w).Encode(o)
+				default:
+					t.Errorf("unexpected request %s", r.URL.Path)
+					w.WriteHeader(404)
+				}
+			}))
+			defer server.Close()
+			client := &Client{server: server.URL, http: server.Client()}
+			raw, err := client.ExportDiagnostic(context.Background(), "run")
+			if mode != "complete" && mode != "missing" {
+				if err == nil {
+					t.Fatal("invalid baseline accepted", mode)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			var out DiagnosticExport
+			if json.Unmarshal(raw, &out) != nil || !out.BaselineEvidenceKnown || len(out.Tasks) != 0 {
+				t.Fatal("baseline-only package lost", string(raw))
+			}
+			if mode == "complete" && (!out.Complete || len(out.Observations) != 1) {
+				t.Fatal("shared physical baseline not deduplicated")
+			}
+			if mode == "missing" && (out.Complete || len(out.MissingObservationIDs) != 1) {
+				t.Fatal("missing baseline hidden")
+			}
+		})
+	}
+}

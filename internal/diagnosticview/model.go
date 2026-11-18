@@ -16,13 +16,27 @@ type EvidencePolicy struct {
 	MaxSkewMS int64 `json:"maxSkewMs"`
 }
 type Explanation struct {
-	EvidencePolicy *EvidencePolicy `json:"evidencePolicy,omitempty"`
-	DurationMS     *int64          `json:"durationMs,omitempty"`
-	CostUnits      float64         `json:"costUnits"`
-	Decisions      []Decision      `json:"decisions"`
-	Confirmation   *Confirmation   `json:"confirmation,omitempty"`
-	BlockedSteps   []string        `json:"blockedSteps,omitempty"`
-	SkippedSteps   []string        `json:"skippedSteps,omitempty"`
+	BaselineEvidence *[]BaselineEvidence `json:"baselineEvidence,omitempty"`
+	EvidencePolicy   *EvidencePolicy     `json:"evidencePolicy,omitempty"`
+	DurationMS       *int64              `json:"durationMs,omitempty"`
+	CostUnits        float64             `json:"costUnits"`
+	Decisions        []Decision          `json:"decisions"`
+	Confirmation     *Confirmation       `json:"confirmation,omitempty"`
+	BlockedSteps     []string            `json:"blockedSteps,omitempty"`
+	SkippedSteps     []string            `json:"skippedSteps,omitempty"`
+}
+type BaselineEvidence struct {
+	ObservationID   string    `json:"observationId"`
+	ActionID        string    `json:"actionId"`
+	CheckID         string    `json:"checkId"`
+	AgentID         string    `json:"agentId"`
+	Zone            string    `json:"zone"`
+	ConfigRevision  string    `json:"configRevision"`
+	FailureDomain   string    `json:"failureDomain,omitempty"`
+	FinishedAt      time.Time `json:"finishedAt"`
+	ValidUntil      time.Time `json:"validUntil"`
+	ExecutionStatus string    `json:"executionStatus"`
+	ProbeOutcome    string    `json:"probeOutcome"`
 }
 type Decision struct {
 	ObservationID    string     `json:"observationId,omitempty"`

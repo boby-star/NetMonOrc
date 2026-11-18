@@ -73,12 +73,12 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
     const controller = new AbortController(); exportAbort.current = controller;
     try {
       const text = await exportDiagnostic(selected.id, controller.signal);
-      const data = JSON.parse(text) as { complete: boolean; missingObservationIds: string[] };
+      const data = JSON.parse(text) as { complete: boolean; missingObservationIds: string[]; baselineEvidenceKnown: boolean };
       const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
       const link = document.createElement("a");
       link.href = url; link.download = `diagnostic-evidence-${selected.id}.json`; link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setExportNotice(data.complete ? "Повний пакет доказів завантажено." : `Пакет завантажено; відсутніх доказів: ${data.missingObservationIds.length}. Див. missingObservationIds.`);
+      setExportNotice((data.complete ? "Усі збережені посилання на докази завантажено." : `Пакет завантажено; відсутніх доказів: ${data.missingObservationIds.length}. Див. missingObservationIds.`) + (data.baselineEvidenceKnown ? " Початковий набір доказів збережено." : " Склад початкових доказів історичної сесії невідомий."));
     } catch (e) { setExportNotice(""); setError(e instanceof Error ? e.message : "Експорт не завершено."); }
     finally { exportAbort.current = null; setBusy(false); }
   }
@@ -132,6 +132,19 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       {canReadEvidence && <button type="button" disabled={busy || !["completed", "inconclusive", "cancelled"].includes(selected.state)} onClick={() => void downloadEvidence()}>Завантажити пакет доказів</button>}
       {exportNotice && <p role="status">{exportNotice}</p>}
       {selected.explanation ? <div aria-label="Пояснення діагнозу">
+        <h4>Початкові регулярні докази</h4>
+        {selected.explanation.baselineEvidence === undefined ? <p>Початкові докази не збережені в історичному звіті; їхній склад невідомий.</p> : <>
+          <p>Збережено вхідні спостереження сесії. Вони могли втратити придатність під час діагностики; це не перелік остаточних підтверджень і не додаткові витрати бюджету.</p>
+          {selected.explanation.baselineEvidence.length === 0 ? <p>Початкових придатних регулярних доказів не було.</p> : <div className="table-scroll"><table>
+            <caption>Походження початкових доказів</caption>
+            <thead><tr><th>Дія / перевірка</th><th>Agent / зона / домен</th><th>Результат</th><th>Час / TTL до</th><th>Observation</th></tr></thead>
+            <tbody>{selected.explanation.baselineEvidence.map((b, i) => <tr key={i}>
+              <td>{b.actionId}<br/>{b.checkId}</td><td>{b.agentId}<br/>{b.zone}<br/>{b.failureDomain || "невідомий"}</td>
+              <td>{b.executionStatus} / {b.probeOutcome}</td><td>{b.finishedAt}<br/>{b.validUntil}</td>
+              <td>{canReadEvidence && <button type="button" onClick={() => setEvidence(b.observationId)}>Відкрити доказ</button>}<br/><code>{b.observationId}</code><br/><small>Ревізія: {b.configRevision}</small></td>
+            </tr>)}</tbody>
+          </table></div>}
+        </>}
         <h4>Журнал вибору діагностичних дій</h4>
         {selected.explanation.evidencePolicy && <p>Політика доказів сесії: TTL додаткових probes {selected.explanation.evidencePolicy.maxAgeMs} мс; maxSkew {selected.explanation.evidencePolicy.maxSkewMs} мс. Прострочені та неузгоджені докази не визначають поточний діагноз; витрачений бюджет зберігається.</p>}
         <p>Витрачено {selected.explanation.costUnits} costUnits; час діагностики: {selected.explanation.durationMs === undefined ? "не збережено" : `${selected.explanation.durationMs} мс`}. costUnits не є мережевими байтами.</p>

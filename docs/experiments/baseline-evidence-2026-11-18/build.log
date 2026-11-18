@@ -1,0 +1,128 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 791B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 30B
+#2 transferring dockerfile: 2.30kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+#5 DONE 0.0s
+
+#6 [internal] load .dockerignore
+#6 transferring context: 125B done
+#6 DONE 0.0s
+
+#7 [exporter 1/1] FROM docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#7 DONE 0.0s
+
+#8 [web 1/7] FROM docker.io/library/node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+#8 DONE 0.0s
+
+#9 [build 1/8] FROM docker.io/library/golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb
+#9 DONE 0.0s
+
+#10 [internal] load build context
+#10 transferring context: 29.82kB 0.0s done
+#10 DONE 0.0s
+
+#11 [web 2/7] WORKDIR /web
+#11 CACHED
+
+#12 [web 4/7] RUN --mount=type=secret,id=build_ca     if [ -s /run/secrets/build_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/build_ca npm ci --ignore-scripts; else npm ci --ignore-scripts; fi
+#12 CACHED
+
+#13 [web 3/7] COPY web/package.json web/package-lock.json ./
+#13 CACHED
+
+#14 [web 5/7] COPY web/index.html web/tsconfig.json ./
+#14 CACHED
+
+#15 [web 6/7] COPY web/src ./src
+#15 DONE 1.8s
+
+#16 [web 7/7] RUN npm run build
+#16 1.876 
+#16 1.876 > netmonorc-web@0.1.0 build
+#16 1.876 > tsc --noEmit && vite build
+#16 1.876 
+#16 3.056 vite v8.3.8 building client environment for production...
+#16 3.116 transforming...
+#16 3.290 ✓ 30 modules transformed.
+#16 3.398 rendering chunks...
+#16 3.530 computing gzip size...
+#16 3.539 dist/index.html                   0.39 kB │ gzip:  0.26 kB
+#16 3.539 dist/assets/index-c0yhZ2JH.css    2.59 kB │ gzip:  1.01 kB
+#16 3.539 dist/assets/index-ueIOlA5G.js   319.35 kB │ gzip: 91.15 kB
+#16 3.539 
+#16 3.541 ✓ built in 483ms
+#16 DONE 3.6s
+
+#17 [build 5/8] COPY cmd ./cmd
+#17 CACHED
+
+#18 [build 7/8] COPY proto ./proto
+#18 CACHED
+
+#19 [stage-3  7/10] COPY --from=exporter --chmod=0755 /bin/blackbox_exporter /usr/local/bin/blackbox_exporter
+#19 CACHED
+
+#20 [stage-3  2/10] COPY --from=build --chmod=0755 /out/controller /usr/local/bin/netmonorc-controller
+#20 CACHED
+
+#21 [stage-3  1/10] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#21 CACHED
+
+#22 [stage-3  3/10] COPY --from=build --chmod=0755 /out/admin /usr/local/bin/netmonorc-admin
+#22 CACHED
+
+#23 [build 4/8] RUN --mount=type=secret,id=build_ca     if [ -s /run/secrets/build_ca ]; then SSL_CERT_FILE=/run/secrets/build_ca go mod download; else go mod download; fi
+#23 CACHED
+
+#24 [build 6/8] COPY internal ./internal
+#24 CACHED
+
+#25 [stage-3  6/10] COPY --from=build --chmod=0755 /out/experiment /usr/local/bin/netmonorc-experiment
+#25 CACHED
+
+#26 [build 3/8] COPY go.mod go.sum ./
+#26 CACHED
+
+#27 [build 8/8] RUN --mount=type=cache,target=/root/.cache/go-build go build -trimpath -ldflags='-s -w' -o /out/controller ./cmd/netmonorc-controller &&     go build -trimpath -ldflags='-s -w' -o /out/admin ./cmd/netmonorc-admin &&     go build -trimpath -ldflags='-s -w' -o /out/agent ./cmd/netmonorc-agent &&     go build -trimpath -ldflags='-s -w' -o /out/netmonorc ./cmd/netmonorc &&     go build -trimpath -ldflags='-s -w' -o /out/experiment ./cmd/netmonorc-experiment &&     mkdir -p /runtime/data && chmod 0700 /runtime/data && chown 10001:10001 /runtime/data
+#27 CACHED
+
+#28 [stage-3  4/10] COPY --from=build --chmod=0755 /out/agent /usr/local/bin/netmonorc-agent
+#28 CACHED
+
+#29 [build 2/8] WORKDIR /src
+#29 CACHED
+
+#30 [stage-3  5/10] COPY --from=build --chmod=0755 /out/netmonorc /usr/local/bin/netmonorc
+#30 CACHED
+
+#31 [stage-3  8/10] COPY --from=build --chown=10001:10001 /runtime /
+#31 CACHED
+
+#32 [stage-3  9/10] COPY --from=web /web/dist /usr/local/share/netmonorc/web
+#32 DONE 0.1s
+
+#33 [stage-3 10/10] WORKDIR /data
+#33 DONE 0.3s
+
+#34 exporting to image
+#34 exporting layers
+#34 exporting layers 1.0s done
+#34 writing image sha256:a419c37aead8f9980ac735c22c85daa97a092792d744fd3065f1ec001d6d5f5d done
+#34 naming to docker.io/library/netmonorc-research:local done
+#34 DONE 1.0s
+
+#35 resolving provenance for metadata file
+#35 DONE 0.0s
+ netmonorc-research:local  Built

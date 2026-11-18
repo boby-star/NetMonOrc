@@ -722,7 +722,13 @@ export async function agents(
   return response.json() as Promise<AgentPage>;
 }
 
+export interface DiagnosticBaselineEvidence {
+  observationId: string; actionId: string; checkId: string; agentId: string; zone: string;
+  configRevision: string; failureDomain?: string; finishedAt: string; validUntil: string;
+  executionStatus: string; probeOutcome: string;
+}
 export interface DiagnosticExplanation {
+  baselineEvidence?: DiagnosticBaselineEvidence[];
   evidencePolicy?: { maxAgeMs: number; maxSkewMs: number };
   durationMs?: number;
   costUnits: number;
@@ -938,6 +944,16 @@ export async function exportDiagnostic(id: string, signal: AbortSignal): Promise
   const expectedTasks = new Map<string, DiagnosticTask>();
   const cursors = new Set<string>();
   const ids = new Set(session.evidenceIds);
+  const baseline = new Map<string, DiagnosticBaselineEvidence>();
+  const baselineEvidenceKnown = session.explanation?.baselineEvidence !== undefined;
+  for (const proof of session.explanation?.baselineEvidence ?? []) {
+    if (!proof.observationId || !proof.actionId || !proof.checkId || !proof.agentId || !proof.zone || !proof.configRevision || proof.configRevision !== session.configRevision || !Number.isFinite(Date.parse(proof.finishedAt)) || !(Date.parse(proof.validUntil) > Date.parse(proof.finishedAt)))
+      throw new Error("Неповне походження початкового доказу.");
+    const previous = baseline.get(proof.observationId);
+    if (previous && ["checkId", "agentId", "zone", "configRevision", "finishedAt", "validUntil", "executionStatus", "probeOutcome", "failureDomain"].some(key => previous[key as keyof DiagnosticBaselineEvidence] !== proof[key as keyof DiagnosticBaselineEvidence]))
+      throw new Error("Суперечливе походження початкового доказу.");
+    baseline.set(proof.observationId, proof); ids.add(proof.observationId);
+  }
   let cursor: string | null = null;
   do {
     const query = new URLSearchParams({ limit: "200" });
@@ -964,14 +980,19 @@ export async function exportDiagnostic(id: string, signal: AbortSignal): Promise
     const raw = await read(`/api/v1/observations/${encodeURIComponent(observationId)}`, true);
     if (raw === null) { missing.push(observationId); continue; }
     const value = JSON.parse(raw) as ObservationRecord;
-    if (value.observationId !== observationId || value.monitorId !== session.monitorId || value.diagnosticSessionId !== id)
+    if (value.observationId !== observationId || value.monitorId !== session.monitorId)
       throw new Error("Походження доказу не відповідає сесії.");
+    const proof = baseline.get(observationId);
+    if (proof) {
+      if (expectedTasks.has(observationId) || value.diagnosticSessionId || value.diagnosticTaskId || value.agentId !== proof.agentId || value.checkId !== proof.checkId || value.networkZone !== proof.zone || value.configRevision !== proof.configRevision || value.finishedAt !== proof.finishedAt || value.executionStatus !== proof.executionStatus || value.probeOutcome !== proof.probeOutcome)
+        throw new Error("Походження доказу не відповідає початковому регулярному спостереженню.");
+    } else if (value.diagnosticSessionId !== id) throw new Error("Походження доказу не відповідає сесії.");
     const task = expectedTasks.get(observationId);
     if (task && (value.diagnosticTaskId !== task.id || value.agentId !== task.agentId)) throw new Error("Походження доказу не відповідає фізичному завданню.");
     observations.push(raw);
   }
   if (first !== await read(path)) throw new Error("Сесія змінилася під час експорту. Повторіть запит.");
-  const result = `{"schema":1,"collectedAt":${JSON.stringify(new Date().toISOString())},"complete":${missing.length === 0},"session":${first},"tasks":${JSON.stringify(tasks)},"observations":[${observations.join(",")}],"missingObservationIds":${JSON.stringify(missing)}}`;
+  const result = `{"schema":1,"baselineEvidenceKnown":${baselineEvidenceKnown},"collectedAt":${JSON.stringify(new Date().toISOString())},"complete":${missing.length === 0},"session":${first},"tasks":${JSON.stringify(tasks)},"observations":[${observations.join(",")}],"missingObservationIds":${JSON.stringify(missing)}}`;
   if (new TextEncoder().encode(result).length > 32 * 1024 * 1024) throw new Error("Пакет перевищує 32 MiB.");
   return result;
 }
