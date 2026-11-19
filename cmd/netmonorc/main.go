@@ -57,6 +57,7 @@ func run(args []string) error {
 	agent := f.String("agent", "", "local observation source ID (not authenticated)")
 	zone := f.String("zone", "", "source zone")
 	allow := f.String("allow-cidrs", "", "comma-separated explicit target CIDRs")
+	labelsFile := f.String("agent-labels-file", "", "offline Controller-owned Agent labels JSON")
 	slotsArg := f.String("slots", "", "planned agent=zone pairs, one per zone")
 	blackboxBinary := f.String("blackbox-binary", "blackbox_exporter", "prepared Blackbox Exporter 0.27.0 executable")
 	if e := f.Parse(args[1:]); e != nil {
@@ -70,7 +71,7 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
-		return localValidate(b, *slotsArg, *allow)
+		return localValidate(b, *slotsArg, *allow, *labelsFile)
 	}
 	file, e := os.Open(*manifest)
 	if e != nil {

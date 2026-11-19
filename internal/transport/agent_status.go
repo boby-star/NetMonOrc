@@ -14,6 +14,9 @@ func (s *Server) AgentStatuses(now time.Time) []agentstatus.View {
 	out := make([]agentstatus.View, 0, len(s.Slots))
 	for _, slot := range s.Slots {
 		v := agentstatus.View{AgentID: slot.Agent, Name: slot.Agent, OnlineState: "offline", NetworkZone: slot.Zone, FailureDomain: s.FailureDomains[slot.Agent], Labels: map[string]string{}}
+		for key, value := range s.AgentLabels[slot.Agent] {
+			v.Labels[key] = value
+		}
 		regular := false
 		for _, plan := range s.plans() {
 			regular = regular || plan.RegularAllowed(slot.Agent)

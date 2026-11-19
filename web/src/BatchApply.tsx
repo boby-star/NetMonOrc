@@ -249,8 +249,8 @@ export function BatchApply({
           <h3>Заплановані точки перевірок</h3>
           <ul>
             {(preview.placements ?? []).map((placement) => (
-              <li key={placement.monitorId}>
-                {placement.monitorId}: {placement.pending
+              <li key={`${placement.monitorId}/${placement.checkId ?? ""}`}>
+                {placement.monitorId}{placement.checkId ? ` / ${placement.checkId}` : ""}{placement.distinctBy ? ` (${placement.distinctBy})` : ""}: {placement.pending
                   ? `очікує ${placement.replicas} допустимих агентів; регулярні перевірки не запускаються`
                   : placement.selectedAgents.map((agent) => `${agent.agentId} (${agent.networkZone})`).join(", ")}
               </li>

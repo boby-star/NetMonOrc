@@ -80,6 +80,26 @@ func (a *Assessor) ValidateSources(slots []Slot) error {
 	if !a.replicaValues {
 		return nil
 	}
+	if len(a.plan.CheckPlacements) > 0 {
+		for _, check := range a.plan.Checks {
+			sources := a.plan.CheckSlots(check.ID, slots)
+			binding := a.plan.CheckPlacements[check.ID]
+			if binding == nil {
+				binding = a.plan.FixedPlacement
+			}
+			if binding != nil && binding.Strategy != "" && binding.Replicas > 1 && binding.DistinctBy != "zone" {
+				sources = binding.Candidates
+			}
+			counts := map[string]int{}
+			for _, slot := range sources {
+				counts[slot.Zone]++
+				if counts[slot.Zone] > 1 {
+					return fmt.Errorf("CEL values/metrics for multiple same-zone replicas are deferred")
+				}
+			}
+		}
+		return nil
+	}
 	counts := map[string]int{}
 	for _, slot := range slots {
 		counts[slot.Zone]++

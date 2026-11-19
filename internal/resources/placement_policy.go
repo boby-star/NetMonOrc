@@ -7,15 +7,17 @@ import (
 	"sort"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 )
 
 type PlacementPolicy struct {
-	AgentRefs            []string `json:"agentRefs"`
-	Zones                []string `json:"zones"`
-	Replicas             int      `json:"replicas"`
-	DistinctBy           string   `json:"distinctBy"`
-	Strategy             string   `json:"strategy"`
-	OnInsufficientAgents string   `json:"onInsufficientAgents"`
+	Selector             *resourcegroup.Selector `json:"selector,omitempty"`
+	AgentRefs            []string                `json:"agentRefs"`
+	Zones                []string                `json:"zones"`
+	Replicas             int                     `json:"replicas"`
+	DistinctBy           string                  `json:"distinctBy"`
+	Strategy             string                  `json:"strategy"`
+	OnInsufficientAgents string                  `json:"onInsufficientAgents"`
 }
 
 var placementAgentID = regexp.MustCompile(`^[a-z][a-z0-9-]{0,62}$`)
@@ -23,21 +25,18 @@ var placementAgentID = regexp.MustCompile(`^[a-z][a-z0-9-]{0,62}$`)
 func (p PlacementPolicy) Hash() string { return valueHash(p) }
 func compilePlacement(spec json.RawMessage) (PlacementPolicy, error) {
 	var wire struct {
-		AgentRefs            []string `json:"agentRefs"`
-		Zones                []string `json:"zones"`
-		Replicas             *int     `json:"replicas"`
-		DistinctBy           string   `json:"distinctBy"`
-		Strategy             string   `json:"strategy"`
-		OnInsufficientAgents string   `json:"onInsufficientAgents"`
-		Selector             struct {
-			MatchLabels      map[string]string `json:"matchLabels"`
-			MatchExpressions []json.RawMessage `json:"matchExpressions"`
-		} `json:"selector"`
+		AgentRefs            []string                `json:"agentRefs"`
+		Zones                []string                `json:"zones"`
+		Replicas             *int                    `json:"replicas"`
+		DistinctBy           string                  `json:"distinctBy"`
+		Strategy             string                  `json:"strategy"`
+		OnInsufficientAgents string                  `json:"onInsufficientAgents"`
+		Selector             *resourcegroup.Selector `json:"selector"`
 	}
 	if err := closedJSON(spec, &wire); err != nil {
 		return PlacementPolicy{}, err
 	}
-	p := PlacementPolicy{AgentRefs: wire.AgentRefs, Zones: wire.Zones, Replicas: 1, DistinctBy: wire.DistinctBy, Strategy: wire.Strategy, OnInsufficientAgents: wire.OnInsufficientAgents}
+	p := PlacementPolicy{Selector: wire.Selector, AgentRefs: wire.AgentRefs, Zones: wire.Zones, Replicas: 1, DistinctBy: wire.DistinctBy, Strategy: wire.Strategy, OnInsufficientAgents: wire.OnInsufficientAgents}
 	if wire.Replicas != nil {
 		p.Replicas = *wire.Replicas
 	}
@@ -56,13 +55,16 @@ func compilePlacement(spec json.RawMessage) (PlacementPolicy, error) {
 	if p.OnInsufficientAgents != "pending" {
 		return p, fmt.Errorf("partial regular placement is disabled")
 	}
-	if p.DistinctBy != "none" && p.DistinctBy != "zone" {
-		return p, fmt.Errorf("failureDomain placement requires a trusted domain registry")
+	if p.DistinctBy != "none" && p.DistinctBy != "zone" && p.DistinctBy != "failureDomain" {
+		return p, fmt.Errorf("invalid placement distinctBy")
 	}
-	if len(wire.Selector.MatchLabels) > 0 || len(wire.Selector.MatchExpressions) > 0 {
-		return p, fmt.Errorf("regular selectors require Controller-managed Agent labels")
+	selector, err := normalizeAgentSelector(p.Selector)
+	if err != nil {
+		return p, err
 	}
-	if p.Replicas < 1 || p.Replicas > 10 || (p.Strategy == "fixed" && len(p.AgentRefs) < p.Replicas) || len(p.AgentRefs) > 100 {
+	p.Selector = selector
+
+	if p.Replicas < 1 || p.Replicas > 10 || (p.Strategy == "fixed" && len(p.AgentRefs) < p.Replicas && p.Selector == nil) || len(p.AgentRefs) > 100 {
 		return p, fmt.Errorf("placement requires 1..10 replicas; fixed requires sufficient agentRefs")
 	}
 	seen := map[string]bool{}
@@ -145,19 +147,39 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 		if !registered {
 			return m, nil, fmt.Errorf("placement Agent %s is not registered in the Controller roster", id)
 		}
-		if len(zones) == 0 || zones[slot.Zone] {
+		if (len(zones) == 0 || zones[slot.Zone]) && (policy.Selector == nil || policy.Selector.Match(r.AgentLabels[id])) && (policy.DistinctBy != "failureDomain" || r.FailureDomains[id] != "") {
 			candidates = append(candidates, slot)
 		}
+	}
+	domains := map[string]string{}
+	if policy.DistinctBy == "failureDomain" {
+		for _, slot := range candidates {
+			domain := r.FailureDomains[slot.Agent]
+			if !placementAgentID.MatchString(domain) {
+				return m, nil, fmt.Errorf("invalid trusted failure domain")
+			}
+			domains[slot.Agent] = domain
+		}
+	}
+	resolvedHash := policy.Hash()
+	if policy.Selector != nil || policy.DistinctBy == "failureDomain" {
+		resolvedHash = valueHash(struct {
+			Policy     string
+			Candidates []monitor.Slot
+			Domains    map[string]string
+		}{policy.Hash(), candidates, domains})
 	}
 	selected := []monitor.Slot{}
 	if policy.Strategy == "fixed" && len(candidates) >= policy.Replicas {
 		usedZones := map[string]bool{}
+		usedDomains := map[string]bool{}
 		for _, slot := range candidates {
-			if policy.DistinctBy == "zone" && usedZones[slot.Zone] {
+			if (policy.DistinctBy == "zone" && usedZones[slot.Zone]) || (policy.DistinctBy == "failureDomain" && usedDomains[domains[slot.Agent]]) {
 				continue
 			}
 			selected = append(selected, slot)
 			usedZones[slot.Zone] = true
+			usedDomains[domains[slot.Agent]] = true
 			if len(selected) == policy.Replicas {
 				break
 			}
@@ -167,7 +189,7 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 		}
 	}
 	if policy.Strategy != "fixed" {
-		if previous, ok := r.ResolvedPlacements[m.Metadata.Name]; ok && previous.PolicyHash == policy.Hash() {
+		if previous, ok := r.ResolvedPlacements[m.Metadata.Name]; ok && previous.PolicyHash == resolvedHash {
 			permitted := map[string]monitor.Slot{}
 			for _, slot := range candidates {
 				permitted[slot.Agent] = slot
@@ -186,21 +208,26 @@ func (r Registry) resolvePlacement(m Manifest) (Manifest, *monitor.FixedPlacemen
 	// Distinctness is a policy constraint. Different authenticated sources may
 	// otherwise share a zone; one Agent never supplies two physical replicas.
 	seenZones := map[string]bool{}
+	seenDomains := map[string]bool{}
 	for _, slot := range selected {
-		if policy.DistinctBy == "zone" && seenZones[slot.Zone] {
+		if (policy.DistinctBy == "zone" && seenZones[slot.Zone]) || (policy.DistinctBy == "failureDomain" && (domains[slot.Agent] == "" || seenDomains[domains[slot.Agent]])) {
 			return m, nil, fmt.Errorf("placement distinctBy=zone is violated")
 		}
 		seenZones[slot.Zone] = true
+		seenDomains[domains[slot.Agent]] = true
 	}
 	roster := append([]monitor.Slot(nil), r.Roster...)
 	sort.Slice(roster, func(i, j int) bool { return roster[i].Agent < roster[j].Agent })
-	binding := &monitor.FixedPlacement{Ref: ref, Hash: policy.Hash(), Replicas: policy.Replicas, Roster: roster, Selected: selected}
+	binding := &monitor.FixedPlacement{Ref: ref, Hash: resolvedHash, Replicas: policy.Replicas, Roster: roster, Selected: selected}
 	if policy.Strategy != "fixed" {
 		binding.Strategy = policy.Strategy
 		binding.Candidates = candidates
 	}
-	if policy.DistinctBy == "zone" {
-		binding.DistinctBy = "zone"
+	if policy.DistinctBy == "zone" || policy.DistinctBy == "failureDomain" {
+		binding.DistinctBy = policy.DistinctBy
+	}
+	if policy.DistinctBy == "failureDomain" {
+		binding.FailureDomains = domains
 	}
 	delete(spec, "placement")
 	delete(spec, "placementRef")

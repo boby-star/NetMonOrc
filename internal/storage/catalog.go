@@ -182,7 +182,7 @@ func (s *Store) RuntimeCurrent(ctx context.Context, revisions map[string]string)
 }
 
 func readResolvedPlacements(ctx context.Context, reader catalogReader) (map[string]monitor.ResolvedPlacement, error) {
-	rows, err := reader.Query(ctx, `SELECT r.name,p.policy_hash,p.plan_hash,p.selected FROM nmo_regular_placements p JOIN nmo_resources r ON r.uid=p.monitor_uid AND r.kind='Monitor'`)
+	rows, err := reader.Query(ctx, `SELECT r.name,p.policy_hash,p.plan_hash,p.selected FROM nmo_regular_placements p JOIN nmo_resources r ON r.uid=p.monitor_uid AND r.kind='Monitor' UNION ALL SELECT r.name||'/'||p.check_id,p.policy_hash,p.plan_hash,p.selected FROM nmo_check_placements p JOIN nmo_resources r ON r.uid=p.monitor_uid AND r.kind='Monitor'`)
 	if err != nil {
 		return nil, err
 	}

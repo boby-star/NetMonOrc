@@ -1,3 +1,18 @@
+# Per-check placement та trusted metadata
+
+PlacementPolicy/inline placement підтримують matchLabels/matchExpressions і
+failureDomain distinctness із Controller-owned inventory. Відомий домен не
+виводиться із зони/ID. Check-level placement/ref працюють після expansion,
+із власними persisted selection/cursor, scope, Agent dispatch та coverage.
+Plan preview REST/React показує checkId. Historical allowed_checks у БД
+захищають старий replay після нового runtime. Дані/volumes не видаляються.
+
+Натурний сценарій підтвердив HTTP office / DNS+TCP server, healthy/complete,
+restart без зміни revision, selector miss і distinct/shared/unknown domains.
+Справжній CommitBatch відхилив чужий old-revision check і прийняв легітимний.
+Go/race/vet, production React build пройшли; нових browser clicks не було.
+[Контракт](docs/deployment/check-placement.md), [докази](docs/experiments/check-placement-2026-11-19/README.md).
+
 # YAML controls, канонізація та єдина валідація
 
 DiagnosticProfile hash більше не залежить від порядку actions/hypotheses/

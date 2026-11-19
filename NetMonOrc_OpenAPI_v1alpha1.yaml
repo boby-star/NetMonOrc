@@ -2748,7 +2748,9 @@ components:
       required: [monitorId, strategy, replicas, pending, selectedAgents]
       properties:
         monitorId: {type: string}
-        strategy: {type: string, enum: [fixed]}
+        checkId: {type: string}
+        distinctBy: {type: string, enum: [zone, failureDomain]}
+        strategy: {type: string, enum: [fixed, leastLoaded, roundRobin]}
         replicas: {type: integer, minimum: 1, maximum: 10}
         pending: {type: boolean}
         selectedAgents:

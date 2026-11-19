@@ -156,7 +156,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	for _, cidr := range allowed {
 		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "target-cidr:"+cidr.Masked().String())
 	}

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -21,6 +22,8 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
+	AgentLabels        map[string]map[string]string
+	FailureDomains     map[string]string
 	Dependencies       []dependency.Edge
 	Placements         map[string]PlacementPolicy
 	Roster             []monitor.Slot
@@ -84,6 +87,14 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err != nil {
 		return monitor.Plan{}, err
 	}
+	expanded, profileBindings, err := r.expandProfiles(placed)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
+	placed, checkPlacements, err := r.resolveCheckPlacements(expanded)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
 	assessmentRegistry := r
 	if placement != nil && len(placement.Selected) > 0 {
 		assessmentRegistry.Zones = nil
@@ -101,15 +112,40 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 			}
 		}
 	}
+	if len(checkPlacements) > 0 {
+		zones := map[string]bool{}
+		var body struct {
+			Checks []struct {
+				ID      string `json:"id"`
+				Enabled *bool  `json:"enabled"`
+			} `json:"checks"`
+		}
+		_ = json.Unmarshal(placed.Spec, &body)
+		for _, c := range body.Checks {
+			if c.Enabled != nil && !*c.Enabled {
+				continue
+			}
+			if binding := checkPlacements[c.ID]; binding != nil {
+				for _, z := range binding.ScopeZones {
+					zones[z] = true
+				}
+			} else {
+				for _, z := range assessmentRegistry.Zones {
+					zones[z] = true
+				}
+			}
+		}
+		assessmentRegistry.Zones = nil
+		for z := range zones {
+			assessmentRegistry.Zones = append(assessmentRegistry.Zones, z)
+		}
+		sort.Strings(assessmentRegistry.Zones)
+	}
 	assessed, assessmentRef, assessmentHash, err := assessmentRegistry.resolveAssessment(placed)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
-	expanded, profileBindings, err := r.expandProfiles(assessed)
-	if err != nil {
-		return monitor.Plan{}, err
-	}
-	resolved, targetRef, targetHash, err := r.resolveTarget(expanded)
+	resolved, targetRef, targetHash, err := r.resolveTarget(assessed)
 	if err != nil {
 		return monitor.Plan{}, err
 	}
@@ -120,6 +156,13 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	p, err := config.Compile(data)
 	if err != nil {
 		return p, err
+	}
+	p.CheckPlacements = checkPlacements
+	if len(checkPlacements) > 0 {
+		p, err = config.ResolveFixedPlacement(p, placement)
+		if err != nil {
+			return p, err
+		}
 	}
 	if targetRef != "" {
 		target := r.Targets[targetRef]
@@ -159,7 +202,7 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		}
 	}
 	if r.ExecuteAll {
-		if placement == nil && !slices.Equal(p.Zones, r.Zones) {
+		if placement == nil && len(checkPlacements) == 0 && !slices.Equal(p.Zones, r.Zones) {
 			return p, fmt.Errorf("Monitor without placement must retain Controller fixed zones")
 		}
 		for _, zone := range p.Zones {
@@ -175,7 +218,7 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 				}
 			}
 		}
-		if p.Name == r.Active && placement == nil && !slices.Equal(p.Zones, r.Zones) {
+		if p.Name == r.Active && placement == nil && len(checkPlacements) == 0 && !slices.Equal(p.Zones, r.Zones) {
 			return p, fmt.Errorf("active Monitor must retain the Controller's fixed zones")
 		}
 	}
@@ -199,14 +242,23 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if r.StaticComparison && (r.ExecuteAll || p.Name == r.Active) {
 		p, err = config.WithStaticComparison(p)
 	}
-	if err == nil && p.FixedPlacement != nil && p.FixedPlacement.Strategy != "" {
-		if previous, exists := r.ResolvedPlacements[p.Name]; exists && len(previous.Selected) > 0 {
-			template, templateErr := r.PlacementTemplate(m)
-			if templateErr != nil {
-				return p, templateErr
+	if err == nil && p.HasDynamicPlacement() {
+		bindings := map[string]*monitor.FixedPlacement{m.Metadata.Name: p.FixedPlacement}
+		for id, binding := range p.CheckPlacements {
+			bindings[m.Metadata.Name+"/"+id] = binding
+		}
+		for key, binding := range bindings {
+			if binding == nil || binding.Strategy == "" {
+				continue
 			}
-			if previous.TemplateHash != template.Revision {
-				return template, nil
+			if prior, exists := r.ResolvedPlacements[key]; exists && len(prior.Selected) > 0 {
+				template, e := r.PlacementTemplate(m)
+				if e != nil {
+					return p, e
+				}
+				if prior.TemplateHash != template.Revision {
+					return template, nil
+				}
 			}
 		}
 	}
@@ -247,7 +299,7 @@ func executionJSON(m Manifest) ([]byte, error) {
 func (r Registry) PlacementTemplate(m Manifest) (monitor.Plan, error) {
 	copied := make(map[string]monitor.ResolvedPlacement, len(r.ResolvedPlacements))
 	for name, value := range r.ResolvedPlacements {
-		if name != m.Metadata.Name {
+		if name != m.Metadata.Name && !strings.HasPrefix(name, m.Metadata.Name+"/") {
 			copied[name] = value
 		}
 	}

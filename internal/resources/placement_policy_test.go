@@ -62,7 +62,7 @@ func TestFixedPlacementPendingDoesNotAuthorizePartialProbes(t *testing.T) {
 }
 func TestFixedPlacementRejectsUnsupportedStrategiesAndBadReferences(t *testing.T) {
 	base, policy, m := fixedPlacementFixture(t)
-	for _, spec := range []string{`{"strategy":"not-a-strategy"}`, `{"strategy":"fixed","agentRefs":["branch"],"onInsufficientAgents":"partial"}`, `{"strategy":"fixed","agentRefs":["branch"],"selector":{"matchLabels":{"role":"probe"}}}`, `{"strategy":"fixed","agentRefs":["branch"],"distinctBy":"failureDomain"}`, `{"strategy":"fixed","agentRefs":["branch","branch"]}`} {
+	for _, spec := range []string{`{"strategy":"not-a-strategy"}`, `{"strategy":"fixed","agentRefs":["branch"],"onInsufficientAgents":"partial"}`, `{"strategy":"fixed","agentRefs":["branch"],"selector":{"matchExpressions":[{"key":"role","operator":"Bad"}]}}`, `{"strategy":"fixed","agentRefs":["branch"],"distinctBy":"unknown"}`, `{"strategy":"fixed","agentRefs":["branch","branch"]}`} {
 		invalid := policy
 		invalid.Spec = json.RawMessage(spec)
 		if _, err := base.CompileResource(invalid); err == nil {
@@ -130,5 +130,69 @@ func TestSameZonePlacementAndDistinctZoneConstraint(t *testing.T) {
 	}
 	if len(compiled["Monitor/service"].Monitor.FixedPlacement.Selected) != 0 {
 		t.Fatal("distinct zones fabricated")
+	}
+}
+
+func TestTrustedSelectorAndFailureDomainPlacement(t *testing.T) {
+	base, policy, m := fixedPlacementFixture(t)
+	base.AgentLabels = map[string]map[string]string{"branch": {"role": "probe", "site": "office"}, "dc": {"role": "probe", "site": "server"}}
+	base.FailureDomains = map[string]string{"branch": "uplink-a", "dc": "uplink-b"}
+	policy.Spec = json.RawMessage(`{"strategy":"fixed","replicas":2,"distinctBy":"failureDomain","selector":{"matchLabels":{"role":"probe"},"matchExpressions":[{"key":"site","operator":"In","values":["office","server"]}]}}`)
+	_, compiled, err := ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := *compiled["Monitor/service"].Monitor
+	if len(p.FixedPlacement.Selected) != 2 || p.FixedPlacement.FailureDomains["branch"] != "uplink-a" {
+		t.Fatal("trusted domain set not selected", p.FixedPlacement)
+	}
+	if err = config.VerifyPlan(p, "office", "branch"); err != nil {
+		t.Fatal(err)
+	}
+	revision := p.Revision
+	base.FailureDomains["dc"] = "uplink-a"
+	_, compiled, err = ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(compiled["Monitor/service"].Monitor.FixedPlacement.Selected) != 0 || revision == compiled["Monitor/service"].Revision {
+		t.Fatal("shared domains kept stale assignment")
+	}
+	delete(base.FailureDomains, "dc")
+	_, compiled, err = ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(compiled["Monitor/service"].Monitor.FixedPlacement.Selected) != 0 {
+		t.Fatal("unknown domain inferred from zone")
+	}
+	base.FailureDomains["dc"] = "uplink-b"
+	base.AgentLabels["dc"]["role"] = "other"
+	_, compiled, err = ResolveCatalog(base, nil, []Manifest{m, policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(compiled["Monitor/service"].Monitor.FixedPlacement.Selected) != 0 {
+		t.Fatal("selector bypassed for replicas")
+	}
+}
+
+func TestSelectorCanonicalizationAndInventoryValidation(t *testing.T) {
+	a, err := compilePlacement(json.RawMessage(`{"selector":{"matchExpressions":[{"key":"site","operator":"In","values":["server","office"]},{"key":"role","operator":"Exists"}]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := compilePlacement(json.RawMessage(`{"selector":{"matchExpressions":[{"key":"role","operator":"Exists"},{"key":"site","operator":"In","values":["office","server"]}]}}`))
+	if err != nil || a.Hash() != b.Hash() {
+		t.Fatal("selector order changed policy hash", err)
+	}
+	base, _, _ := fixedPlacementFixture(t)
+	for _, raw := range []string{`{"absent":{"role":"probe"}}`, `{"branch":{"role":"probe","role":"other"}}`, `{"branch":null}`, `{"branch":{"Role":"probe"}}`} {
+		if _, err = ParseAgentLabels([]byte(raw), base.Roster); err == nil {
+			t.Fatal("invalid inventory accepted", raw)
+		}
+	}
+	if _, err = ParseAgentLabels([]byte(`{"branch":{"role":"probe"},"dc":{}}`), base.Roster); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/agentstatus"
@@ -29,8 +30,17 @@ func (s *Store) ReconcilePlacement(ctx context.Context, base resources.Registry,
 	}
 	names := []string{}
 	for key, value := range compiled {
-		if value.Monitor != nil && value.Monitor.FixedPlacement != nil && value.Monitor.FixedPlacement.Strategy != "" {
+		if value.Monitor == nil {
+			continue
+		}
+		p := value.Monitor
+		if p.FixedPlacement != nil && p.FixedPlacement.Strategy != "" {
 			names = append(names, key)
+		}
+		for id, binding := range p.CheckPlacements {
+			if binding.Strategy != "" {
+				names = append(names, key+"/"+id)
+			}
 		}
 	}
 	sort.Strings(names)
@@ -56,8 +66,18 @@ func (s *Store) ReconcilePlacement(ctx context.Context, base resources.Registry,
 	}
 	changed := false
 	for _, key := range names {
-		plan := *compiled[key].Monitor
+		parts := strings.SplitN(key, "/", 3)
+		parentKey := parts[0] + "/" + parts[1]
+		plan := *compiled[parentKey].Monitor
+		checkID := ""
+		if len(parts) == 3 {
+			checkID = parts[2]
+		}
 		policy := plan.FixedPlacement
+		if checkID != "" {
+			policy = plan.CheckPlacements[checkID]
+		}
+
 		resource, loadErr := scanResource(tx.QueryRow(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind='Monitor' AND name=$1`, plan.Name))
 		if loadErr != nil {
 			return false, loadErr
@@ -69,6 +89,9 @@ func (s *Store) ReconcilePlacement(ctx context.Context, base resources.Registry,
 		}
 
 		cursorKey := "Monitor/" + uid
+		if checkID != "" {
+			cursorKey += "/" + checkID
+		}
 		if policy.Ref != "" {
 			if err = tx.QueryRow(ctx, `SELECT uid FROM nmo_resources WHERE kind='PlacementPolicy' AND name=$1`, policy.Ref).Scan(&cursorKey); err != nil {
 				return false, err
@@ -82,8 +105,21 @@ func (s *Store) ReconcilePlacement(ctx context.Context, base resources.Registry,
 		if err = tx.QueryRow(ctx, `SELECT next_offset FROM nmo_placement_cursors WHERE policy_key=$1 FOR UPDATE`, cursorKey).Scan(&cursor); err != nil {
 			return false, err
 		}
-		selected, next := placement.Select(plan, agents, cursor, now)
-		previous, exists := registry.ResolvedPlacements[plan.Name]
+		selectionPlan := plan
+		selectionPlan.CheckPlacements = nil
+		selectionPlan.FixedPlacement = policy
+		selectionPlan.Checks = nil
+		for _, check := range plan.Checks {
+			if (checkID != "" && check.ID == checkID) || (checkID == "" && plan.CheckPlacements[check.ID] == nil) {
+				selectionPlan.Checks = append(selectionPlan.Checks, check)
+			}
+		}
+		selected, next := placement.Select(selectionPlan, agents, cursor, now)
+		stateKey := plan.Name
+		if checkID != "" {
+			stateKey += "/" + checkID
+		}
+		previous, exists := registry.ResolvedPlacements[stateKey]
 		if exists && previous.PolicyHash == policy.Hash && previous.TemplateHash == template.Revision && slices.Equal(previous.Selected, selected) {
 			continue
 		}
@@ -91,7 +127,12 @@ func (s *Store) ReconcilePlacement(ctx context.Context, base resources.Registry,
 		if err != nil {
 			return false, err
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO nmo_regular_placements(monitor_uid,policy_hash,selected,plan_hash) VALUES($1,$2,$3,$4) ON CONFLICT(monitor_uid) DO UPDATE SET policy_hash=EXCLUDED.policy_hash,selected=EXCLUDED.selected,plan_hash=EXCLUDED.plan_hash`, uid, policy.Hash, raw, template.Revision); err != nil {
+		if checkID == "" {
+			_, err = tx.Exec(ctx, `INSERT INTO nmo_regular_placements(monitor_uid,policy_hash,selected,plan_hash) VALUES($1,$2,$3,$4) ON CONFLICT(monitor_uid) DO UPDATE SET policy_hash=EXCLUDED.policy_hash,selected=EXCLUDED.selected,plan_hash=EXCLUDED.plan_hash`, uid, policy.Hash, raw, template.Revision)
+		} else {
+			_, err = tx.Exec(ctx, `INSERT INTO nmo_check_placements(monitor_uid,check_id,policy_hash,selected,plan_hash) VALUES($1,$2,$3,$4,$5) ON CONFLICT(monitor_uid,check_id) DO UPDATE SET policy_hash=EXCLUDED.policy_hash,selected=EXCLUDED.selected,plan_hash=EXCLUDED.plan_hash`, uid, checkID, policy.Hash, raw, template.Revision)
+		}
+		if err != nil {
 			return false, err
 		}
 		if _, err = tx.Exec(ctx, `UPDATE nmo_placement_cursors SET next_offset=$2 WHERE policy_key=$1`, cursorKey, next); err != nil {

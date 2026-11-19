@@ -58,6 +58,7 @@ func run() error {
 	cert := flag.String("cert", "", "Controller certificate")
 	key := flag.String("key", "", "Controller private key file")
 	roster := flag.String("slots", "", "fixed planned agent=zone pairs")
+	agentLabelsFile := flag.String("agent-labels-file", "", "Controller-owned JSON Agent ID to labels inventory")
 	failureDomains := flag.String("failure-domains", "", "Controller-owned agent=domain pairs; omitted domains remain unknown")
 	output := flag.String("assessment-file", ".local/assessment.json", "local assessment snapshot")
 	profilePath := flag.String("diagnostic-profile", "", "referenced DiagnosticProfile file; no diagnostics without enabled binding")
@@ -125,6 +126,17 @@ func run() error {
 			if e != nil {
 				return e
 			}
+			labels := map[string]map[string]string{}
+			if *agentLabelsFile != "" {
+				data, err := os.ReadFile(*agentLabelsFile)
+				if err != nil {
+					return err
+				}
+				labels, err = resources.ParseAgentLabels(data, rosterSlots)
+				if err != nil {
+					return err
+				}
+			}
 			var profile diagnostics.Profile
 			b, e = os.ReadFile(*database)
 			if e != nil {
@@ -188,7 +200,7 @@ func run() error {
 				})
 			}
 
-			registry := resources.Registry{ExecuteAll: true, Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
+			registry := resources.Registry{AgentLabels: labels, FailureDomains: domains, ExecuteAll: true, Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
 			if *endpointPath != "" {
 				data, err := os.ReadFile(*endpointPath)
 				if err != nil {
@@ -254,7 +266,7 @@ func run() error {
 			hasDynamicPlacement := false
 			for _, plan := range plans {
 				revisions[plan.Name] = plan.Revision
-				hasDynamicPlacement = hasDynamicPlacement || (plan.FixedPlacement != nil && plan.FixedPlacement.Strategy != "")
+				hasDynamicPlacement = hasDynamicPlacement || plan.HasDynamicPlacement()
 			}
 			registry.LoadedRevisions = revisions
 			if p.Diagnostics != nil && p.Diagnostics.ProfileRef != "" {
@@ -307,7 +319,7 @@ func run() error {
 			}
 			defer lis.Close()
 			server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.MaxRecvMsgSize(1<<20), grpc.MaxSendMsgSize(1<<20), grpc.MaxConcurrentStreams(8))
-			agentServer := &transport.Server{Plan: p, Plans: plans, Slots: rosterSlots, FailureDomains: domains, FailureDomainsKnownAt: time.Now(), Store: store}
+			agentServer := &transport.Server{AgentLabels: labels, Plan: p, Plans: plans, Slots: rosterSlots, FailureDomains: domains, FailureDomainsKnownAt: time.Now(), Store: store}
 			pb.RegisterAgentServiceServer(server, agentServer)
 			{
 				c, done := context.WithTimeout(ctx, 5*time.Second)

@@ -1,0 +1,5 @@
+ok  	github.com/boby-star/NetMonOrc/internal/resources	3.681s
+ok  	github.com/boby-star/NetMonOrc/internal/placement	1.122s
+ok  	github.com/boby-star/NetMonOrc/internal/monitor	1.129s
+ok  	github.com/boby-star/NetMonOrc/internal/agent	8.522s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	1.187s

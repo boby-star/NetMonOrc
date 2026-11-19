@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "trustedHTTPS": true,
+  "realPostgreSQLAndAgentProbes": true,
+  "cases": {
+    "split": {
+      "state": "healthy",
+      "sources": [
+        {
+          "agent_id": "branch",
+          "check_id": "http"
+        },
+        {
+          "agent_id": "dc",
+          "check_id": "dns"
+        },
+        {
+          "agent_id": "dc",
+          "check_id": "tcp"
+        }
+      ],
+      "completeZones": 2,
+      "planCheckIds": [
+        "dns",
+        "http",
+        "tcp"
+      ]
+    },
+    "restart": {
+      "sameRevision": true,
+      "historicalCheckBindings": [
+        {
+          "agent": "branch",
+          "checks": [
+            "http"
+          ]
+        },
+        {
+          "agent": "dc",
+          "checks": [
+            "dns",
+            "tcp"
+          ]
+        }
+      ]
+    },
+    "selectorMiss": {
+      "state": "unknown",
+      "noUnassignedHTTP": true
+    },
+    "distinctDomains": {
+      "state": "healthy",
+      "physicalPairs": 6
+    },
+    "sharedDomains": {
+      "state": "unknown",
+      "physicalPairs": 0
+    },
+    "unknownDomain": {
+      "state": "unknown",
+      "physicalPairs": 0
+    }
+  },
+  "restoredHealthy": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

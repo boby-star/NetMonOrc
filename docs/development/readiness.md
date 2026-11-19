@@ -78,3 +78,10 @@ offline validate використовує registry. [Контракт із яв�
 [Натурні сценарії та compiler audit](../experiments/yaml-controls-2026-11-18/README.md).
 Це не завершення per-check placement, fallback, selectors, Component та інших
 полів повного старого DSL.
+
+## Trusted metadata та per-check placement
+
+Закрито check-level placement/ref, селектори Agent labels і distinctBy=failureDomain.
+[Контракт](../deployment/check-placement.md) та [натурні докази](../experiments/check-placement-2026-11-19/README.md).
+Окремі checks мають власні sources/coverage; БД зберігає ownership для старого
+replay. Решта fallback/Component/HTTP/parallel/byte budget ще не оголошена готовою.

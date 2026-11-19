@@ -1,0 +1,33 @@
+{
+  "baseCommit": "8e575aa28118c50392ef895e41b1fc7157e538d7",
+  "imageID": "sha256:2b9c953a62da098c44951239989f6124d1a40ebcab4ee0d1f7fbaf6af70995ed",
+  "implementationSHA256": {
+    "cmd/netmonorc-controller/main.go": "262108b293185934a2079c3e3b44c47073f2fb6575eb624bf926e07bb11cc773",
+    "cmd/netmonorc/main.go": "1a4f6dd56e9daca0f46ea8062a9560354c904dfbf86dcaa1ff7ba60a7ab31a22",
+    "cmd/netmonorc/validate.go": "2eccc3423dc92f30ad241c5138a6c0633105d7dab296057f1e2d0949be003cb2",
+    "internal/agent/client.go": "fdb2357c97f2e2ec983bd6db01a9970072e8f6cf5077b800d3070e526f980c33",
+    "internal/agent/scheduling.go": "b4ba2b6d7b4538c3b697508d84ef47174b81b12e53eb340400cd9b9a4928f4ca",
+    "internal/config/placement.go": "07893fcf9f63b98694f9ed332420bd0e122be21f6ccc5d436898f2343ab3904e",
+    "internal/config/verify.go": "2efa0262ca4e5a2b7df6ecfb45e755dd86def347fdfaa388892adb67c5881ec2",
+    "internal/monitor/assessment.go": "63e185922174ee43866d449b1f443327b31eb4310e15fb08d62a17801ab8eedf",
+    "internal/monitor/model.go": "3246d8115da52ecb86fdff8f192da21dfa81062288667ebf5577f6256289d601",
+    "internal/monitor/placement.go": "a6de4d426746bcffd33b0d5680037c97943e7ef0fce2d036c03f90273aee245e",
+    "internal/monitor/replicas.go": "3c38909f8e39011c24b07ae87a77b7b35e3bbfe61cd2adf9381475ba0b8cfe01",
+    "internal/placement/select.go": "a0322ae6954f2f323ff106343a7c1df0314c093588c86f0e7f9f62b4e06bb48a",
+    "internal/resources/agent_labels.go": "dd78b1c670c98cdc031418606ae6f4f6ada07017c66ad2ff52a06f01bd35b5af",
+    "internal/resources/check_placement.go": "11e98a84ab4c43c2301b22e76a7b318925b5eb3c39dd87490d8871ea7b33c070",
+    "internal/resources/check_profile.go": "c9f1518494eeec3bf43cbbb15f47a70f165ca882e0ee939602c62469bec5bea6",
+    "internal/resources/placement_policy.go": "6927548c5b62bc3aeb1d989e88f31f7be5b5ff7ce8b0d60508c66b521e4b0707",
+    "internal/resources/registry.go": "6382ec11719198f473672a7a3bc8b37c6dea53f508be69e4c45b3e8bf3abcc82",
+    "internal/resources/service.go": "661efc6e03be871916bf03aeb4f1ef8812fb05e6cc882f924f3a5d0b3a3b9187",
+    "internal/storage/catalog.go": "94bd3cb8c9fd1b8d46a4d266666db0e340354942aae9f1ec6d0e8857e5ceb1c9",
+    "internal/storage/placement.go": "9e8d93ca80585b1ee646ba10534b908745fd8f2d8fd19e4937c26ebb803e2118",
+    "internal/storage/postgres.go": "f30d62d8bf456d65990714aced2870e3994371e377b316b012c5a62ea1712452",
+    "internal/storage/resources.go": "498d97f78898e7f34bfc2395f59c27a192c30b6343262824c626f74a35d0ca80",
+    "internal/transport/agent_status.go": "687d3caad8cc8ef58a99446544e498319c932343062c5a6301d6ca8f2a46ee05",
+    "internal/transport/server.go": "32ec4b633e6cc7e42024d878e381cc3b5c2bfff7fc7c9d51eefec9ce85a749e4",
+    "web/src/BatchApply.tsx": "583b346b8f927451e29d6a7f52e60f0c28007a06342b9e1232899338a8de22af",
+    "web/src/api.ts": "ec733d878213d1765d5c5d63acf36675cb328e6cad3794dfcceb9bbc7ccd3b92"
+  },
+  "note": "Image built from working implementation before this commit; fingerprints identify accepted production code. No new browser interaction."
+}

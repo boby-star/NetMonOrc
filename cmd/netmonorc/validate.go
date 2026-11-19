@@ -13,7 +13,7 @@ import (
 
 // The local path uses the same catalog resolver as Controller validate/apply.
 // It checks supplied manifests only, never claiming access to the live roster.
-func localValidate(data []byte, slotsArg, cidrsArg string) error {
+func localValidate(data []byte, slotsArg, cidrsArg string, labelsFile ...string) error {
 	batch, err := parseBatch(data)
 	if err != nil {
 		return err
@@ -30,6 +30,16 @@ func localValidate(data []byte, slotsArg, cidrsArg string) error {
 			agents[id] = true
 			registry.Roster = append(registry.Roster, monitor.Slot{Agent: id, Zone: zone})
 			zones[zone] = true
+		}
+	}
+	if len(labelsFile) > 0 && labelsFile[0] != "" {
+		inventory, e := os.ReadFile(labelsFile[0])
+		if e != nil {
+			return e
+		}
+		registry.AgentLabels, e = resources.ParseAgentLabels(inventory, registry.Roster)
+		if e != nil {
+			return e
 		}
 	}
 	// A zone placeholder permits schema/type validation of defaulted policies;

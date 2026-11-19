@@ -88,3 +88,31 @@ func TestDistinctZonesFilterPhysicalCandidates(t *testing.T) {
 		}
 	}
 }
+
+func TestDistinctFailureDomainsNeverUsesReportedOrUnknownDomains(t *testing.T) {
+	p, agents, now := fixtures()
+	p.FixedPlacement.Replicas = 2
+	p.FixedPlacement.DistinctBy = "failureDomain"
+	p.FixedPlacement.FailureDomains = map[string]string{"branch": "same", "dc": "same"}
+	// Self-reported read-view metadata cannot override the plan's trusted domains.
+	agents[0].FailureDomain = "reported-a"
+	agents[1].FailureDomain = "reported-b"
+	for _, strategy := range []string{"leastLoaded", "roundRobin"} {
+		p.FixedPlacement.Strategy = strategy
+		selected, next := Select(p, agents, 0, now)
+		if len(selected) != 0 || next != 0 {
+			t.Fatal("shared domains fabricated independence", selected)
+		}
+	}
+	p.FixedPlacement.FailureDomains["dc"] = "other"
+	selected, _ := Select(p, agents, 0, now)
+	if len(selected) != 2 {
+		t.Fatal("distinct domains ignored", selected)
+	}
+	p.FixedPlacement.Selected = selected
+	delete(p.FixedPlacement.FailureDomains, "dc")
+	selected, _ = Select(p, agents, 0, now)
+	if len(selected) != 0 {
+		t.Fatal("cached unknown-domain assignment retained", selected)
+	}
+}

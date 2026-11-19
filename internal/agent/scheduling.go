@@ -24,6 +24,9 @@ func dueRegular(assignments []*assignment, id string, next map[string]time.Time,
 			continue
 		}
 		for _, c := range a.plan.Checks {
+			if !a.plan.CheckAllowed(c.ID, id) {
+				continue
+			}
 			key := a.plan.Revision + "/" + c.ID
 			due, known := next[key]
 			if !known && c.Jitter > 0 {

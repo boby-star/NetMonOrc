@@ -99,7 +99,7 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 			return err
 		}
 	}
-	if !seenZones[zone] && p.FixedPlacement == nil {
+	if !seenZones[zone] && p.FixedPlacement == nil && len(p.CheckPlacements) == 0 {
 		return fmt.Errorf("assigned zone is not in plan")
 	}
 	if p.MaxAge <= 0 || p.MaxSkew <= 0 || p.MinCoverage < 0 || p.MinCoverage > 1 || p.DegradedMin < 0 || p.HealthyMin > 1 || p.DegradedMin >= p.HealthyMin {
@@ -126,6 +126,21 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 			return fmt.Errorf("invalid assessment weight")
 		}
 		total += c.Weight
+	}
+	if len(p.CheckPlacements) > 100 {
+		return fmt.Errorf("too many check placements")
+	}
+	for id, binding := range p.CheckPlacements {
+		if !seen[id] || binding == nil {
+			return fmt.Errorf("invalid check placement ID")
+		}
+		principal := ""
+		if len(agent) == 1 {
+			principal = agent[0]
+		}
+		if err := verifyFixedPlacement(binding, principal, zone); err != nil {
+			return err
+		}
 	}
 	if total <= 0 && !p.Disabled {
 		return fmt.Errorf("zero total weight")

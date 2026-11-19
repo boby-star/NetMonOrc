@@ -35,7 +35,7 @@ func verifyFixedPlacement(placement *monitor.FixedPlacement, agent, zone string)
 	if len(placement.Selected) != 0 && len(placement.Selected) != placement.Replicas {
 		return fmt.Errorf("partial fixed placement is forbidden")
 	}
-	if placement.DistinctBy != "" && placement.DistinctBy != "zone" {
+	if placement.DistinctBy != "" && placement.DistinctBy != "zone" && placement.DistinctBy != "failureDomain" {
 		return fmt.Errorf("invalid placement distinctBy")
 	}
 	registered := map[string]string{}
@@ -44,6 +44,25 @@ func verifyFixedPlacement(placement *monitor.FixedPlacement, agent, zone string)
 			return fmt.Errorf("invalid roster binding")
 		}
 		registered[slot.Agent] = slot.Zone
+	}
+	if len(placement.FailureDomains) > 100 {
+		return fmt.Errorf("too many failure domains")
+	}
+	for id, domain := range placement.FailureDomains {
+		if registered[id] == "" || !rosterAgentID.MatchString(domain) {
+			return fmt.Errorf("invalid trusted placement domain")
+		}
+	}
+	knownZones := map[string]bool{}
+	for _, z := range registered {
+		knownZones[z] = true
+	}
+	scopes := map[string]bool{}
+	for _, z := range placement.ScopeZones {
+		if !knownZones[z] || scopes[z] {
+			return fmt.Errorf("invalid placement scope")
+		}
+		scopes[z] = true
 	}
 	if agent == "" || registered[agent] != zone {
 		return fmt.Errorf("placement requires the authenticated Agent identity and zone")
@@ -62,12 +81,14 @@ func verifyFixedPlacement(placement *monitor.FixedPlacement, agent, zone string)
 		candidates[slot.Agent] = true
 	}
 	agents, zones := map[string]bool{}, map[string]bool{}
+	domains := map[string]bool{}
 	for _, slot := range placement.Selected {
-		if registered[slot.Agent] != slot.Zone || (placement.Strategy != "" && !candidates[slot.Agent]) || agents[slot.Agent] || (placement.DistinctBy == "zone" && zones[slot.Zone]) {
+		if registered[slot.Agent] != slot.Zone || (placement.Strategy != "" && !candidates[slot.Agent]) || agents[slot.Agent] || (placement.DistinctBy == "zone" && zones[slot.Zone]) || (placement.DistinctBy == "failureDomain" && (placement.FailureDomains[slot.Agent] == "" || domains[placement.FailureDomains[slot.Agent]])) {
 			return fmt.Errorf("invalid selected placement source")
 		}
 		agents[slot.Agent] = true
 		zones[slot.Zone] = true
+		domains[placement.FailureDomains[slot.Agent]] = true
 	}
 	return nil
 }

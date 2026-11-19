@@ -126,10 +126,10 @@ REST JSON також проходить структурну перевірку 
 
 ## Фактичний залишок повної таблиці аудиту
 
-Наведені зміни не означають реалізацію всього старого ТЗ. Поки залишаються:
+Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вже реалізовано:
+[контракт і міграція](check-placement.md). Наведені зміни не означають реалізацію
+всього старого ТЗ. Поки залишаються:
 
-- per-check placement/ref із окремими planned/applied/observed sources;
-- Agent label selectors і distinctBy=failureDomain у regular placement;
 - ExecutionFallback з окремими корельованими physical attempts;
 - декларативний Component/external binding;
 - решта HTTP-параметрів, hostname/redirect/connectIP policy;

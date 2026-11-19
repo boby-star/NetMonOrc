@@ -219,7 +219,7 @@ func (s *Store) DeleteResourceKind(ctx context.Context, actor auth.AdminCredenti
 	}
 	if kind == "PlacementPolicy" {
 		var refs bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='Monitor' AND manifest->'spec'->>'placementRef'=$1)`, name).Scan(&refs); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources r WHERE (r.kind='Monitor' AND r.manifest->'spec'->>'placementRef'=$1) OR (r.kind IN ('Monitor','CheckProfile') AND EXISTS(SELECT 1 FROM jsonb_array_elements(COALESCE(r.manifest->'spec'->'checks','[]')) c WHERE c->>'placementRef'=$1)))`, name).Scan(&refs); err != nil {
 			return err
 		}
 		if refs {

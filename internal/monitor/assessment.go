@@ -59,7 +59,7 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 			if check.MaxAge > 0 {
 				age = check.MaxAge
 			}
-			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || !expected[o.Agent] || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || !expected[o.Agent] || !p.CheckAllowed(o.Check, o.Agent) || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
 				continue
 			}
 			key := o.Agent + "/" + o.Check
@@ -79,9 +79,18 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 		requiredMissing, requiredFailure, divergent := false, false, false
 		complete := len(byZone[zone]) > 0
 		for _, check := range p.Checks {
+			if !p.CheckInZone(check.ID, zone) {
+				continue
+			}
+			sources := []Slot{}
+			for _, slot := range p.CheckSlots(check.ID, slots) {
+				if slot.Zone == zone {
+					sources = append(sources, slot)
+				}
+			}
 			total += check.Weight
 			var fresh, current []Observation
-			for _, slot := range byZone[zone] {
+			for _, slot := range sources {
 				if o, found := latestPhysical[slot.Agent+"/"+check.ID]; found {
 					fresh = append(fresh, o)
 					if !o.FinishedAt.Before(anchor.Add(-p.MaxSkew)) {
@@ -89,7 +98,7 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 					}
 				}
 			}
-			n := len(byZone[zone])
+			n := len(sources)
 			outcome := aggregateReplicas(p.SameZoneAggregation, n, current)
 			successes, failures, present := 0, 0, 0
 			for _, o := range current {
@@ -200,6 +209,24 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 			z.Reason = "AGENT_RESULTS_DIVERGE"
 		}
 		a.Zones = append(a.Zones, z)
+	}
+	for _, check := range p.Checks {
+		if !check.Required {
+			continue
+		}
+		covered := false
+		for _, zone := range p.Zones {
+			covered = covered || p.CheckInZone(check.ID, zone)
+		}
+		if !covered {
+			for i := range a.Zones {
+				a.Zones[i].Coverage = "coverage_degraded"
+				if a.Zones[i].State == "healthy" {
+					a.Zones[i].State = "unknown"
+					a.Zones[i].Reason = "required_check_outside_assessment"
+				}
+			}
+		}
 	}
 	a.State = aggregateZones(p.ZoneAggregation, a.Zones)
 	return a, nil

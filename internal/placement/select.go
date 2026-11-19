@@ -27,7 +27,7 @@ func Select(plan monitor.Plan, agents []agentstatus.View, cursor int64, now time
 	var eligible []monitor.Slot
 	for _, slot := range policy.Candidates {
 		a, ok := views[slot.Agent]
-		if !ok || a.NetworkZone != slot.Zone || !eligibleFor(plan, a, now) {
+		if !ok || a.NetworkZone != slot.Zone || !eligibleFor(plan, a, now) || (policy.DistinctBy == "failureDomain" && policy.FailureDomains[slot.Agent] == "") {
 			continue
 		}
 		eligible = append(eligible, slot)
@@ -35,8 +35,11 @@ func Select(plan monitor.Plan, agents []agentstatus.View, cursor int64, now time
 	sort.Slice(eligible, func(i, j int) bool { return eligible[i].Agent < eligible[j].Agent })
 	if len(policy.Selected) == policy.Replicas {
 		valid := true
+		seen := map[string]bool{}
 		for _, slot := range policy.Selected {
-			valid = valid && slices.Contains(eligible, slot)
+			key := distinctValue(policy, slot)
+			valid = valid && slices.Contains(eligible, slot) && key != "" && !seen[key]
+			seen[key] = true
 		}
 		if valid {
 			return append([]monitor.Slot(nil), policy.Selected...), cursor
@@ -51,13 +54,14 @@ func Select(plan monitor.Plan, agents []agentstatus.View, cursor int64, now time
 			return int64(*left.ActiveProbes)*int64(*right.MaxConcurrentProbes) < int64(*right.ActiveProbes)*int64(*left.MaxConcurrentProbes)
 		})
 		var selected []monitor.Slot
-		zones := map[string]bool{}
+		used := map[string]bool{}
 		for _, slot := range eligible {
-			if policy.DistinctBy == "zone" && zones[slot.Zone] {
+			key := distinctValue(policy, slot)
+			if key == "" || used[key] {
 				continue
 			}
 			selected = append(selected, slot)
-			zones[slot.Zone] = true
+			used[key] = true
 			if len(selected) == policy.Replicas {
 				return selected, cursor
 			}
@@ -68,14 +72,15 @@ func Select(plan monitor.Plan, agents []agentstatus.View, cursor int64, now time
 		cursor = 0
 	}
 	selected := make([]monitor.Slot, 0, policy.Replicas)
-	zones := map[string]bool{}
+	used := map[string]bool{}
 	for i := 0; i < len(eligible); i++ {
 		slot := eligible[(int(cursor%int64(len(eligible)))+i)%len(eligible)]
-		if policy.DistinctBy == "zone" && zones[slot.Zone] {
+		key := distinctValue(policy, slot)
+		if key == "" || used[key] {
 			continue
 		}
 		selected = append(selected, slot)
-		zones[slot.Zone] = true
+		used[key] = true
 		if len(selected) == policy.Replicas {
 			return selected, (cursor + int64(i+1)) % int64(len(eligible))
 		}
@@ -101,4 +106,15 @@ func eligibleFor(plan monitor.Plan, a agentstatus.View, now time.Time) bool {
 		}
 	}
 	return slices.Contains(a.Capabilities, "placement:dynamic")
+}
+
+func distinctValue(p *monitor.FixedPlacement, s monitor.Slot) string {
+	switch p.DistinctBy {
+	case "zone":
+		return s.Zone
+	case "failureDomain":
+		return p.FailureDomains[s.Agent]
+	default:
+		return s.Agent
+	}
 }

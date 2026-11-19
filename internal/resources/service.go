@@ -154,6 +154,8 @@ type PlannedPlacementSource struct {
 	NetworkZone string `json:"networkZone"`
 }
 type PlacementPreview struct {
+	CheckID        string                   `json:"checkId,omitempty"`
+	DistinctBy     string                   `json:"distinctBy,omitempty"`
 	MonitorID      string                   `json:"monitorId"`
 	Strategy       string                   `json:"strategy"`
 	Replicas       int                      `json:"replicas"`
@@ -236,19 +238,32 @@ func (s *Service) Plan(ctx context.Context, batch Batch) (Plan, error) {
 			continue
 		}
 		entry := compiled["Monitor/"+diff.Name]
-		if entry.Monitor == nil || entry.Monitor.FixedPlacement == nil {
+		if entry.Monitor == nil {
 			continue
 		}
-		placement := entry.Monitor.FixedPlacement
-		strategy := placement.Strategy
-		if strategy == "" {
-			strategy = "fixed"
+		ids := []string{}
+		if entry.Monitor.FixedPlacement != nil {
+			ids = append(ids, "")
 		}
-		preview := PlacementPreview{MonitorID: diff.Name, Strategy: strategy, Replicas: placement.Replicas, Pending: len(placement.Selected) == 0, SelectedAgents: []PlannedPlacementSource{}}
-		for _, slot := range placement.Selected {
-			preview.SelectedAgents = append(preview.SelectedAgents, PlannedPlacementSource{AgentID: slot.Agent, NetworkZone: slot.Zone})
+		for id := range entry.Monitor.CheckPlacements {
+			ids = append(ids, id)
 		}
-		plan.Placements = append(plan.Placements, preview)
+		sort.Strings(ids)
+		for _, id := range ids {
+			placement := entry.Monitor.FixedPlacement
+			if id != "" {
+				placement = entry.Monitor.CheckPlacements[id]
+			}
+			strategy := placement.Strategy
+			if strategy == "" {
+				strategy = "fixed"
+			}
+			preview := PlacementPreview{MonitorID: diff.Name, CheckID: id, DistinctBy: placement.DistinctBy, Strategy: strategy, Replicas: placement.Replicas, Pending: len(placement.Selected) == 0, SelectedAgents: []PlannedPlacementSource{}}
+			for _, slot := range placement.Selected {
+				preview.SelectedAgents = append(preview.SelectedAgents, PlannedPlacementSource{AgentID: slot.Agent, NetworkZone: slot.Zone})
+			}
+			plan.Placements = append(plan.Placements, preview)
+		}
 	}
 	// Actual placement is the fixed roster; a dry-run does not invent live capacity.
 	plan.Warnings = append(plan.Warnings, Detail{Code: "FIXED_ROSTER", Message: "Placement candidates come from the trusted fixed Controller roster; dry-run does not claim online/capacity proof; unselected Monitors await Controller selection"})

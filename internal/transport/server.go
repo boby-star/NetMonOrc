@@ -36,6 +36,7 @@ type activeSession struct {
 	heartbeatSequence uint64
 }
 type Server struct {
+	AgentLabels map[string]map[string]string
 	// Immutable Controller-owned domains, configured before serving.
 	FailureDomains        map[string]string
 	FailureDomainsKnownAt time.Time
@@ -121,6 +122,18 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
+		if len(plan.CheckPlacements) > 0 && !capabilities["placement:per-check"] {
+			return status.Error(codes.FailedPrecondition, "per-check placement capability required")
+		}
+
+		for _, b := range plan.CheckPlacements {
+			if b.DistinctBy == "failureDomain" && !capabilities["placement:domains"] {
+				return status.Error(codes.FailedPrecondition, "per-check failure-domain capability required")
+			}
+		}
+		if plan.FixedPlacement != nil && plan.FixedPlacement.DistinctBy == "failureDomain" && !capabilities["placement:domains"] {
+			return status.Error(codes.FailedPrecondition, "failure-domain placement capability required")
+		}
 		controls := plan.Disabled || plan.WeightedDisabled || plan.DefaultState != "" || (plan.TargetContext != nil && plan.TargetRef == "")
 		for _, c := range plan.Checks {
 			controls = controls || c.Priority != 0 || c.Jitter != 0
@@ -144,6 +157,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			return status.Error(codes.FailedPrecondition, "dynamic placement capability required")
 		}
 		for _, c := range plan.Checks {
+			if !plan.CouldRunCheck(c.ID, id) {
+				continue
+			}
 			if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
 				return status.Error(codes.FailedPrecondition, "runner capability unavailable")
 			}
@@ -201,7 +217,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			}
 			sum := sha256.Sum256(plan)
 			c, done := context.WithTimeout(ctx, 5*time.Second)
-			assignmentErr := s.Store.Assign(c, id, generation, p.Revision, zone, p.Name, p.RegularAllowed(id))
+			assignmentErr := s.Store.AssignPlan(c, id, generation, p, zone)
 			done()
 			if assignmentErr != nil {
 				return status.Error(codes.Aborted, "session superseded or storage unavailable")
@@ -342,7 +358,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 					if !applied[o.Revision] {
 						return status.Error(codes.FailedPrecondition, "observation plan is not acknowledged")
 					}
-					if o.DiagnosticTaskID == "" && !plan.RegularAllowed(id) {
+					if o.DiagnosticTaskID == "" && !plan.CheckAllowed(o.Check, id) {
 						return status.Error(codes.PermissionDenied, "Agent is not assigned regular probes")
 					}
 				}

@@ -445,7 +445,8 @@ export interface ConfigPlan {
   warnings: { code: string; message: string }[];
   placements?: {
     monitorId: string;
-    strategy: "fixed";
+    checkId?: string; distinctBy?: string;
+    strategy: "fixed" | "leastLoaded" | "roundRobin";
     replicas: number;
     pending: boolean;
     selectedAgents: { agentId: string; networkZone: string }[];

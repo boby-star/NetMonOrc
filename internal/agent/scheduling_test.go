@@ -57,3 +57,33 @@ func TestScheduleJitterStableBoundedAndSourceSpecific(t *testing.T) {
 		t.Fatal("default adds hidden jitter")
 	}
 }
+
+func TestSchedulerNeverRunsAnotherChecksPlacement(t *testing.T) {
+	requests := make(chan string, 4)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests <- r.URL.Path; w.WriteHeader(200) }))
+	defer target.Close()
+	spool, err := OpenSpool(t.TempDir(), "branch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer spool.Close()
+	boot, err := bootTime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	roster := []monitor.Slot{{Agent: "branch", Zone: "office"}, {Agent: "dc", Zone: "server"}}
+	p := monitor.Plan{Name: "split", Revision: "split", CheckPlacements: map[string]*monitor.FixedPlacement{"left": {Selected: roster[:1]}, "right": {Selected: roster[1:]}}, Checks: []monitor.Check{}}
+	for _, id := range []string{"left", "right"} {
+		p.Checks = append(p.Checks, monitor.Check{ID: id, Type: "http", Runner: "native-http", URL: target.URL + "/" + id, Method: "GET", ExpectedStatus: []int{200}, MaxBodyBytes: 1024, Interval: time.Minute, Timeout: time.Second})
+	}
+	st := &state{}
+	st.set(&assignment{plan: p, zone: "office", deadline: time.Now().Add(5 * time.Second), bootDeadline: boot + 5*time.Second})
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	if err = schedule(ctx, st, spool, "branch", "", []netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}); err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 1 || <-requests != "/left" {
+		t.Fatal("Agent executed another check's allocation")
+	}
+}
