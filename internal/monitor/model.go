@@ -6,6 +6,9 @@ import (
 )
 
 type Check struct {
+	ConnectIP       string            `json:",omitempty"`
+	FollowRedirects bool              `json:",omitempty"`
+	Headers         map[string]string `json:",omitempty"`
 	// Zero Priority is the historical/default priority 50.
 	Priority         int           `json:",omitempty"`
 	Jitter           time.Duration `json:",omitempty"`

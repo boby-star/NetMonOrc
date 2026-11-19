@@ -132,8 +132,10 @@ Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вж�
 
 - ExecutionFallback з окремими корельованими physical attempts;
 - декларативний Component/external binding;
-- решта HTTP-параметрів, hostname/redirect/connectIP policy;
 - паралельне виконання Fixed DAG і live estimated-byte budget.
+
+HTTP headers/connectIP/redirect та Agent-side DNS/IP policy реалізовано;
+driver limits наведено в [контракті HTTP](http-policy.md).
 
 Ці поля й далі не приймаються там, де немає runtime семантики. Наявний
 retry/domain confirmation/Blackbox runner не оголошується заміною цих функцій.

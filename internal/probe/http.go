@@ -3,24 +3,28 @@ package probe
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 )
 
-// HTTP performs exactly one bounded request. This first slice accepts literal
-// IP targets only, so policy validation cannot race a second DNS resolution.
-// No environment proxy, redirects, cookies or insecure TLS are permitted.
+// HTTP performs one bounded policy-checked HTTP execution, including explicit redirects.
 func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, allowed []netip.Prefix) (monitor.Observation, error) {
-	if e := allowedTarget(c.URL, allowed); e != nil {
+	return httpWithRoots(ctx, p, c, s, allowed, nil)
+}
+func httpWithRoots(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, allowed []netip.Prefix, roots *x509.CertPool) (monitor.Observation, error) {
+	if e := allowedHTTPCheck(c, allowed); e != nil {
 		return monitor.Observation{}, e
 	}
 	u, e := url.Parse(c.URL)
@@ -34,16 +38,45 @@ func HTTP(ctx context.Context, p monitor.Plan, c monitor.Check, s monitor.Slot, 
 	o := monitor.Observation{ID: hex.EncodeToString(id[:]), Monitor: p.Name, Revision: p.Revision, Check: c.ID, Agent: s.Agent, Zone: s.Zone, StartedAt: time.Now().UTC(), Execution: "completed", Outcome: "failure"}
 	child, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
-	tr := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: c.Timeout}).DialContext, DisableKeepAlives: true, MaxResponseHeaderBytes: 16384, TLSHandshakeTimeout: c.Timeout}
+	tr := &http.Transport{Proxy: nil, DialContext: policyHTTPDial(c, allowed), DisableKeepAlives: true, MaxResponseHeaderBytes: 16384, TLSHandshakeTimeout: c.Timeout}
+	tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	defer tr.CloseIdleConnections()
-	client := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Transport: tr, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if !c.FollowRedirects {
+			return http.ErrUseLastResponse
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("HTTP redirect limit exceeded")
+		}
+		next := c
+		next.URL = req.URL.String()
+		origin, _ := url.Parse(c.URL)
+		if !strings.EqualFold(req.URL.Hostname(), origin.Hostname()) {
+			next.ConnectIP = ""
+		}
+		if req.URL.Scheme != origin.Scheme || !strings.EqualFold(req.URL.Host, origin.Host) {
+			req.Header = make(http.Header)
+		}
+		if err := allowedHTTPCheck(next, allowed); err != nil {
+			return err
+		}
+		return nil
+	}}
 	req, e := http.NewRequestWithContext(child, c.Method, u.String(), nil)
 	if e != nil {
 		return monitor.Observation{}, e
 	}
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
 	response, e := client.Do(req)
 	if e != nil {
 		o.Reason = "target_request_failed"
+		if errors.Is(e, errHTTPPolicy) {
+			o.Execution = "execution_failed"
+			o.Outcome = "unknown"
+			o.Reason = "target_policy_denied"
+		}
 		if ctx.Err() != nil {
 			o.Execution = "execution_failed"
 			o.Outcome = "unknown"

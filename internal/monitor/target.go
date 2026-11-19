@@ -3,6 +3,8 @@ package monitor
 import (
 	"fmt"
 	"net"
+	"net/netip"
+	"net/url"
 	"strconv"
 )
 
@@ -25,4 +27,19 @@ func ProbeTarget(p Plan, c Check) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("unsupported or incomplete probe")
+}
+
+func (c Check) NeedsHTTPPolicy() bool {
+	if c.Type != "http" {
+		return false
+	}
+	if c.ConnectIP != "" || c.FollowRedirects || len(c.Headers) > 0 {
+		return true
+	}
+	u, err := url.Parse(c.URL)
+	if err != nil || u == nil {
+		return false
+	}
+	_, err = netip.ParseAddr(u.Hostname())
+	return c.Runner == "native-http" && err != nil
 }

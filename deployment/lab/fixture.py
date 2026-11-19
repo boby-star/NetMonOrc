@@ -16,6 +16,14 @@ def mode():
 class HTTP(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
+            if self.path in ['/policy-redirect', '/policy-denied']:
+                self.send_response(302)
+                self.send_header('Location', '/policy-final' if self.path == '/policy-redirect' else 'http://169.254.169.254/')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            if self.path == '/policy-final' and (self.headers.get('Host') != 'service.invalid:8080' or self.headers.get('X-Probe') != 'safe'):
+                self.send_response(400); self.send_header('Content-Length', '0'); self.end_headers(); return
             if self.path == "/slow":
                 time.sleep(12)  # Fixed private fixture for in-flight cancellation.
             state = mode()

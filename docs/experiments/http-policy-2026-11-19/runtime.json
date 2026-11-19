@@ -1,0 +1,22 @@
+{
+  "baseCommit": "dabc2ed505faa56762718c87f63e333955e0de87",
+  "imageID": "sha256:dd5734ad99fc1125098d1dfc5af44646871cf9c303e3bde978eb894f89ef6d06",
+  "implementationSHA256": {
+    "deployment/lab/fixture.py": "bc6957c3ec94bdf3876a127f339a4ee44ce659f4a1caa4b350a6c689d1a352bd",
+    "internal/agent/client.go": "6661729b20b81042feffe1afee0e422e48fea3eec271579e6fb9ff7cf33ae3c1",
+    "internal/config/config_test.go": "c3152ba04b49135f5143fe46ee9ef4693e95fd9c9b4b49fa7deabfc78d150e42",
+    "internal/config/probes.go": "f1d846a6e2230a3d1bb81df9f0a2fbee58ba62332e4f4e5bc66109245b81f249",
+    "internal/coordinator/coordinator.go": "7c580f126a14c8705bee782ac4e4195e9335e2fd62ddbf92b5f076f4d7beff41",
+    "internal/monitor/model.go": "b0eda86b9e4f9546b8c95f1d08a84d6f85b03cee4f079925226d76513dd3b1bc",
+    "internal/monitor/target.go": "454595e24ee99c5fd5e9b1189c45440aa43124866324dc28b2f1c3010d2b8b5f",
+    "internal/probe/http.go": "4b4faea221ab045d41ee4878fe9cdeaf87e194d56e551c93127b72721ee4a206",
+    "internal/probe/modules.go": "51a4cebcc13297822daccfad577b589ba8516f69da59bd05e0c95fc03fec6dcb",
+    "internal/transport/server.go": "33cb20162719c602099b102b6481c4f1c024044268c6ad0a865f983bdb704c8d",
+    "internal/config/http_headers.go": "d5983f6e6c8813e6d12e628ed7e3d5dcc0a83d888c2be2800d70f728044c2e66",
+    "internal/config/http_policy_test.go": "ac449aaf4a8ab94ca1e2403d48a53a930f86a88aa8f0a050af522b843edff379",
+    "internal/probe/http_policy.go": "de2976721b44ecbdacc9f3b63c72a5dd5426e9711f1cfa3362fc680aa0f50489",
+    "internal/probe/http_policy_test.go": "e9cb97a46e098056ee9918aec3e7fc5dfdcb42c9c595f4f35c305b487e503a71",
+    "scripts/lab_http_policy.py": "64745af2ec523db4578b1ddb800e597ceff2b63150ffbc360c06630d01bc4006"
+  },
+  "note": "Built and accepted before commit; no browser interaction."
+}

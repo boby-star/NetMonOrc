@@ -125,7 +125,7 @@ func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Pla
 		}()
 		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: plan}
 		engine := diagnostics.Engine{EvidenceMaxAge: plan.MaxAge, EvidenceMaxSkew: plan.MaxSkew, TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
-			return agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
+			return (!action.Check.NeedsHTTPPolicy() || agent.Supported["http:policy-v2"]) && agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
 		}}
 		mode := profile.Mode
 		if plan.Diagnostics.ComparisonStatic {

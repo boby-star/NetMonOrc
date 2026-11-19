@@ -85,3 +85,10 @@ offline validate використовує registry. [Контракт із яв�
 [Контракт](../deployment/check-placement.md) та [натурні докази](../experiments/check-placement-2026-11-19/README.md).
 Окремі checks мають власні sources/coverage; БД зберігає ownership для старого
 replay. Решта fallback/Component/HTTP/parallel/byte budget ще не оголошена готовою.
+
+## HTTP YAML policy
+
+Додано connectIP/headers/followRedirects, native Agent DNS/IP guard та capability
+http:policy-v2. [Обмеження драйверів](../deployment/http-policy.md) збережено явно;
+verifyTLS:false не дозволено. [Натурний сценарій](../experiments/http-policy-2026-11-19/README.md)
+підтвердив успішний pinned redirect та блокування metadata IP як unknown.

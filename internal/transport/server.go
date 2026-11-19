@@ -160,6 +160,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			if !plan.CouldRunCheck(c.ID, id) {
 				continue
 			}
+			if c.NeedsHTTPPolicy() && !capabilities["http:policy-v2"] {
+				return status.Error(codes.FailedPrecondition, "policy-checked HTTP capability required")
+			}
 			if !capabilities[c.Runner] || !capabilities[c.Type] || (len(c.Extract) > 0 && !capabilities["extraction:regex"]) {
 				return status.Error(codes.FailedPrecondition, "runner capability unavailable")
 			}

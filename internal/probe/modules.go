@@ -39,6 +39,9 @@ func blackboxModule(p monitor.Plan, c monitor.Check) (map[string]any, error) {
 	switch c.Type {
 	case "http":
 		m["http"] = map[string]any{"method": c.Method, "valid_status_codes": c.ExpectedStatus, "follow_redirects": false, "preferred_ip_protocol": protocol, "ip_protocol_fallback": false, "body_size_limit": strconv.FormatInt(c.MaxBodyBytes, 10) + "B", "tls_config": map[string]bool{"insecure_skip_verify": false}}
+		if len(c.Headers) > 0 {
+			m["http"].(map[string]any)["headers"] = c.Headers
+		}
 		if c.BodyMatchesRegex != "" {
 			m["http"].(map[string]any)["fail_if_body_not_matches_regexp"] = []string{c.BodyMatchesRegex}
 		}
@@ -67,7 +70,12 @@ func validateTarget(p monitor.Plan, c monitor.Check, allowed []netip.Prefix) (st
 	var ip netip.Addr
 	switch c.Type {
 	case "http":
-		if e = allowedTarget(target, allowed); e != nil {
+		if c.Runner == "native-http" {
+			e = allowedHTTPCheck(c, allowed)
+		} else {
+			e = allowedTarget(target, allowed)
+		}
+		if e != nil {
 			return "", e
 		}
 		return target, nil

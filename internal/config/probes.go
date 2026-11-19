@@ -15,13 +15,15 @@ import (
 )
 
 type httpConfig struct {
-	BodyMatchesRegex string `yaml:"bodyMatchesRegex"`
-	URL              string `yaml:"url"`
-	Method           string `yaml:"method"`
-	ExpectedStatus   []int  `yaml:"expectedStatus"`
-	VerifyTLS        *bool  `yaml:"verifyTLS"`
-	FollowRedirects  bool   `yaml:"followRedirects"`
-	MaxBodyBytes     *int64 `yaml:"maxBodyBytes"`
+	ConnectIP        string            `yaml:"connectIP"`
+	Headers          map[string]string `yaml:"headers"`
+	BodyMatchesRegex string            `yaml:"bodyMatchesRegex"`
+	URL              string            `yaml:"url"`
+	Method           string            `yaml:"method"`
+	ExpectedStatus   []int             `yaml:"expectedStatus"`
+	VerifyTLS        *bool             `yaml:"verifyTLS"`
+	FollowRedirects  bool              `yaml:"followRedirects"`
+	MaxBodyBytes     *int64            `yaml:"maxBodyBytes"`
 }
 type tcpConfig struct {
 	Port                int    `yaml:"port"`
@@ -65,6 +67,16 @@ func compileProbe(s checkSpec, target string) (monitor.Check, error) {
 	c, e := decode(s.Config)
 	if e != nil {
 		return c, e
+	}
+	if (s.Runner == "" || s.Runner == "auto") && s.Type == "http" {
+		u, parseErr := url.Parse(c.URL)
+		if parseErr != nil || u == nil {
+			return c, fmt.Errorf("invalid HTTP URL")
+		}
+		_, literal := netip.ParseAddr(u.Hostname())
+		if c.ConnectIP != "" || c.FollowRedirects || literal != nil {
+			runner = "native-http"
+		}
 	}
 	c.Type = s.Type
 	c.Extract, e = compileExtract(s.Extract)
@@ -134,6 +146,21 @@ func scalarTypes(n *yaml.Node, t reflect.Type) error {
 				return fmt.Errorf("%s: unknown field (line %d)", key, n.Content[i].Line)
 			}
 		}
+	case reflect.Map:
+		if n.Kind != yaml.MappingNode {
+			return fmt.Errorf("expected mapping")
+		}
+		seen := map[string]bool{}
+		for i := 0; i < len(n.Content); i += 2 {
+			key := n.Content[i].Value
+			if n.Content[i].Tag != "!!str" || seen[key] {
+				return fmt.Errorf("duplicate or non-string key")
+			}
+			seen[key] = true
+			if err := scalarTypes(n.Content[i+1], t.Elem()); err != nil {
+				return fmt.Errorf("%s: %w", key, err)
+			}
+		}
 	case reflect.Slice:
 		if n.Kind != yaml.SequenceNode {
 			return fmt.Errorf("expected list")
@@ -168,8 +195,23 @@ func decodeHTTP(n yaml.Node) (monitor.Check, error) {
 	if e := decodeClosed(n, &h); e != nil {
 		return c, e
 	}
-	if h.FollowRedirects || (h.VerifyTLS != nil && !*h.VerifyTLS) {
-		return c, fmt.Errorf("redirects and disabled TLS verification are not supported")
+	if h.VerifyTLS != nil && !*h.VerifyTLS {
+		return c, fmt.Errorf("disabled TLS verification is forbidden")
+	}
+	c.ConnectIP = h.ConnectIP
+	if c.ConnectIP != "" {
+		ip, err := netip.ParseAddr(c.ConnectIP)
+		if err != nil || ip.Zone() != "" {
+			return c, fmt.Errorf("invalid connectIP")
+		}
+		c.ConnectIP = ip.Unmap().String()
+	}
+	c.FollowRedirects = h.FollowRedirects
+	c.Headers = h.Headers
+	var err error
+	c.Headers, err = normalizeHTTPHeaders(h.Headers)
+	if err != nil {
+		return c, err
 	}
 	c.BodyMatchesRegex = h.BodyMatchesRegex
 	c.URL = h.URL
@@ -275,6 +317,20 @@ func validateProbe(c monitor.Check) error {
 		if c.TCP != nil || c.DNS != nil || c.ICMP != nil {
 			return fmt.Errorf("HTTP check has unrelated protocol fields")
 		}
+		if (c.ConnectIP != "" || c.FollowRedirects) && c.Runner != "native-http" {
+			return fmt.Errorf("connectIP and policy-checked redirects require native-http")
+		}
+		if c.ConnectIP != "" {
+			ip, err := netip.ParseAddr(c.ConnectIP)
+			if err != nil || ip.Zone() != "" {
+				return fmt.Errorf("connectIP requires an IP literal")
+			}
+		}
+		headers, err := normalizeHTTPHeaders(c.Headers)
+		if err != nil {
+			return err
+		}
+		_ = headers
 		u, e := url.Parse(c.URL)
 		if e != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (c.Method != "GET" && c.Method != "HEAD") {
 			return fmt.Errorf("invalid HTTP URL/method")

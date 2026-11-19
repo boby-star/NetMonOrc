@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "trustedHTTPSAPI": true,
+  "realPostgreSQLAndAgentProbes": true,
+  "cases": {
+    "pinnedRedirect": {
+      "state": "healthy",
+      "hostPreserved": true,
+      "headerVerifiedAtFinalHop": true,
+      "observations": [
+        {
+          "agent_id": "branch",
+          "execution": "completed",
+          "outcome": "success",
+          "reason": "expected_status"
+        },
+        {
+          "agent_id": "dc",
+          "execution": "completed",
+          "outcome": "success",
+          "reason": "expected_status"
+        }
+      ]
+    },
+    "deniedRedirect": {
+      "state": "unknown",
+      "observations": [
+        {
+          "agent_id": "branch",
+          "execution": "execution_failed",
+          "outcome": "unknown",
+          "reason": "target_policy_denied"
+        },
+        {
+          "agent_id": "dc",
+          "execution": "execution_failed",
+          "outcome": "unknown",
+          "reason": "target_policy_denied"
+        }
+      ]
+    }
+  },
+  "restoredHealthy": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

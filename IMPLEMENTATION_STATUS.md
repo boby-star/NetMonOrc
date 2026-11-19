@@ -1,3 +1,17 @@
+# HTTP YAML та перевірка фактичної адреси
+
+Реалізовано connectIP зі збереженням Host/SNI/TLS verification, несекретні
+headers, explicit redirects і per-socket CIDR policy. Auto статично вибирає
+native для hostname/pin/redirect/extract; обмеження explicit Blackbox наведено
+в [контракті](docs/deployment/http-policy.md). verifyTLS:false заборонено DSL.
+Нові поля потребують capability Agent http:policy-v2.
+
+Натурний Controller–Agent–PostgreSQL–HTTPS сценарій підтвердив healthy після
+pinned redirect із правильними Host/header та unknown/target_policy_denied
+для redirect на metadata IP. Початковий Monitor відновлено до healthy.
+Go/race/vet, TLS socket tests і production build пройшли; browser clicks не було.
+[Докази](docs/experiments/http-policy-2026-11-19/README.md).
+
 # Per-check placement та trusted metadata
 
 PlacementPolicy/inline placement підтримують matchLabels/matchExpressions і
