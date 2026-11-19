@@ -12,7 +12,7 @@ import (
 )
 
 // No target, check_spec, response body or extracted values are exposed here.
-const diagnosticViewColumns = `r.id,r.monitor,r.profile_ref,r.revision,r.mode,r.state,r.started_at,r.finished_at,r.used_checks,r.reason,r.report->'hypotheses',
+const diagnosticViewColumns = `r.id,r.monitor,r.profile_ref,r.revision,r.mode,r.state,r.started_at,r.finished_at,r.used_checks,CASE WHEN r.max_estimated_bytes>0 THEN r.used_estimated_bytes END,r.reason,r.report->'hypotheses',
  ARRAY(SELECT o.id FROM nmo_diagnostic_tasks t JOIN nmo_observations o ON o.diagnostic_task_id=t.id WHERE t.run_id=r.id AND o.diagnostic_task_id<>'' ORDER BY o.id)`
 
 func scanDiagnosticView(row pgx.Row, detail bool) (diagnosticview.Session, error) {
@@ -20,7 +20,7 @@ func scanDiagnosticView(row pgx.Row, detail bool) (diagnosticview.Session, error
 	var reason string
 	var report []byte
 	var fullReport []byte
-	columns := []any{&v.ID, &v.MonitorID, &v.ProfileRef, &v.ConfigRevision, &v.Mode, &v.State, &v.StartedAt, &v.FinishedAt, &v.BudgetUsed.AdditionalChecks, &reason, &report, &v.EvidenceIDs}
+	columns := []any{&v.ID, &v.MonitorID, &v.ProfileRef, &v.ConfigRevision, &v.Mode, &v.State, &v.StartedAt, &v.FinishedAt, &v.BudgetUsed.AdditionalChecks, &v.BudgetUsed.EstimatedBytes, &reason, &report, &v.EvidenceIDs}
 	if detail {
 		columns = append(columns, &fullReport)
 	}
@@ -112,7 +112,7 @@ func (s *Store) DiagnosticTasks(ctx context.Context, id, before string, limit in
 	if limit < 1 || limit > 200 {
 		return nil, fmt.Errorf("invalid bounded task query")
 	}
-	rows, err := s.pool.Query(ctx, `SELECT t.id,t.run_id,t.check_id,t.agent_id,t.state,t.attempt_no,t.deadline,
+	rows, err := s.pool.Query(ctx, `SELECT t.id,t.run_id,t.check_id,t.agent_id,t.state,t.attempt_no,t.deadline,t.estimated_bytes,
  ARRAY(SELECT o.id FROM nmo_observations o WHERE o.diagnostic_task_id=t.id AND o.diagnostic_task_id<>'' ORDER BY o.id)
  FROM nmo_diagnostic_tasks t WHERE t.run_id=$1 AND t.id>$2 ORDER BY t.id ASC LIMIT $3`, id, before, limit+1)
 	if err != nil {
@@ -122,7 +122,7 @@ func (s *Store) DiagnosticTasks(ctx context.Context, id, before string, limit in
 	out := []diagnosticview.Task{}
 	for rows.Next() {
 		var v diagnosticview.Task
-		if err = rows.Scan(&v.ID, &v.SessionID, &v.ActionID, &v.AgentID, &v.State, &v.AttemptNo, &v.Deadline, &v.ObservationIDs); err != nil {
+		if err = rows.Scan(&v.ID, &v.SessionID, &v.ActionID, &v.AgentID, &v.State, &v.AttemptNo, &v.Deadline, &v.EstimatedBytes, &v.ObservationIDs); err != nil {
 			return nil, err
 		}
 		out = append(out, v)

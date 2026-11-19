@@ -1,3 +1,17 @@
+# Live YAML estimated-byte budget
+
+maxEstimatedBytes приймається live runtime. Coordinator відсікає дорогі
+кандидати; PostgreSQL атомарно резервує estimate разом із фізичною спробою.
+Retry/rejection не поповнюють бюджет. API/React і task export мають optional
+estimatedBytes; старі run без ліміту не отримують вигаданих вимірів.
+[Модель і межі](docs/deployment/diagnostic-byte-budget.md).
+
+Натурний сценарій підтвердив нуль probes при недостатньому бюджеті,
+рівно одну фізичну спробу при точному ліміті та збереження обліку після restart.
+Реальна БД підтвердила atomic concurrent reservation/no-refund; Go/race/vet
+і production React build пройшли. Browser clicks цього сценарію не було.
+[Докази](docs/experiments/byte-budget-2026-11-19/README.md).
+
 # HTTP YAML та перевірка фактичної адреси
 
 Реалізовано connectIP зі збереженням Host/SNI/TLS verification, несекретні

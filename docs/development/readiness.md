@@ -92,3 +92,11 @@ replay. Решта fallback/Component/HTTP/parallel/byte budget ще не ого
 http:policy-v2. [Обмеження драйверів](../deployment/http-policy.md) збережено явно;
 verifyTLS:false не дозволено. [Натурний сценарій](../experiments/http-policy-2026-11-19/README.md)
 підтвердив успішний pinned redirect та блокування metadata IP як unknown.
+
+## Live estimated-byte budget
+
+maxEstimatedBytes тепер має Coordinator gate і durable atomic PostgreSQL
+reservation для кожного task/retry. API/React показують оцінку окремо від
+costUnits. [Модель](../deployment/diagnostic-byte-budget.md) не є виміряним
+wire traffic. [Натурне приймання](../experiments/byte-budget-2026-11-19/README.md)
+підтвердило zero/exact limit, restart і no-refund/concurrency у справжній БД.

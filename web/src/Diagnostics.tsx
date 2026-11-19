@@ -112,7 +112,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
         <thead><tr><th>Час</th><th>Режим</th><th>Стан / причина</th><th>Бюджет</th><th>Деталі</th></tr></thead>
         <tbody>{page.items.map(s => <tr key={s.id}>
           <td>{s.startedAt}</td><td>{s.mode}</td><td>{s.state}<br/>{s.stopReason}</td>
-          <td>{s.budgetUsed.additionalChecks} фізичних запусків зарезервовано</td>
+          <td>{s.budgetUsed.additionalChecks} фізичних запусків зарезервовано{s.budgetUsed.estimatedBytes !== undefined && <><br/>{s.budgetUsed.estimatedBytes} оціночних байтів зарезервовано</>}</td>
           <td><button type="button" disabled={busy} onClick={() => void open(s.id)}>Відкрити</button></td>
         </tr>)}</tbody>
       </table></div>}
@@ -173,7 +173,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       <div className="table-scroll"><table>
         <caption>Фізичні задачі Agent</caption>
         <thead><tr><th>Дія</th><th>Agent</th><th>Спроба</th><th>Стан</th><th>Докази</th></tr></thead>
-        <tbody>{tasks.map(t => <tr key={t.id}><td>{t.actionId}<br/><small>{t.id}</small></td><td>{t.agentId}</td><td>{t.attemptNo}</td><td>{t.state}</td><td>{t.observationIds.length ? t.observationIds.map(id => <p key={id}>{canReadEvidence && <><button type="button" onClick={() => setEvidence(id)}>Відкрити доказ</button><br/></>}<code>{id}</code></p>) : "не отримано"}</td></tr>)}</tbody>
+        <tbody>{tasks.map(t => <tr key={t.id}><td>{t.actionId}<br/><small>{t.id}</small></td><td>{t.agentId}</td><td>{t.attemptNo}{t.estimatedBytes !== undefined && <><br/>{t.estimatedBytes} оціночних байтів</>}</td><td>{t.state}</td><td>{t.observationIds.length ? t.observationIds.map(id => <p key={id}>{canReadEvidence && <><button type="button" onClick={() => setEvidence(id)}>Відкрити доказ</button><br/></>}<code>{id}</code></p>) : "не отримано"}</td></tr>)}</tbody>
       </table></div>
       <button type="button" disabled={busy || !taskCursor} onClick={() => void open(selected.id, taskCursor)}>Наступна сторінка задач</button>
     </div>}

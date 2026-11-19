@@ -2,6 +2,11 @@
 
 ## Запуск із веб-панеллю
 
+YAML: [HTTP policy](docs/deployment/http-policy.md),
+[оціночний бюджет діагностики](docs/deployment/diagnostic-byte-budget.md),
+[per-check placement](docs/deployment/check-placement.md),
+[детермінованість і фактичний залишок](docs/deployment/yaml-controls.md).
+
 [Покроковий quickstart](docs/deployment/quickstart.md): Docker build → prepare →
 up --ui-port 8443 → admin з прихованим введенням пароля → https://localhost:8443.
 Порт доступний лише на 127.0.0.1; дані зберігаються у named volumes.

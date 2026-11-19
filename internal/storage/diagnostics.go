@@ -116,14 +116,23 @@ func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
 	}
 	defer tx.Rollback(ctx)
 	var used, limit int
+	var usedBytes, byteLimit int64
 	var state, revision string
 	var deadline time.Time
-	e = tx.QueryRow(ctx, `SELECT used_checks,max_checks,state,revision,deadline FROM nmo_diagnostic_runs WHERE id=$1 FOR UPDATE`, t.RunID).Scan(&used, &limit, &state, &revision, &deadline)
+	e = tx.QueryRow(ctx, `SELECT used_checks,max_checks,state,revision,deadline,used_estimated_bytes,max_estimated_bytes FROM nmo_diagnostic_runs WHERE id=$1 FOR UPDATE`, t.RunID).Scan(&used, &limit, &state, &revision, &deadline, &usedBytes, &byteLimit)
 	if e != nil {
 		return e
 	}
 	if state != "running" || used >= limit || revision != t.Plan.Revision || !time.Now().Before(deadline) || t.Deadline.After(deadline) || !time.Now().Before(t.Deadline) {
 		return fmt.Errorf("diagnostic run budget or deadline unavailable")
+	}
+	var estimate *int64
+	if byteLimit > 0 {
+		n, known := diagnostics.EstimateCheckBytes(t.Check)
+		if !known || n < 0 || usedBytes < 0 || usedBytes > byteLimit || n > byteLimit-usedBytes {
+			return fmt.Errorf("diagnostic estimated byte budget unavailable")
+		}
+		estimate = &n
 	}
 	var gen int64
 	var applied bool
@@ -138,11 +147,11 @@ func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_tasks(id,run_id,agent_id,monitor,revision,zone,check_id,deadline,check_spec,state,attempt_no) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'reserved',$10)`, t.ID, t.RunID, t.Agent, t.Plan.Name, t.Plan.Revision, t.Zone, t.Check.ID, t.Deadline, b, t.AttemptNo)
+	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_tasks(id,run_id,agent_id,monitor,revision,zone,check_id,deadline,check_spec,state,attempt_no,estimated_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'reserved',$10,$11)`, t.ID, t.RunID, t.Agent, t.Plan.Name, t.Plan.Revision, t.Zone, t.Check.ID, t.Deadline, b, t.AttemptNo, estimate)
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec(ctx, `UPDATE nmo_diagnostic_runs SET used_checks=used_checks+1 WHERE id=$1`, t.RunID)
+	_, e = tx.Exec(ctx, `UPDATE nmo_diagnostic_runs SET used_checks=used_checks+1,used_estimated_bytes=used_estimated_bytes+COALESCE($2::bigint,0) WHERE id=$1`, t.RunID, estimate)
 	if e != nil {
 		return e
 	}
@@ -189,7 +198,7 @@ func (s *Store) LatestDiagnostic(ctx context.Context, monitorName string) (*diag
 	var r diagnostics.Report
 	var b []byte
 	var state, reason, mode string
-	e := s.pool.QueryRow(ctx, `SELECT id,monitor,revision,used_checks,started_at,finished_at,state,reason,mode,report FROM nmo_diagnostic_runs WHERE monitor=$1 ORDER BY started_at DESC,id DESC LIMIT 1`, monitorName).Scan(&r.ID, &r.Monitor, &r.Revision, &r.ReservedChecks, &r.StartedAt, &r.FinishedAt, &state, &reason, &mode, &b)
+	e := s.pool.QueryRow(ctx, `SELECT id,monitor,revision,used_checks,started_at,finished_at,state,reason,mode,report,CASE WHEN max_estimated_bytes>0 THEN used_estimated_bytes END FROM nmo_diagnostic_runs WHERE monitor=$1 ORDER BY started_at DESC,id DESC LIMIT 1`, monitorName).Scan(&r.ID, &r.Monitor, &r.Revision, &r.ReservedChecks, &r.StartedAt, &r.FinishedAt, &state, &reason, &mode, &b, &r.ReservedEstimatedBytes)
 	if e == pgx.ErrNoRows {
 		return nil, nil
 	}

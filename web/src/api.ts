@@ -758,11 +758,12 @@ export interface DiagnosticSession {
   startedAt: string;
   finishedAt: string | null;
   remainingHypotheses?: string[];
-  budgetUsed: { additionalChecks: number };
+  budgetUsed: { additionalChecks: number; estimatedBytes?: number };
   evidenceIds: string[];
   stopReason: string | null;
 }
 export interface DiagnosticTask {
+  estimatedBytes?: number;
   id: string;
   sessionId: string;
   actionId: string;

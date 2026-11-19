@@ -231,6 +231,9 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		return r, fmt.Errorf("episode budget policy cannot be replaced")
 	}
 	ledger.running = true
+	if p.Budget.MaxEstimatedBytes > 0 {
+		defer func() { n := ledger.EstimatedBytes; r.EstimatedBytes = &n }()
+	}
 	if ledger.policy == nil {
 		policy := p.Budget
 		ledger.policy = &policy

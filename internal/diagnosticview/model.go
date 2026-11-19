@@ -7,7 +7,8 @@ import (
 )
 
 type BudgetUsed struct {
-	AdditionalChecks int `json:"additionalChecks"`
+	EstimatedBytes   *int64 `json:"estimatedBytes,omitempty"`
+	AdditionalChecks int    `json:"additionalChecks"`
 }
 
 // Explanation is a persisted terminal report projection, not a replay of the planner.
@@ -77,6 +78,7 @@ type Session struct {
 	StopReason          *string      `json:"stopReason"`
 }
 type Task struct {
+	EstimatedBytes *int64    `json:"estimatedBytes,omitempty"`
 	ID             string    `json:"id"`
 	SessionID      string    `json:"sessionId"`
 	ActionID       string    `json:"actionId"`

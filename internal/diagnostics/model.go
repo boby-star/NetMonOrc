@@ -117,6 +117,7 @@ type EvidencePolicy struct {
 	MaxSkewMS int64 `json:"maxSkewMs"`
 }
 type Result struct {
+	EstimatedBytes   *int64              `json:"estimatedBytes,omitempty"`
 	BaselineEvidence *[]BaselineEvidence `json:"baselineEvidence,omitempty"`
 	EvidencePolicy   *EvidencePolicy     `json:"evidencePolicy,omitempty"`
 	Confirmation     *ConfirmationResult `json:"confirmation,omitempty"`
@@ -178,11 +179,12 @@ type Engine struct {
 
 // Report separates durable budget reservations from known probe outcomes.
 type Report struct {
-	ID             string     `json:"id"`
-	Monitor        string     `json:"monitor"`
-	Revision       string     `json:"revision"`
-	ReservedChecks int        `json:"reservedChecks"`
-	StartedAt      time.Time  `json:"startedAt"`
-	FinishedAt     *time.Time `json:"finishedAt,omitempty"`
-	Result         Result     `json:"result"`
+	ReservedEstimatedBytes *int64     `json:"reservedEstimatedBytes,omitempty"`
+	ID                     string     `json:"id"`
+	Monitor                string     `json:"monitor"`
+	Revision               string     `json:"revision"`
+	ReservedChecks         int        `json:"reservedChecks"`
+	StartedAt              time.Time  `json:"startedAt"`
+	FinishedAt             *time.Time `json:"finishedAt,omitempty"`
+	Result                 Result     `json:"result"`
 }

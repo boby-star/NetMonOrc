@@ -1,0 +1,22 @@
+{
+  "baseCommit": "9300ddb528b1b848271ac0d6a5c67183196d9857",
+  "imageID": "sha256:a37cffaef551f47c6930b177b91215ea1e5223cadf5b29c26b42fd7b1a8b63dd",
+  "implementationSHA256": {
+    "internal/coordinator/coordinator.go": "61ae8563a9ec76bd5d314a186625c9a75dbd5a9f4e8edcc3f3d250045f4c4284",
+    "internal/diagnostics/engine.go": "21e7d2a9ad67af13577c7e1e2a9a5c4c635c4a5e17d40f482d6683ab00ac9e13",
+    "internal/diagnostics/live_profile.go": "fc0cffcc80527c0fd50d228e22b4c13a8645909f8ee9652fa4a6b1aea195d010",
+    "internal/diagnostics/model.go": "d838d654b08869a7952469ef74c48f88f4f402acdd7c8d43566ee381fb07c3a1",
+    "internal/diagnosticview/model.go": "253ad97d6e44a595684931941b284f69dc062ae7b37bebcc79b621905f99081c",
+    "internal/storage/diagnostic_control.go": "7fd7029066a30ce0c1bfff14150fac2276cc2d779e871ded42b295b37193f36c",
+    "internal/storage/diagnostic_views.go": "8266c15024c5e3617b2df3d348f747208af3de6271ade7aaf6759b5ba1283a16",
+    "internal/storage/diagnostics.go": "7cafb31cc9bd5e27a975fcaf269614f1fd9a3428fad096fcbf6fdcd654307c15",
+    "internal/storage/postgres.go": "68338e7dc91136fcc4562416961beba8360564673c88d2259a35e87dd5e8a1d5",
+    "web/src/Diagnostics.tsx": "29b45dc7a978134f1bf0cc26a7291d0b170bfd77a9108db076afc4283b37f4c3",
+    "web/src/api.ts": "d38e407d343c3896b4f4bc7d3f01124f1615170a9baebd6da0f8916704da8f94",
+    "internal/diagnostics/estimate.go": "824a8a5d66395c41eb99f901d58fdb26b9e3e08eb9609533d958f2621d7db969",
+    "internal/diagnostics/estimate_test.go": "0a0e06c62a64f83f90f7c303d75aae974870f1ee1165a86c8b8d9317f03d28bc",
+    "internal/storage/diagnostic_bytes_test.go": "c256240343d15db835582ece9a6573dbabab9c2fb61d67165de0128e1ff9c895",
+    "scripts/lab_byte_budget.py": "dc6a24f3b26a46bd626ab4658cae5692fdae3948bba3c831f5dedcb77083156a"
+  },
+  "note": "Built and accepted before commit; no browser interaction; protocol-envelope-v1 estimate is not wire accounting."
+}

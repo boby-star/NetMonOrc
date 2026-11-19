@@ -1,0 +1,114 @@
+{
+  "status": "passed",
+  "realPostgreSQLAndAgents": true,
+  "trustedHTTPS": true,
+  "model": "protocol-envelope-v1",
+  "cases": {
+    "too-small": {
+      "run": "7120969f327d9527908872b63284f90a",
+      "budget": 1,
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "explanation": {
+          "baselineEvidence": [],
+          "evidencePolicy": {
+            "maxAgeMs": 20000,
+            "maxSkewMs": 15000
+          },
+          "durationMs": 0,
+          "costUnits": 0,
+          "decisions": []
+        },
+        "id": "7120969f327d9527908872b63284f90a",
+        "monitorId": "research-web",
+        "profileRef": "bytes-too-small",
+        "mode": "fixed",
+        "state": "inconclusive",
+        "startedAt": "2026-11-19T06:08:40.596298Z",
+        "finishedAt": "2026-11-19T06:08:40.605796Z",
+        "remainingHypotheses": [
+          "not-responding",
+          "responding"
+        ],
+        "budgetUsed": {
+          "estimatedBytes": 0,
+          "additionalChecks": 0
+        },
+        "evidenceIds": [],
+        "stopReason": "no_admissible_action"
+      },
+      "tasks": []
+    },
+    "one-attempt": {
+      "run": "42ce85d5abcb7e87785fdf4678be55d9",
+      "budget": 49187,
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "explanation": {
+          "baselineEvidence": [],
+          "evidencePolicy": {
+            "maxAgeMs": 20000,
+            "maxSkewMs": 15000
+          },
+          "durationMs": 303,
+          "costUnits": 1,
+          "decisions": [
+            {
+              "observationId": "21c0f9b92c8c289445a205374e562ed3",
+              "finishedAt": "2026-11-19T06:08:50.558951211Z",
+              "validUntil": "2026-11-19T06:09:10.558951211Z",
+              "failureDomain": "office-path",
+              "actionId": "http-budget",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "not-responding",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            }
+          ]
+        },
+        "id": "42ce85d5abcb7e87785fdf4678be55d9",
+        "monitorId": "research-web",
+        "profileRef": "bytes-one-attempt",
+        "mode": "fixed",
+        "state": "inconclusive",
+        "startedAt": "2026-11-19T06:08:50.425388Z",
+        "finishedAt": "2026-11-19T06:08:50.746964Z",
+        "remainingHypotheses": [
+          "responding"
+        ],
+        "budgetUsed": {
+          "estimatedBytes": 49187,
+          "additionalChecks": 1
+        },
+        "evidenceIds": [
+          "21c0f9b92c8c289445a205374e562ed3"
+        ],
+        "stopReason": "no_admissible_action"
+      },
+      "tasks": [
+        {
+          "estimatedBytes": 49187,
+          "id": "21c0f9b92c8c289445a205374e562ed3",
+          "sessionId": "42ce85d5abcb7e87785fdf4678be55d9",
+          "actionId": "http-budget",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-19T06:09:12.443904Z",
+          "observationIds": [
+            "21c0f9b92c8c289445a205374e562ed3"
+          ]
+        }
+      ]
+    }
+  },
+  "restartPreservedBudget": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

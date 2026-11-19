@@ -132,7 +132,10 @@ Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вж�
 
 - ExecutionFallback з окремими корельованими physical attempts;
 - декларативний Component/external binding;
-- паралельне виконання Fixed DAG і live estimated-byte budget.
+- паралельне виконання Fixed DAG.
+
+Live estimated-byte budget реалізовано з durable reservation та явною
+[моделлю оцінки](diagnostic-byte-budget.md).
 
 HTTP headers/connectIP/redirect та Agent-side DNS/IP policy реалізовано;
 driver limits наведено в [контракті HTTP](http-policy.md).
