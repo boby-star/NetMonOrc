@@ -39,6 +39,7 @@ type assignment struct {
 	bootDeadline time.Duration
 }
 type state struct {
+	agentID        string
 	components     map[string]component.Readiness
 	mu             sync.Mutex
 	current        *assignment
@@ -95,7 +96,7 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 	defer spool.Close()
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
-	st := &state{fatal: make(chan error, 1)}
+	st := &state{agentID: id, fatal: make(chan error, 1)}
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- schedule(child, st, spool, id, blackbox, allowed) }()
 	componentDone := make(chan struct{})
@@ -162,7 +163,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"components:readiness-v1", "components:external-v1", "native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "http:policy-v2", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"fallback:v1", "components:readiness-v1", "components:external-v1", "native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "http:policy-v2", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	for _, cidr := range allowed {
 		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "target-cidr:"+cidr.Masked().String())
 	}
@@ -273,6 +274,9 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 					return fmt.Errorf("assignment before session acceptance")
 				}
 				if e = apply(a, st, dir, id); e != nil {
+					reject := agentFrame(id)
+					reject.Payload = &pb.AgentFrame_ConfigRejected{ConfigRejected: &pb.ConfigRejected{AssignmentId: a.AssignmentId, Revision: a.Revision}}
+					_ = stream.Send(reject)
 					return e
 				}
 				f := agentFrame(id)
@@ -509,7 +513,12 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 						return err
 					}
 					now := time.Now().UTC()
-					o = monitor.Observation{ID: hex.EncodeToString(observationID[:]), Monitor: a.plan.Name, Revision: a.plan.Revision, Check: c.ID, Agent: slot.Agent, Zone: slot.Zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "runner_unavailable_or_policy_denied"}
+					o = monitor.Observation{ID: hex.EncodeToString(observationID[:]), Monitor: a.plan.Name, Revision: a.plan.Revision, Check: c.ID, Agent: slot.Agent, Zone: slot.Zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "local_execution_error"}
+					if probe.CheckTargetPolicy(a.plan, c, allowed) != nil {
+						o.Reason = "target_policy_denied"
+					} else if c.Runner == "blackbox" {
+						o.Reason = "runner_unavailable"
+					}
 				}
 				if errors.Is(e, probe.ErrRunnerUnavailable) {
 					o.Reason = "runner_unavailable"

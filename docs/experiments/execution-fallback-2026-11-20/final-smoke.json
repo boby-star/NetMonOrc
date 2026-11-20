@@ -1,0 +1,48 @@
+{
+  "same-zone": {
+    "assessment": {
+      "monitor": "research-web",
+      "revision": "5adb0e1f8f1dc985e028f1dab39f864229f455d35905f82b5569445a0ed33d20",
+      "at": "2026-11-20T20:46:21.776292149Z",
+      "state": "healthy",
+      "zones": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "8ab07559455d347ea3b9dfe0b3b2418a"
+          ],
+          "reason": "sufficient_success"
+        }
+      ]
+    },
+    "expiredRoots": 3,
+    "image": "sha256:029da53d2948089602571359ae4032a76f307150880d087008850d7db63a9dc4"
+  },
+  "different-zone": {
+    "assessment": {
+      "monitor": "research-web",
+      "revision": "a67ba9a07b6bbd9f7b3ceca1dc7b6b7e9f4979382ed5954bef250779aee8ebf4",
+      "at": "2026-11-20T20:46:22.348178094Z",
+      "state": "healthy",
+      "zones": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "ebc1f443bd626b816e7d16a47b9de217"
+          ],
+          "reason": "sufficient_success"
+        }
+      ]
+    },
+    "expiredRoots": 0,
+    "image": "sha256:029da53d2948089602571359ae4032a76f307150880d087008850d7db63a9dc4"
+  }
+}

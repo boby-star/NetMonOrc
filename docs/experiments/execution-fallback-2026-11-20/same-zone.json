@@ -1,0 +1,174 @@
+{
+  "status": "passed",
+  "strategy": "same-zone",
+  "trustedHTTPSAndMTLS": true,
+  "realPostgreSQLAndProbes": true,
+  "negativeTargetNoFallback": {
+    "monitorId": "research-web",
+    "state": "down",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "down",
+        "coverage": "complete",
+        "q": 1,
+        "h": 0,
+        "evidence": [
+          "80c3f60ac3550f937378ed4c4413bd55"
+        ],
+        "reason": "required_failure"
+      }
+    ],
+    "reasonCodes": [
+      "required_failure"
+    ],
+    "evidenceIds": [
+      "80c3f60ac3550f937378ed4c4413bd55"
+    ],
+    "evaluatedAt": "2026-11-20T20:37:59.093362448Z",
+    "revision": "5adb0e1f8f1dc985e028f1dab39f864229f455d35905f82b5569445a0ed33d20"
+  },
+  "technicalRoot": {
+    "id": "2ee4ff1bbffa416aa2b7ad9e6ff4122e",
+    "monitor": "research-web",
+    "revision": "f575249ae3184250fbe627f16b2237bc92797745bc8bf6cca935adc3475b2b06",
+    "check": "http",
+    "originObservationId": "96358f1359e48de0f2438c2e59cfda74",
+    "originAgent": "branch",
+    "originZone": "office",
+    "cause": "runner_unavailable",
+    "strategy": "same-zone",
+    "maxAttempts": 2,
+    "startedAt": "2026-11-20T20:38:14.532151169Z",
+    "deadline": "2026-11-20T20:39:04.532151169Z",
+    "state": "completed",
+    "usedAttempts": 1,
+    "tasks": [
+      {
+        "id": "6110a0d159b7a4c74fe66f9d01afc3ca",
+        "agent": "dc",
+        "zone": "office",
+        "attempt": 1,
+        "state": "finished",
+        "deadline": "2026-11-20T20:38:33.186375Z",
+        "observationId": "6110a0d159b7a4c74fe66f9d01afc3ca"
+      }
+    ]
+  },
+  "original": {
+    "observationId": "96358f1359e48de0f2438c2e59cfda74",
+    "monitorId": "research-web",
+    "checkId": "http",
+    "agentId": "branch",
+    "networkZone": "office",
+    "configRevision": "f575249ae3184250fbe627f16b2237bc92797745bc8bf6cca935adc3475b2b06",
+    "executionStatus": "execution_failed",
+    "probeOutcome": "unknown",
+    "reasonCode": "runner_unavailable",
+    "startedAt": "2026-11-20T20:38:14.532151169Z",
+    "finishedAt": "2026-11-20T20:38:14.532151169Z",
+    "receivedAt": "2026-11-20T20:38:15.388403Z",
+    "durationMs": 0
+  },
+  "fallback": {
+    "fallbackRunId": "2ee4ff1bbffa416aa2b7ad9e6ff4122e",
+    "fallbackTaskId": "6110a0d159b7a4c74fe66f9d01afc3ca",
+    "observationId": "6110a0d159b7a4c74fe66f9d01afc3ca",
+    "monitorId": "research-web",
+    "checkId": "http",
+    "agentId": "dc",
+    "networkZone": "office",
+    "configRevision": "f575249ae3184250fbe627f16b2237bc92797745bc8bf6cca935adc3475b2b06",
+    "executionStatus": "completed",
+    "probeOutcome": "success",
+    "reasonCode": "positive_probe",
+    "startedAt": "2026-11-20T20:38:16.222657205Z",
+    "finishedAt": "2026-11-20T20:38:16.22954305Z",
+    "receivedAt": "2026-11-20T20:38:16.40208Z",
+    "durationMs": 6.885845
+  },
+  "assessmentAfterFallback": {
+    "monitorId": "research-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "6110a0d159b7a4c74fe66f9d01afc3ca"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "6110a0d159b7a4c74fe66f9d01afc3ca"
+    ],
+    "evaluatedAt": "2026-11-20T20:38:19.176830609Z",
+    "revision": "f575249ae3184250fbe627f16b2237bc92797745bc8bf6cca935adc3475b2b06"
+  },
+  "missingAgentRun": {
+    "id": "2611704961cfd433c6d06cc10e303f3d",
+    "monitor": "research-web",
+    "revision": "5adb0e1f8f1dc985e028f1dab39f864229f455d35905f82b5569445a0ed33d20",
+    "check": "http",
+    "originObservationId": "",
+    "originAgent": "branch",
+    "originZone": "office",
+    "cause": "agent_unreachable",
+    "strategy": "same-zone",
+    "maxAttempts": 2,
+    "startedAt": "2026-11-20T20:38:50Z",
+    "deadline": "2026-11-20T20:39:40Z",
+    "state": "completed",
+    "usedAttempts": 1,
+    "tasks": [
+      {
+        "id": "6c82585f065a5dab69ef26c03721a618",
+        "agent": "dc",
+        "zone": "office",
+        "attempt": 1,
+        "state": "finished",
+        "deadline": "2026-11-20T20:39:11.278047Z",
+        "observationId": "6c82585f065a5dab69ef26c03721a618"
+      }
+    ]
+  },
+  "missingAgentAssessment": {
+    "monitorId": "research-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "6c82585f065a5dab69ef26c03721a618"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "6c82585f065a5dab69ef26c03721a618"
+    ],
+    "evaluatedAt": "2026-11-20T20:38:56.257209674Z",
+    "revision": "5adb0e1f8f1dc985e028f1dab39f864229f455d35905f82b5569445a0ed33d20"
+  },
+  "sourceVersionUnchanged": true,
+  "restoredHealthy": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

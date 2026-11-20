@@ -59,13 +59,40 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 			if check.MaxAge > 0 {
 				age = check.MaxAge
 			}
-			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || !expected[o.Agent] || !p.CheckAllowed(o.Check, o.Agent) || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+			if o.DiagnosticTaskID != "" || !known || o.Monitor != p.Name || o.Revision != p.Revision || o.Zone != zone || !expected[o.SourceAgent()] || !p.CheckAllowed(o.Check, o.SourceAgent()) || o.ID == "" || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
 				continue
 			}
-			key := o.Agent + "/" + o.Check
+			if o.FallbackTaskID != "" && (o.FallbackForAgent == "" || !p.FallbackCandidate(check, Slot{Agent: o.FallbackForAgent, Zone: o.Zone}, Slot{Agent: o.Agent, Zone: o.Zone}, p.FallbackDomains)) {
+				continue
+			}
+			if o.FallbackForAgent != "" && o.FallbackTaskID == "" {
+				continue
+			}
+			key := o.SourceAgent() + "/" + o.Check
 			old, exists := latestPhysical[key]
 			if !exists || o.FinishedAt.After(old.FinishedAt) || (o.FinishedAt.Equal(old.FinishedAt) && o.ID > old.ID) {
 				latestPhysical[key] = o
+			}
+		}
+		physicalKeys := make([]string, 0, len(latestPhysical))
+		for key := range latestPhysical {
+			physicalKeys = append(physicalKeys, key)
+		}
+		sort.Slice(physicalKeys, func(i, j int) bool {
+			a, b := latestPhysical[physicalKeys[i]], latestPhysical[physicalKeys[j]]
+			if a.FinishedAt.Equal(b.FinishedAt) {
+				return a.ID > b.ID
+			}
+			return a.FinishedAt.After(b.FinishedAt)
+		})
+		seenPhysical := map[string]bool{}
+		for _, key := range physicalKeys {
+			o := latestPhysical[key]
+			physical := o.Agent + "/" + o.Check
+			if seenPhysical[physical] {
+				delete(latestPhysical, key)
+			} else {
+				seenPhysical[physical] = true
 			}
 		}
 		for _, o := range latestPhysical {

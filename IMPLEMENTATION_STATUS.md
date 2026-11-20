@@ -1,3 +1,29 @@
+# ExecutionFallback та спільний compiler стартового Monitor
+
+Реалізовано YAML fallback для регулярних checks: чотири технічні причини,
+same-zone/different-zone, durable 1..2 додаткові спроби на кореляційний root,
+точний check і trusted spare, receipt до probe, спільне one-shot admission.
+Первинний доказ не переписується; unknown execution не отримує синтетичного
+Observation. Same-zone може відновити джерело з чинним origin; different-zone
+не закриває його coverage. Один Agent не створює два replica votes.
+Read-only історія та proof links доступні через REST, CLI й React.
+Controller bootstrap використовує resource registry, включно з placement/ref.
+[Контракт та межі](docs/architecture/execution-fallback.md).
+
+На двох ізольованих стендах підтверджено runner outage, відключення primary,
+HTTP 503 без fallback, physical provenance, різне трактування зон, повернення
+healthy та незмінність Monitor source version. Справжня PostgreSQL перевірила
+ownership, no-refund, replay, config-rejection fencing і expiry. Go/race/vet
+та production React build пройшли; фінальний image повторно запущено з обома
+placement. Нових browser clicks не було.
+[Докази](docs/experiments/execution-fallback-2026-11-20/README.md).
+
+Цим закрито названий раніше блок ExecutionFallback; повна відповідність усім
+полям старого ТЗ не заявлена. Live fault trials config_rejected та всіх
+local_execution_error варіантів ще не проведені. Fallback results поки не
+входять до автоматичного diagnostic baseline; вони мають окрему історію.
+Наведені нижче розділи описують попередні ітерації.
+
 # Parallel Fixed DAG
 
 maxParallel>1 виконує незалежні DAG steps хвилями на різних Agents. Guards
@@ -13,8 +39,8 @@ trace у двох запусках, count/byte exhaustion і скасуванн�
 Go/race/vet і production React build пройшли; browser clicks не було.
 [Докази](docs/experiments/fixed-parallel-2026-11-20/README.md).
 
-Наступний незавершений блок YAML-аудиту — ExecutionFallback. Це не твердження
-про повну відповідність кожному полю старого ТЗ.
+На момент цієї ітерації наступним був ExecutionFallback; його реалізацію
+та фактичні межі наведено вище.
 
 # Proactive Component readiness
 
@@ -31,7 +57,7 @@ disabled/restart та відновлення healthy. Go/race/vet і production 
 пройшли; нових browser clicks не було.
 [Докази](docs/experiments/component-readiness-2026-11-20/README.md).
 
-Фактичний залишок цього YAML-аудиту: ExecutionFallback. Parallel Fixed DAG
+На момент цієї ітерації залишався ExecutionFallback; реалізація описана вище. Parallel Fixed DAG
 додано наступною ітерацією, описаною вище.
 Готовність process endpoint не є підтвердженням завантаження всіх modules.
 
@@ -52,7 +78,7 @@ Production CLI component-config готує content-addressed modules із пер
 React build пройшли; нових browser clicks не було.
 [Докази](docs/experiments/components-2026-11-20/README.md).
 
-Пізнішими ітераціями додано readiness та parallel DAG; лишається ExecutionFallback. Unmatched Agents зберігають попередній локальний
+Пізнішими ітераціями додано readiness та parallel DAG; ExecutionFallback описано вище. Unmatched Agents зберігають попередній локальний
 prepared runner; це явна сумісність першого release, а не strict external-only
 розгортання. Повної відповідності всіх полів DSL не заявлено.
 

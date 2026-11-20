@@ -6,6 +6,7 @@ import (
 )
 
 type Check struct {
+	Fallback        *FallbackPolicy   `json:",omitempty"`
 	ConnectIP       string            `json:",omitempty"`
 	FollowRedirects bool              `json:",omitempty"`
 	Headers         map[string]string `json:",omitempty"`
@@ -46,6 +47,8 @@ type TargetContext struct {
 }
 
 type Plan struct {
+	FallbackDomains     map[string]string           `json:",omitempty"`
+	FallbackRoster      []Slot                      `json:",omitempty"`
 	Components          map[string]ComponentBinding `json:",omitempty"`
 	CheckPlacements     map[string]*FixedPlacement  `json:",omitempty"`
 	Disabled            bool                        `json:",omitempty"`
@@ -82,6 +85,8 @@ type Slot struct {
 }
 
 type Observation struct {
+	FallbackTaskID   string            `json:"fallbackTaskID,omitempty"`
+	FallbackForAgent string            `json:"-"`
 	DiagnosticTaskID string            `json:"diagnosticTaskID,omitempty"`
 	Values           map[string]Scalar `json:"values,omitempty"`
 	ExtractionStatus map[string]string `json:"extractionStatus,omitempty"`

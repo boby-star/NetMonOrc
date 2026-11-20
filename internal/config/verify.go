@@ -105,12 +105,36 @@ func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
 	if !seenZones[zone] && p.FixedPlacement == nil && len(p.CheckPlacements) == 0 {
 		return fmt.Errorf("assigned zone is not in plan")
 	}
+	seenFallback := map[string]bool{}
+	if len(p.FallbackRoster) > 100 {
+		return fmt.Errorf("fallback roster too large")
+	}
+	for _, slot := range p.FallbackRoster {
+		if !namePattern.MatchString(slot.Agent) || slot.Zone == "" || len(slot.Zone) > 63 || seenFallback[slot.Agent] {
+			return fmt.Errorf("invalid fallback roster")
+		}
+		seenFallback[slot.Agent] = true
+	}
+	if len(p.FallbackDomains) > 100 {
+		return fmt.Errorf("fallback domain inventory too large")
+	}
+	for id, domain := range p.FallbackDomains {
+		if !seenFallback[id] || len(domain) == 0 || len(domain) > 128 {
+			return fmt.Errorf("invalid fallback domain inventory")
+		}
+	}
 	if p.MaxAge <= 0 || p.MaxSkew <= 0 || p.MinCoverage < 0 || p.MinCoverage > 1 || p.DegradedMin < 0 || p.HealthyMin > 1 || p.DegradedMin >= p.HealthyMin {
 		return fmt.Errorf("invalid assessment limits")
 	}
 	seen := map[string]bool{}
 	var total float64
 	for _, c := range p.Checks {
+		if c.Fallback != nil && (len(p.FallbackRoster) == 0 || c.Timeout > 15*time.Second) {
+			return fmt.Errorf("unresolved/unsafe fallback check")
+		}
+		if err := VerifyFallback(c.Fallback); err != nil {
+			return err
+		}
 		if !idPattern.MatchString(c.ID) || seen[c.ID] || (c.Runner != "native-http" && c.Runner != "blackbox") {
 			return fmt.Errorf("invalid check identity or runner")
 		}

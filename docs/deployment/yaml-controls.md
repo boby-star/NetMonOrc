@@ -128,8 +128,9 @@ REST JSON також проходить структурну перевірку 
 
 Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вже реалізовано:
 [контракт і міграція](check-placement.md). Наведені зміни не означають реалізацію
-всього старого ТЗ. Залишається ExecutionFallback з окремими корельованими
-physical attempts.
+всього старого ТЗ. [ExecutionFallback](../architecture/execution-fallback.md)
+реалізовано з окремими корельованими physical attempts та збереженням
+первинного доказу. Different-zone не відновлює первинне покриття.
 
 [Паралельний Fixed DAG](../architecture/fixed-parallel.md) реалізовано зі
 спільними квотами, stable wave journal, per-Agent admission та durable cap.
@@ -144,6 +145,6 @@ Live estimated-byte budget реалізовано з durable reservation та я
 HTTP headers/connectIP/redirect та Agent-side DNS/IP policy реалізовано;
 driver limits наведено в [контракті HTTP](http-policy.md).
 
-Ці поля й далі не приймаються там, де немає runtime семантики. Наявний
+Поля поза підтриманим контрактом й далі відхиляються там, де немає runtime семантики. Наявний
 retry/domain confirmation/Blackbox runner не оголошується заміною цих функцій.
 У registry тепер 11 kind; повну сумісність усіх полів DSL не заявлено.

@@ -1,0 +1,5 @@
+ok  	github.com/boby-star/NetMonOrc/internal/agent	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/config	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/monitor	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/storage	1.034s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	1.131s

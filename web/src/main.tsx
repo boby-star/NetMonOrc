@@ -20,6 +20,7 @@ import { Alerts } from "./Alerts";
 import { Tokens } from "./Tokens";
 import { Users } from "./Users";
 import { Diagnostics } from "./Diagnostics";
+import { Fallbacks } from "./Fallbacks";
 import { Agents } from "./Agents";
 import { Configuration } from "./Configuration";
 const labels = {
@@ -345,6 +346,7 @@ function App() {
         {session?.scopes.includes("agents:read") && (
           <Agents key={"agents:" + session.userId} />
         )}
+        {session?.scopes.includes("resources:read") && connection && <Fallbacks key={"fallback:"+session.userId+":"+connection.monitor} monitor={connection.monitor} />}
         {session?.scopes.includes("diagnostics:read") && connection && (
           <Diagnostics key={"diagnostics:" + session.userId + ":" + connection.monitor} monitor={connection.monitor} session={session} />
         )}

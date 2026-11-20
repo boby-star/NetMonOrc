@@ -86,6 +86,9 @@ func ResolveDiagnosticReference(p monitor.Plan, profile diagnostics.Profile) (mo
 }
 
 func VerifyDiagnosticCheck(c monitor.Check) error {
+	if c.Fallback != nil {
+		return fmt.Errorf("one-shot check cannot contain fallback")
+	}
 	if (c.Runner != "blackbox" && c.Runner != "native-http") || !idPattern.MatchString(c.ID) || c.Timeout < 100*time.Millisecond || c.Timeout > 60*time.Second {
 		return fmt.Errorf("invalid diagnostic check identity/timeout")
 	}

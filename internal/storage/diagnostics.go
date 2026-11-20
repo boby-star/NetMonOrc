@@ -36,6 +36,7 @@ func (s *Store) LockController(ctx context.Context) error {
 	}
 	s.controller = c
 	_, e = c.Exec(ctx, `UPDATE nmo_diagnostic_runs SET state='inconclusive',reason='controller_restart',finished_at=now() WHERE state='running';
+ UPDATE nmo_fallback_runs SET state='interrupted' WHERE state='pending';
  UPDATE nmo_incidents i SET last_finished=r.finished_at FROM nmo_diagnostic_runs r WHERE i.run_id=r.id AND r.reason='controller_restart'`)
 	return e
 }

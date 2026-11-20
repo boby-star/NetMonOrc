@@ -1,0 +1,26 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: fallback-http
+spec:
+  target: {address: 192.0.2.10}
+  # Controller roster must contain branch and a separate spare in office.
+  placement: {strategy: fixed, agentRefs: [branch], replicas: 1}
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config:
+        url: http://192.0.2.10/
+        expectedStatus: [200]
+      fallback:
+        enabled: true
+        on: [agent_unreachable, runner_unavailable, local_execution_error, config_rejected]
+        strategy: same-zone
+        maxAttempts: 1
+  assessment:
+    requiredZones: [office]
+    freshness: {maxAge: 30s, maxSkew: 15s}
+    checks: [{id: http, weight: 1, required: true}]

@@ -26,6 +26,8 @@ type HistoryLoad func(context.Context, monitor.HistoryQuery) ([]monitor.Observat
 func (h *Handler) SetHistoryLoader(load HistoryLoad) { h.history = load }
 
 type ObservationView struct {
+	FallbackRunID       string                    `json:"fallbackRunId,omitempty"`
+	FallbackTaskID      string                    `json:"fallbackTaskId,omitempty"`
 	ObservationID       string                    `json:"observationId"`
 	MonitorID           string                    `json:"monitorId"`
 	CheckID             string                    `json:"checkId"`
@@ -170,7 +172,7 @@ func observationView(record monitor.ObservationRecord) ObservationView {
 		ObservationID: o.ID, MonitorID: o.Monitor, CheckID: o.Check, AgentID: o.Agent, NetworkZone: o.Zone,
 		ConfigRevision: o.Revision, ExecutionStatus: o.Execution, ProbeOutcome: o.Outcome, ReasonCode: o.Reason,
 		StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, ReceivedAt: record.ReceivedAt, DurationMs: float64(o.FinishedAt.Sub(o.StartedAt)) / float64(time.Millisecond),
-		Values: o.Values, DiagnosticSessionID: record.DiagnosticSessionID, DiagnosticTaskID: o.DiagnosticTaskID,
+		FallbackRunID: record.FallbackRunID, FallbackTaskID: o.FallbackTaskID, Values: o.Values, DiagnosticSessionID: record.DiagnosticSessionID, DiagnosticTaskID: o.DiagnosticTaskID,
 	}
 }
 

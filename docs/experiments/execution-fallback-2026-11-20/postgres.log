@@ -1,0 +1,3 @@
+=== RUN   TestFallbackDurableOwnershipAndNoBudgetRefund
+--- PASS: TestFallbackDurableOwnershipAndNoBudgetRefund (0.07s)
+PASS

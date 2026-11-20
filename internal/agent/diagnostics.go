@@ -24,7 +24,7 @@ func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, m
 	if task != nil {
 		a = st.forRevision(task.Revision)
 	}
-	if task == nil || !validID(task.TaskId) || !validID(task.SessionId) || task.AttemptNo < 1 || task.AttemptNo > 50 || len(task.CompiledCheck) > 64<<10 || a == nil || a.plan.Diagnostics == nil || !a.plan.Diagnostics.Enabled || task.Revision != a.plan.Revision || !leaseValid(a) {
+	if task == nil || !validID(task.TaskId) || !validID(task.SessionId) || task.AttemptNo < 1 || task.AttemptNo > 50 || len(task.CompiledCheck) > 64<<10 || a == nil || (task.FallbackRunId == "" && (a.plan.Diagnostics == nil || !a.plan.Diagnostics.Enabled)) || task.Revision != a.plan.Revision || !leaseValid(a) {
 		return nil, monitor.Check{}, time.Time{}, fmt.Errorf("task not authorized by current assignment")
 	}
 	var c monitor.Check
@@ -38,6 +38,26 @@ func prepareTask(task *pb.DiagnosticTask, st *state, dir string) (*assignment, m
 	}
 	if e := config.VerifyDiagnosticCheck(c); e != nil {
 		return nil, c, time.Time{}, e
+	}
+	if task.FallbackRunId != "" {
+		if task.FallbackRunId != task.SessionId || !validID(task.FallbackRunId) {
+			return nil, c, time.Time{}, fmt.Errorf("invalid fallback run")
+		}
+		found := false
+		for _, regular := range a.plan.Checks {
+			if regular.ID == c.ID && regular.Fallback != nil && task.AttemptNo <= uint32(regular.Fallback.MaxAttempts) {
+				origin := monitor.Slot{Agent: task.FallbackOriginAgent, Zone: task.FallbackOriginZone}
+				if !a.plan.FallbackCandidate(regular, origin, monitor.Slot{Agent: st.agentID, Zone: a.zone}, a.plan.FallbackDomains) {
+					continue
+				}
+				expected, _ := json.Marshal(config.FallbackCheck(regular))
+				received, _ := json.Marshal(c)
+				found = bytes.Equal(expected, received)
+			}
+		}
+		if !found {
+			return nil, c, time.Time{}, fmt.Errorf("fallback not authorized by regular check")
+		}
 	}
 	remaining := time.Until(time.UnixMilli(task.ExpiresAtUnixMilli)) - 5*time.Second
 	if remaining < 100*time.Millisecond || remaining > 60*time.Second {
@@ -123,7 +143,11 @@ func executeTask(ctx context.Context, task *pb.DiagnosticTask, a *assignment, c 
 		o.Reason = "runner_unavailable"
 	}
 	o.ID = task.TaskId
-	o.DiagnosticTaskID = task.TaskId
+	if task.FallbackRunId != "" {
+		o.FallbackTaskID = task.TaskId
+	} else {
+		o.DiagnosticTaskID = task.TaskId
+	}
 	// Publish completion only after physical execution and exporter shutdown.
 	// A following task must not race the previous worker's busy flag.
 	finish()

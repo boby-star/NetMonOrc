@@ -106,7 +106,17 @@ CREATE INDEX IF NOT EXISTS nmo_diagnostic_tasks_run ON nmo_diagnostic_tasks(run_
 CREATE INDEX IF NOT EXISTS nmo_observations_diagnostic_task ON nmo_observations(diagnostic_task_id,id) WHERE diagnostic_task_id<>'';
 ALTER TABLE nmo_diagnostic_tasks ADD COLUMN IF NOT EXISTS step_id text NOT NULL DEFAULT '';
 ALTER TABLE nmo_diagnostic_tasks ADD COLUMN IF NOT EXISTS estimated_bytes bigint;
-ALTER TABLE nmo_diagnostic_tasks ADD COLUMN IF NOT EXISTS attempt_no integer NOT NULL DEFAULT 1;`)
+ALTER TABLE nmo_diagnostic_tasks ADD COLUMN IF NOT EXISTS attempt_no integer NOT NULL DEFAULT 1;
+ALTER TABLE nmo_observations ADD COLUMN IF NOT EXISTS fallback_task_id text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS nmo_fallback_runs(id text PRIMARY KEY,origin_key text UNIQUE NOT NULL,monitor text NOT NULL,revision text NOT NULL,started_at timestamptz NOT NULL,deadline timestamptz NOT NULL,payload jsonb NOT NULL,used integer NOT NULL DEFAULT 0,state text NOT NULL DEFAULT 'pending');
+CREATE TABLE IF NOT EXISTS nmo_fallback_tasks(id text PRIMARY KEY,run_id text NOT NULL REFERENCES nmo_fallback_runs(id),agent_id text NOT NULL,zone text NOT NULL,monitor text NOT NULL,revision text NOT NULL,check_id text NOT NULL,deadline timestamptz NOT NULL,attempt_no integer NOT NULL,state text NOT NULL DEFAULT 'reserved',UNIQUE(run_id,attempt_no),UNIQUE(run_id,agent_id));
+CREATE TABLE IF NOT EXISTS nmo_config_rejections(agent_id text NOT NULL,revision text NOT NULL,rejected_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(agent_id,revision));
+CREATE INDEX IF NOT EXISTS nmo_fallback_history ON nmo_fallback_runs(monitor,id);
+CREATE INDEX IF NOT EXISTS nmo_fallback_chronology ON nmo_fallback_runs(monitor,started_at DESC,id DESC);
+CREATE INDEX IF NOT EXISTS nmo_fallback_chronology_all ON nmo_fallback_runs(started_at DESC,id DESC);
+CREATE INDEX IF NOT EXISTS nmo_fallback_pending_deadline ON nmo_fallback_runs(deadline) WHERE state='pending';
+CREATE INDEX IF NOT EXISTS nmo_fallback_observations ON nmo_observations(fallback_task_id) WHERE fallback_task_id<>'';
+`)
 	if e == nil {
 		e = tx.Commit(ctx)
 	}
@@ -189,6 +199,9 @@ func (s *Store) Applied(ctx context.Context, agent string, generation int64, rev
 	if _, e = tx.Exec(ctx, `UPDATE nmo_sessions SET applied_revision=$2 WHERE agent_id=$1`, agent, revision); e != nil {
 		return e
 	}
+	if _, e = tx.Exec(ctx, `DELETE FROM nmo_config_rejections WHERE agent_id=$1 AND revision=$2`, agent, revision); e != nil {
+		return e
+	}
 	return tx.Commit(ctx)
 }
 
@@ -212,7 +225,7 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 	duplicates := make([]bool, len(observations))
 	for i, o := range observations {
 		var assigned bool
-		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_assignments WHERE agent_id=$1 AND revision=$2 AND zone=$3 AND monitor=$4 AND ($5 OR (regular_enabled AND (allowed_checks IS NULL OR $6=ANY(allowed_checks)))))`, agent, o.Revision, o.Zone, o.Monitor, o.DiagnosticTaskID != "", o.Check).Scan(&assigned); e != nil {
+		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_assignments WHERE agent_id=$1 AND revision=$2 AND zone=$3 AND monitor=$4 AND ($5 OR (regular_enabled AND (allowed_checks IS NULL OR $6=ANY(allowed_checks)))))`, agent, o.Revision, o.Zone, o.Monitor, o.DiagnosticTaskID != "" || o.FallbackTaskID != "", o.Check).Scan(&assigned); e != nil {
 			return nil, e
 		}
 		if !assigned {
@@ -223,12 +236,17 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 				return nil, e
 			}
 		}
+		if o.FallbackTaskID != "" {
+			if e = validateFallbackObservation(ctx, tx, o); e != nil {
+				return nil, e
+			}
+		}
 		b, e := json.Marshal(o)
 		if e != nil {
 			return nil, e
 		}
 		hash := sha256.Sum256(b)
-		t, e := tx.Exec(ctx, `INSERT INTO nmo_observations(id,agent_id,monitor,revision,check_id,finished_at,payload,payload_hash,diagnostic_task_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO NOTHING`, o.ID, agent, o.Monitor, o.Revision, o.Check, o.FinishedAt, b, hash[:], o.DiagnosticTaskID)
+		t, e := tx.Exec(ctx, `INSERT INTO nmo_observations(id,agent_id,monitor,revision,check_id,finished_at,payload,payload_hash,diagnostic_task_id,fallback_task_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO NOTHING`, o.ID, agent, o.Monitor, o.Revision, o.Check, o.FinishedAt, b, hash[:], o.DiagnosticTaskID, o.FallbackTaskID)
 		if e != nil {
 			return nil, e
 		}
@@ -249,8 +267,8 @@ func (s *Store) CommitBatch(ctx context.Context, agent string, generation int64,
 	}
 	return duplicates, nil
 }
-func (s *Store) Latest(ctx context.Context, p monitor.Plan, now time.Time) ([]monitor.Observation, error) {
-	rows, e := s.pool.Query(ctx, `SELECT payload FROM (SELECT DISTINCT ON(agent_id,check_id) payload,agent_id,check_id FROM nmo_observations WHERE monitor=$1 AND revision=$2 AND diagnostic_task_id='' AND finished_at >= $3 ORDER BY agent_id,check_id,finished_at DESC,id DESC) x LIMIT 10001`, p.Name, p.Revision, now.Add(-p.MaxAge))
+func (s *Store) LatestRegular(ctx context.Context, p monitor.Plan, now time.Time) ([]monitor.Observation, error) {
+	rows, e := s.pool.Query(ctx, `SELECT payload FROM (SELECT DISTINCT ON(agent_id,check_id) payload,agent_id,check_id FROM nmo_observations WHERE monitor=$1 AND revision=$2 AND diagnostic_task_id='' AND fallback_task_id='' AND finished_at >= $3 ORDER BY agent_id,check_id,finished_at DESC,id DESC) x LIMIT 10001`, p.Name, p.Revision, now.Add(-p.MaxAge))
 	if e != nil {
 		return nil, e
 	}

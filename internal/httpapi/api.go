@@ -21,6 +21,7 @@ import (
 	"github.com/boby-star/NetMonOrc/internal/alertview"
 	"github.com/boby-star/NetMonOrc/internal/auth"
 	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
+	"github.com/boby-star/NetMonOrc/internal/fallback"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/operationview"
 	"github.com/boby-star/NetMonOrc/internal/resources"
@@ -39,6 +40,7 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	fallbacks        fallback.Reader
 	groups           GroupAssessmentLoad
 	dashboard        DashboardLoad
 	operations       operationview.Reader
@@ -163,6 +165,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/v1/diagnostics" || strings.HasPrefix(r.URL.Path, "/api/v1/diagnostics/") {
 		h.diagnosticRoutes(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/fallback-runs") {
+		h.fallbackRoutes(w, r)
 		return
 	}
 	if r.URL.Path == "/api/v1/agents" || strings.HasPrefix(r.URL.Path, "/api/v1/agents/") {

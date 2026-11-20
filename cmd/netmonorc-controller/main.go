@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -93,16 +94,13 @@ func run() error {
 			if e != nil {
 				return e
 			}
-			execution := bootstrap
-			execution.Metadata = resources.Metadata{Name: bootstrap.Metadata.Name}
-			wire, e := json.Marshal(execution)
-			if e != nil {
-				return e
+			if bootstrap.Kind != "Monitor" || bootstrap.APIVersion != "netmonorc.io/v1alpha1" || bootstrap.Metadata.Name == "" {
+				return fmt.Errorf("bootstrap requires a named v1alpha1 Monitor")
 			}
-			p, e := config.Compile(wire)
-			if e != nil {
-				return e
-			}
+			// Resolve the full desired manifest through Registry after reading
+			// trusted roster and existing referenced resources. No stripped IR
+			// compiler may reject valid declarative placement/ref fields here.
+			p := monitor.Plan{Name: bootstrap.Metadata.Name}
 			var rosterSlots []monitor.Slot
 			registeredIDs, registeredZones := map[string]bool{}, map[string]bool{}
 			for _, entry := range strings.Split(*roster, ",") {
@@ -114,14 +112,13 @@ func run() error {
 				registeredZones[zone] = true
 				rosterSlots = append(rosterSlots, monitor.Slot{Agent: id, Zone: zone})
 			}
-			if len(rosterSlots) > 100 || len(registeredZones) != len(p.Zones) {
-				return fmt.Errorf("roster must cover exactly the bootstrap zones (maximum 100 Agents)")
+			if len(rosterSlots) == 0 || len(rosterSlots) > 100 {
+				return fmt.Errorf("roster requires 1..100 Agents")
 			}
-			for _, zone := range p.Zones {
-				if !registeredZones[zone] {
-					return fmt.Errorf("bootstrap zone is absent from roster")
-				}
+			for zone := range registeredZones {
+				p.Zones = append(p.Zones, zone)
 			}
+			sort.Strings(p.Zones)
 			domains, e := transport.ParseFailureDomains(*failureDomains, rosterSlots)
 			if e != nil {
 				return e
@@ -453,10 +450,22 @@ func run() error {
 					return store.ReadGroupAssessment(c, name, registry)
 				})
 				handler.SetResources(resourceService, p.Revision)
+				handler.SetFallbacks(store)
 				handler.SetAgents(func() []agentstatus.View { return agentServer.AgentStatuses(time.Now()) })
 				httpServer = httpapi.NewServer(*httpListen, handler)
 			}
 			errors := make(chan error, 4)
+			fallbackDone := make(chan struct{})
+			go func() {
+				defer close(fallbackDone)
+				if err := agentServer.RunFallbacks(ctx); err != nil {
+					select {
+					case errors <- err:
+					case <-ctx.Done():
+					}
+				}
+			}()
+
 			notificationDone := make(chan struct{})
 			if notifications != nil {
 				go func() {
@@ -552,6 +561,7 @@ func run() error {
 				_ = httpServer.Shutdown(shutdown)
 				done()
 			}
+			<-fallbackDone
 			<-assessmentDone
 			<-notificationDone
 			stopped := make(chan struct{})

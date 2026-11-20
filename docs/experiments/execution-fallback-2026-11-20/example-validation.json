@@ -1,0 +1,1 @@
+{"abstractZoneContext":false,"mode":"offline","planningRequired":true,"resources":[{"resource":"Monitor/fallback-http","validationRevision":"99470b3795178c1b0ed66fd1aa39d428a45d2021759232e11af93d79323f5c2d"}],"valid":true,"warnings":["Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."]}

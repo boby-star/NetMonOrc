@@ -187,6 +187,7 @@ export function ObservationDetail({ id, close }: { id: string; close: () => void
         <dt>Причина</dt><dd>{record.reasonCode || "—"}</dd>
         <dt>Початок / завершення / приймання</dt><dd>{record.startedAt} / {record.finishedAt} / {record.receivedAt}</dd>
         <dt>Тривалість</dt><dd>{record.durationMs.toFixed(1)} мс</dd>
+        <dt>Резервний запуск / завдання</dt><dd>{record.fallbackRunId || "—"} / {record.fallbackTaskId || "—"}</dd>
         <dt>Діагностична сесія / завдання</dt><dd>{record.diagnosticSessionId || "—"} / {record.diagnosticTaskId || "—"}</dd>
       </dl>
       {record.values && <table><caption>Витягнуті значення</caption><thead><tr><th>Поле</th><th>Значення</th></tr></thead><tbody>{Object.entries(record.values).map(([name,value]) => <tr key={name}><td>{name}</td><td><code>{String(value)}</code></td></tr>)}</tbody></table>}

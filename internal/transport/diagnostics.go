@@ -47,9 +47,10 @@ func (s *Server) Executors(now time.Time) []diagnostics.Executor {
 }
 
 type DiagnosticRunner struct {
-	Server *Server
-	RunID  string
-	Plan   monitor.Plan
+	Fallback *storage.FallbackRun
+	Server   *Server
+	RunID    string
+	Plan     monitor.Plan
 }
 
 func (r DiagnosticRunner) Execute(ctx context.Context, a diagnostics.Action, e diagnostics.Executor) (diagnostics.Outcome, error) {
@@ -79,7 +80,7 @@ func (bound admittedDiagnosticRunner) ExecuteEvidence(ctx context.Context, a dia
 	if a.AttemptNo < 1 || a.AttemptNo > 50 {
 		return unknown, fmt.Errorf("invalid diagnostic attempt number")
 	}
-	if r.Plan.Diagnostics == nil || !r.Plan.Diagnostics.Enabled {
+	if r.Fallback == nil && (r.Plan.Diagnostics == nil || !r.Plan.Diagnostics.Enabled) {
 		return unknown, fmt.Errorf("diagnostics disabled")
 	}
 	deadline, ok := ctx.Deadline()
@@ -111,7 +112,12 @@ func (bound admittedDiagnosticRunner) ExecuteEvidence(ctx context.Context, a dia
 	permit.taskID, permit.until, permit.terminal = id, deadline, false
 	s.mu.Unlock()
 	t := storage.DiagnosticTask{StepID: a.StepID, ID: id, RunID: r.RunID, Agent: e.ID, Generation: session.generation, Plan: r.Plan, Check: a.Check, Zone: e.Zone, Deadline: deadline, AttemptNo: a.AttemptNo}
-	if err = s.Store.ReserveDiagnostic(ctx, t); err != nil {
+	if r.Fallback != nil {
+		err = s.Store.ReserveFallback(ctx, t)
+	} else {
+		err = s.Store.ReserveDiagnostic(ctx, t)
+	}
+	if err != nil {
 		return unknown, err
 	}
 	defer func() {
@@ -131,6 +137,11 @@ func (bound admittedDiagnosticRunner) ExecuteEvidence(ctx context.Context, a dia
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); delete(s.tasks, id); s.mu.Unlock() }()
 	task := &pb.DiagnosticTask{TaskId: id, SessionId: r.RunID, Revision: r.Plan.Revision, CompiledCheck: data, ExpiresAtUnixMilli: deadline.UnixMilli(), AttemptNo: uint32(a.AttemptNo)}
+	if r.Fallback != nil {
+		task.FallbackRunId = r.RunID
+		task.FallbackOriginAgent = r.Fallback.OriginAgent
+		task.FallbackOriginZone = r.Fallback.OriginZone
+	}
 	select {
 	case session.tasks <- taskRequest{ctx: ctx, task: task}:
 	case <-ctx.Done():

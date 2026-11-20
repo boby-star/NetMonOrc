@@ -8,6 +8,8 @@ import (
 )
 
 func equivalent(a, b monitor.Check) bool {
+	a.Fallback = nil
+	b.Fallback = nil
 	a.ID = ""
 	b.ID = ""
 	a.Interval = 0
@@ -42,7 +44,7 @@ func MatchBaseline(plan monitor.Plan, p Profile, history []monitor.Observation, 
 		if age == 0 {
 			age = plan.MaxAge
 		}
-		if (!a.EvidenceNotBefore.IsZero() && o.StartedAt.Before(a.EvidenceNotBefore)) || o.DiagnosticTaskID != "" || !ok || !known || o.ID == "" || o.Monitor != plan.Name || o.Revision != plan.Revision || o.Zone != a.Zone || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+		if (!a.EvidenceNotBefore.IsZero() && o.StartedAt.Before(a.EvidenceNotBefore)) || o.DiagnosticTaskID != "" || o.FallbackTaskID != "" || !ok || !known || o.ID == "" || o.Monitor != plan.Name || o.Revision != plan.Revision || o.Zone != a.Zone || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
 			continue
 		}
 		key := o.Check + "/" + o.Agent

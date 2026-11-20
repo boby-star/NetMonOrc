@@ -38,6 +38,7 @@ type Manifest struct {
 	} `yaml:"spec"`
 }
 type checkSpec struct {
+	Fallback yaml.Node     `yaml:"fallback"`
 	Enabled  *bool         `yaml:"enabled"`
 	Priority *int          `yaml:"priority"`
 	Jitter   string        `yaml:"jitter"`
@@ -238,6 +239,10 @@ func Compile(data []byte) (monitor.Plan, error) {
 		x, e := compileProbe(c, p.TargetAddress)
 		if e != nil {
 			return p, fmt.Errorf("spec.checks[%d] (%s): %w", i, c.ID, e)
+		}
+		x.Fallback, e = compileFallback(c.Fallback)
+		if e != nil {
+			return p, fmt.Errorf("check %s fallback: %w", c.ID, e)
 		}
 		x.ID = c.ID
 		x.Weight = 1

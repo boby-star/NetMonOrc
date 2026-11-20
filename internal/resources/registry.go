@@ -244,6 +244,9 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		p, err = config.WithStaticComparison(p)
 	}
 	if err == nil {
+		p, err = config.BindFallbackRoster(p, r.Roster, r.FailureDomains)
+	}
+	if err == nil {
 		p, err = r.bindComponents(p)
 	}
 	if err == nil && p.HasDynamicPlacement() {

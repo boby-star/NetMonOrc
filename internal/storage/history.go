@@ -18,8 +18,8 @@ func (s *Store) ReadObservations(ctx context.Context, q monitor.HistoryQuery) ([
 	if q.Limit < 1 || q.Limit > 200 || q.Monitor == "" {
 		return nil, fmt.Errorf("invalid bounded observation query")
 	}
-	rows, err := s.pool.Query(ctx, `SELECT o.payload,o.received_at,o.finished_at,COALESCE(t.run_id,'')
- FROM nmo_observations o LEFT JOIN nmo_diagnostic_tasks t ON t.id=o.diagnostic_task_id
+	rows, err := s.pool.Query(ctx, `SELECT o.payload,o.received_at,o.finished_at,COALESCE(t.run_id,''),COALESCE(ft.run_id,'')
+ FROM nmo_observations o LEFT JOIN nmo_diagnostic_tasks t ON t.id=o.diagnostic_task_id LEFT JOIN nmo_fallback_tasks ft ON ft.id=o.fallback_task_id
  WHERE o.monitor=$1 AND ($2='' OR o.payload->>'zone'=$2)
  AND ($3::timestamptz IS NULL OR o.finished_at>=$3)
  AND ($4::timestamptz IS NULL OR o.finished_at<=$4)
@@ -33,7 +33,7 @@ func (s *Store) ReadObservations(ctx context.Context, q monitor.HistoryQuery) ([
 	for rows.Next() {
 		var record monitor.ObservationRecord
 		var data []byte
-		if err = rows.Scan(&data, &record.ReceivedAt, &record.SortFinishedAt, &record.DiagnosticSessionID); err != nil {
+		if err = rows.Scan(&data, &record.ReceivedAt, &record.SortFinishedAt, &record.DiagnosticSessionID, &record.FallbackRunID); err != nil {
 			return nil, err
 		}
 		if err = json.Unmarshal(data, &record.Observation); err != nil {
@@ -56,9 +56,9 @@ func historyTime(t time.Time) any {
 func (s *Store) ReadObservation(ctx context.Context, id string) (monitor.ObservationRecord, bool, error) {
 	var record monitor.ObservationRecord
 	var data []byte
-	err := s.pool.QueryRow(ctx, `SELECT o.payload,o.received_at,o.finished_at,COALESCE(t.run_id,'')
- FROM nmo_observations o LEFT JOIN nmo_diagnostic_tasks t ON t.id=o.diagnostic_task_id
- WHERE o.id=$1`, id).Scan(&data, &record.ReceivedAt, &record.SortFinishedAt, &record.DiagnosticSessionID)
+	err := s.pool.QueryRow(ctx, `SELECT o.payload,o.received_at,o.finished_at,COALESCE(t.run_id,''),COALESCE(ft.run_id,'')
+ FROM nmo_observations o LEFT JOIN nmo_diagnostic_tasks t ON t.id=o.diagnostic_task_id LEFT JOIN nmo_fallback_tasks ft ON ft.id=o.fallback_task_id
+ WHERE o.id=$1`, id).Scan(&data, &record.ReceivedAt, &record.SortFinishedAt, &record.DiagnosticSessionID, &record.FallbackRunID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return record, false, nil
 	}

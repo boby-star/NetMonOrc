@@ -185,6 +185,8 @@ export interface ObservationRecord {
   values?: Record<string, string | number | boolean>;
   diagnosticSessionId?: string;
   diagnosticTaskId?: string;
+  fallbackTaskId?: string;
+  fallbackRunId?: string;
 }
 export interface ObservationPage {
   items: ObservationRecord[];
@@ -1001,4 +1003,11 @@ export async function exportDiagnostic(id: string, signal: AbortSignal): Promise
   const result = `{"schema":1,"baselineEvidenceKnown":${baselineEvidenceKnown},"collectedAt":${JSON.stringify(new Date().toISOString())},"complete":${missing.length === 0},"session":${first},"tasks":${JSON.stringify(tasks)},"observations":[${observations.join(",")}],"missingObservationIds":${JSON.stringify(missing)}}`;
   if (new TextEncoder().encode(result).length > 32 * 1024 * 1024) throw new Error("Пакет перевищує 32 MiB.");
   return result;
+}
+
+export interface FallbackRun {id:string; monitor:string; revision:string; check:string; originObservationId:string; originAgent:string; originZone:string; cause:string; strategy:string; maxAttempts:number; usedAttempts:number; startedAt:string; deadline:string; state:string; tasks:{id:string;agent:string;zone:string;attempt:number;state:string;observationId:string}[]}
+export async function fallbackRuns(monitor:string,cursor:string|null):Promise<{items:FallbackRun[];nextCursor:string|null}>{
+ const query=new URLSearchParams({monitor,limit:"20"});if(cursor)query.set("cursor",cursor);
+ const response=await apiFetch(`/api/v1/fallback-runs?${query}`,{credentials:"same-origin",cache:"no-store",signal:AbortSignal.timeout(8000)});
+ if(!response.ok)throw new Error(`Історія резервних спроб недоступна (${response.status})`);return response.json();
 }

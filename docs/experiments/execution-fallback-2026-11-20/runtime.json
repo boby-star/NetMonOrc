@@ -1,0 +1,12 @@
+{
+  "baseCommit": "5dd0471b658ac5e4621447f64b2ecf1e64682f6f",
+  "branch": "prototype/minimal-research",
+  "liveTrialsImage": "sha256:0ee1cddfc4b58b9651d7acb0d7edaf044960399549390d608e26c29ed476a9d8",
+  "finalImage": "sha256:029da53d2948089602571359ae4032a76f307150880d087008850d7db63a9dc4",
+  "trialProjects": [
+    "nmo-fallback-same-20261120",
+    "nmo-fallback-diff-20261120"
+  ],
+  "singleDockerHost": true,
+  "browserInteractionTested": false
+}

@@ -124,6 +124,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
+		if len(plan.FallbackRoster) > 0 && !capabilities["fallback:v1"] {
+			return status.Error(codes.FailedPrecondition, "fallback capability required")
+		}
 		if len(plan.Components) > 0 && (!capabilities["components:external-v1"] || !capabilities["components:readiness-v1"]) {
 			return status.Error(codes.FailedPrecondition, "external Component and readiness capabilities required")
 		}
@@ -292,6 +295,19 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 			if !validFrame(r.f, id) {
 				return status.Error(codes.InvalidArgument, "invalid Agent envelope")
 			}
+			if rejected := r.f.GetConfigRejected(); rejected != nil {
+				plan, known := assignments[rejected.AssignmentId]
+				if !known || rejected.Revision != plan.Revision || applied[plan.Revision] {
+					return status.Error(codes.InvalidArgument, "unbound config rejection")
+				}
+				c, done := context.WithTimeout(ctx, 3*time.Second)
+				recorded, err := s.Store.RecordConfigRejection(c, id, generation, plan.Revision)
+				done()
+				if err != nil || !recorded {
+					return status.Error(codes.Aborted, "config rejection fenced")
+				}
+				continue
+			}
 			if a := r.f.GetConfigApplied(); a != nil {
 				plan, known := assignments[a.AssignmentId]
 				if !known || a.Revision != plan.Revision {
@@ -345,7 +361,10 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 					return status.Error(codes.InvalidArgument, "invalid task receipt")
 				}
 				c, done := context.WithTimeout(ctx, 5*time.Second)
-				err := s.Store.DiagnosticReceipt(c, receipt.TaskId, id, generation, receipt.Accepted)
+				handled, err := s.Store.FallbackReceipt(c, receipt.TaskId, id, generation, receipt.Accepted)
+				if err == nil && !handled {
+					err = s.Store.DiagnosticReceipt(c, receipt.TaskId, id, generation, receipt.Accepted)
+				}
 				done()
 				if err != nil {
 					return status.Error(codes.Aborted, "task receipt could not be fenced")
@@ -371,7 +390,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 					if !applied[o.Revision] {
 						return status.Error(codes.FailedPrecondition, "observation plan is not acknowledged")
 					}
-					if o.DiagnosticTaskID == "" && !plan.CheckAllowed(o.Check, id) {
+					if o.DiagnosticTaskID == "" && o.FallbackTaskID == "" && !plan.CheckAllowed(o.Check, id) {
 						return status.Error(codes.PermissionDenied, "Agent is not assigned regular probes")
 					}
 				}
@@ -385,8 +404,12 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				return status.Error(codes.Unavailable, "durable observation commit failed")
 			}
 			for _, o := range observations {
-				if o.DiagnosticTaskID != "" {
-					s.taskEvidenceResult(o.DiagnosticTaskID, id, diagnostics.ObservedOutcome{ObservationID: o.ID, FinishedAt: o.FinishedAt, Outcome: diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome}})
+				if o.DiagnosticTaskID != "" || o.FallbackTaskID != "" {
+					taskID := o.DiagnosticTaskID
+					if taskID == "" {
+						taskID = o.FallbackTaskID
+					}
+					s.taskEvidenceResult(taskID, id, diagnostics.ObservedOutcome{ObservationID: o.ID, FinishedAt: o.FinishedAt, Outcome: diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome}})
 				}
 			}
 			ack := &pb.ObservationAck{}

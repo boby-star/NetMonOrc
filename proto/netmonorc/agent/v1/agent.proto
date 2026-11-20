@@ -17,6 +17,7 @@ message AgentFrame {
     ObservationBatch observation_batch = 12;
     Heartbeat heartbeat = 13;
     TaskReceipt task_receipt = 14;
+    ConfigRejected config_rejected = 15;
   }
 }
 message ControllerFrame {
@@ -42,6 +43,7 @@ message ConfigAssignment {
   int64 expires_at_unix_milli = 5;
   string zone = 6; // Controller-owned roster; never self-reported by Agent.
 }
+message ConfigRejected { string assignment_id = 1; string revision = 2; }
 message ConfigApplied { string assignment_id = 1; string revision = 2; }
 message Observation {
   string id = 1;
@@ -59,6 +61,7 @@ message Observation {
   map<string, string> extraction_status = 13;
   map<string, ScalarValue> values = 14;
   string diagnostic_task_id = 15;
+  string fallback_task_id = 16;
 }
 message ScalarValue {
   oneof value {
@@ -98,6 +101,9 @@ message DiagnosticTask {
   bytes compiled_check = 4;
   int64 expires_at_unix_milli = 5;
   uint32 attempt_no = 6;
+  string fallback_run_id = 7;
+  string fallback_origin_agent = 8;
+  string fallback_origin_zone = 9;
 }
 message TaskReceipt {
   string task_id = 1;
