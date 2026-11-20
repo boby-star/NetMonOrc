@@ -1,0 +1,183 @@
+{
+  "status": "passed",
+  "documentCount": 10,
+  "zeroWritesOnBrokenReference": {
+    "nmo_resources": 0,
+    "nmo_resource_revisions": 0,
+    "nmo_resource_bootstrap": 0
+  },
+  "firstHealthy": {
+    "research-web": {
+      "monitorId": "research-web",
+      "state": "healthy",
+      "coverageState": "sufficient",
+      "zoneStates": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "723a93a06f3e1451bd99692e669839ad"
+          ],
+          "reason": "sufficient_success"
+        }
+      ],
+      "reasonCodes": [
+        "sufficient_success"
+      ],
+      "evidenceIds": [
+        "723a93a06f3e1451bd99692e669839ad"
+      ],
+      "evaluatedAt": "2026-11-20T21:37:07.171320986Z",
+      "revision": "2d6ec8d7c035234a317ca9fb0dfd71ac6d3acbdd497dd6e85a4f33c213133011"
+    },
+    "research-alt": {
+      "monitorId": "research-alt",
+      "state": "healthy",
+      "coverageState": "sufficient",
+      "zoneStates": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "c03a8d488a5b394d4b6b681d3014681c"
+          ],
+          "reason": "sufficient_success"
+        }
+      ],
+      "reasonCodes": [
+        "sufficient_success"
+      ],
+      "evidenceIds": [
+        "c03a8d488a5b394d4b6b681d3014681c"
+      ],
+      "evaluatedAt": "2026-11-20T21:37:09.1520184Z",
+      "revision": "b9145a7765a536839d35affac70a489507e742b4c3ae0f728bd08062c24ad208"
+    }
+  },
+  "afterTargetEdit": {
+    "research-web": {
+      "monitorId": "research-web",
+      "state": "healthy",
+      "coverageState": "sufficient",
+      "zoneStates": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "0a3489c322ec34612fa3adb0d1dc6958"
+          ],
+          "reason": "sufficient_success"
+        }
+      ],
+      "reasonCodes": [
+        "sufficient_success"
+      ],
+      "evidenceIds": [
+        "0a3489c322ec34612fa3adb0d1dc6958"
+      ],
+      "evaluatedAt": "2026-11-20T21:37:17.286774288Z",
+      "revision": "68967eb20104bbca5eaae7d50d21a619a40d1422f775e20ca6fdcff1177921ce"
+    },
+    "research-alt": {
+      "monitorId": "research-alt",
+      "state": "healthy",
+      "coverageState": "sufficient",
+      "zoneStates": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "d7b60de64bf4b689f1cdf9d1874714c5"
+          ],
+          "reason": "sufficient_success"
+        }
+      ],
+      "reasonCodes": [
+        "sufficient_success"
+      ],
+      "evidenceIds": [
+        "d7b60de64bf4b689f1cdf9d1874714c5"
+      ],
+      "evaluatedAt": "2026-11-20T21:37:18.268300523Z",
+      "revision": "6ad88042908e50c52bfca372f843ad79dbfe05203d5ddd433887a46d671589b0"
+    }
+  },
+  "freshAfterReversedCatalogRestart": {
+    "research-web": {
+      "monitorId": "research-web",
+      "state": "healthy",
+      "coverageState": "sufficient",
+      "zoneStates": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "0a3489c322ec34612fa3adb0d1dc6958"
+          ],
+          "reason": "sufficient_success"
+        }
+      ],
+      "reasonCodes": [
+        "sufficient_success"
+      ],
+      "evidenceIds": [
+        "0a3489c322ec34612fa3adb0d1dc6958"
+      ],
+      "evaluatedAt": "2026-11-20T21:37:26.696110419Z",
+      "revision": "68967eb20104bbca5eaae7d50d21a619a40d1422f775e20ca6fdcff1177921ce"
+    },
+    "research-alt": {
+      "monitorId": "research-alt",
+      "state": "healthy",
+      "coverageState": "sufficient",
+      "zoneStates": [
+        {
+          "zone": "office",
+          "state": "healthy",
+          "coverage": "complete",
+          "q": 1,
+          "h": 1,
+          "evidence": [
+            "230226c0e60dd572287fee4ee1c6ce6d"
+          ],
+          "reason": "sufficient_success"
+        }
+      ],
+      "reasonCodes": [
+        "sufficient_success"
+      ],
+      "evidenceIds": [
+        "230226c0e60dd572287fee4ee1c6ce6d"
+      ],
+      "evaluatedAt": "2026-11-20T21:37:27.664436441Z",
+      "revision": "6ad88042908e50c52bfca372f843ad79dbfe05203d5ddd433887a46d671589b0"
+    }
+  },
+  "persistedTargetEditPreserved": true,
+  "deletedResourceNotResurrected": true,
+  "monitorVersionsUnchanged": true,
+  "history": {
+    "nmo_resources": 9,
+    "nmo_resource_revisions": 11,
+    "nmo_resource_bootstrap": 10
+  },
+  "realProbesPostgreSQLMTLSHTTPS": true,
+  "legacyProfileAlertEndpointFlagsRemoved": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

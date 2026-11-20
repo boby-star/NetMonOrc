@@ -52,7 +52,8 @@ func main() {
 var errReconcile = stderrors.New("reload desired Monitor")
 
 func run() error {
-	manifest := flag.String("config", "examples/http.yaml", "Monitor manifest")
+	manifest := flag.String("config", "examples/http.yaml", "bootstrap Monitor or YAML resource catalog (1..20 documents)")
+	selectedMonitor := flag.String("monitor", "", "active snapshot Monitor; required for bootstrap catalogs containing multiple Monitors")
 	listen := flag.String("listen", "127.0.0.1:9443", "mTLS gRPC listen address")
 	database := flag.String("database-file", "", "private file containing PostgreSQL DSN")
 	ca := flag.String("ca", "", "Agent CA bundle")
@@ -86,21 +87,11 @@ func run() error {
 			if *httpListen == "" && (*httpTokenFile != "" || *uiDir != "") {
 				return fmt.Errorf("http-token-file/http-ui-dir require http-listen")
 			}
-			b, e := os.ReadFile(*manifest)
+			bootstrap, active, e := readBootstrap(*manifest, *selectedMonitor)
 			if e != nil {
 				return e
 			}
-			bootstrap, e := resources.DecodeYAML(b)
-			if e != nil {
-				return e
-			}
-			if bootstrap.Kind != "Monitor" || bootstrap.APIVersion != "netmonorc.io/v1alpha1" || bootstrap.Metadata.Name == "" {
-				return fmt.Errorf("bootstrap requires a named v1alpha1 Monitor")
-			}
-			// Resolve the full desired manifest through Registry after reading
-			// trusted roster and existing referenced resources. No stripped IR
-			// compiler may reject valid declarative placement/ref fields here.
-			p := monitor.Plan{Name: bootstrap.Metadata.Name}
+			p := monitor.Plan{Name: active}
 			var rosterSlots []monitor.Slot
 			registeredIDs, registeredZones := map[string]bool{}, map[string]bool{}
 			for _, entry := range strings.Split(*roster, ",") {
@@ -135,7 +126,7 @@ func run() error {
 				}
 			}
 			var profile diagnostics.Profile
-			b, e = os.ReadFile(*database)
+			b, e := os.ReadFile(*database)
 			if e != nil {
 				return e
 			}
@@ -179,7 +170,7 @@ func run() error {
 				}
 			}
 			var webhookCIDRs []netip.Prefix
-			if *endpointPath != "" {
+			if *endpointPath != "" || *webhookAllow != "" {
 				for _, text := range strings.Split(*webhookAllow, ",") {
 					cidr, err := netip.ParsePrefix(text)
 					if err != nil {
@@ -197,61 +188,19 @@ func run() error {
 				})
 			}
 
-			registry := resources.Registry{AgentLabels: labels, FailureDomains: domains, ExecuteAll: true, Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "", WebhookCIDRs: webhookCIDRs}
-			if *endpointPath != "" {
-				data, err := os.ReadFile(*endpointPath)
-				if err != nil {
-					return err
-				}
-				m, err := resources.DecodeYAML(data)
-				if err != nil {
-					return err
-				}
-				result, err := registry.CompileResource(m)
-				if err != nil {
-					return err
-				}
-				if _, err = store.SeedResource(ctx, m, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
-					return err
+			registry := resources.Registry{AgentLabels: labels, FailureDomains: domains, ExecuteAll: true, Roster: rosterSlots, Active: p.Name, Zones: append([]string(nil), p.Zones...), StaticComparison: *staticComparison, AlertChannel: endpoint.Name, ManagedWebhooks: *endpointPath != "" || *webhookAllow != "", WebhookCIDRs: webhookCIDRs}
+			for _, legacy := range []struct{ path, kind string }{
+				{*endpointPath, "WebhookEndpoint"}, {*profilePath, "DiagnosticProfile"}, {*alertPath, "AlertRule"},
+			} {
+				bootstrap, e = appendBootstrapFile(bootstrap, legacy.path, legacy.kind)
+				if e != nil {
+					return e
 				}
 			}
-			if *profilePath != "" {
-				data, err := os.ReadFile(*profilePath)
-				if err != nil {
-					return err
-				}
-				manifest, err := resources.DecodeYAML(data)
-				if err != nil {
-					return err
-				}
-				result, err := registry.CompileResource(manifest)
-				if err != nil {
-					return err
-				}
-				if _, err = store.SeedResource(ctx, manifest, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
-					return err
-				}
+			if e = store.SeedCatalog(ctx, bootstrap, registry); e != nil {
+				return e
 			}
-			if _, err := store.SeedResource(ctx, bootstrap, "", registry); err != nil {
-				return err
-			}
-			if *alertPath != "" {
-				data, err := os.ReadFile(*alertPath)
-				if err != nil {
-					return err
-				}
-				m, err := resources.DecodeYAML(data)
-				if err != nil {
-					return err
-				}
-				result, err := registry.CompileResource(m)
-				if err != nil {
-					return err
-				}
-				if _, err = store.SeedResource(ctx, m, result.Revision, registry); err != nil && !stderrors.Is(err, resources.ErrNotFound) {
-					return err
-				}
-			}
+
 			loaded, compiledCatalog, err := store.LoadRuntime(ctx, registry)
 			if err != nil {
 				return err
@@ -384,7 +333,7 @@ func run() error {
 				handler.SetObservationLoader(store.ReadObservation)
 				handler.SetDiagnostics(store)
 				endpointHash := ""
-				if alertRule != nil {
+				if alertRule != nil || endpoint.Name != "" {
 					endpointHash = endpoint.Hash()
 				}
 				handler.SetAlerts(store, endpointHash)

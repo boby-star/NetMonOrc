@@ -1,0 +1,8 @@
+{
+  "baseCommit": "d532862c9bc3fab02d11f4305c4fa678ffbbeec7",
+  "trialImage": "sha256:b1c714227fad1e09da967f02b6e1aeb0bfa0e9220dacc6c4621e0c2e20668c4a",
+  "project": "nmo-yaml-catalog-final-20261120",
+  "singleDockerHost": true,
+  "browserInteractionTested": false,
+  "finalImage": "sha256:87bb44a62bd7cd97df3a082741c4c8bbbd384127b2ffa219c28088f27b2c3e59"
+}

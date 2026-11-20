@@ -1,3 +1,25 @@
+# Атомарний стартовий YAML-каталог
+
+Controller `-config` приймає 1..20 пов’язаних ресурсів у multi-document YAML
+або ConfigBatch без apply preconditions. Спільний decoder CLI/Controller,
+обмеження розміру/структури, явний `-monitor` при кількох Monitor, спільний
+resolver посилань і одна транзакція seed/history/markers/revisions. Legacy
+profile/alert/webhook files входять у ту саму транзакцію. Bundled webhook
+використовує явні allowlist/secrets/CA, без потреби окремого endpoint file.
+Збережені API-зміни мають пріоритет; tombstones не дозволяють resurrection.
+[Контракт і приклад](docs/deployment/bootstrap-catalog.md).
+
+Натурно підтверджено broken ref з 0 resources/history/markers; після виправлення
+10 документів створено разом, два Monitor отримали healthy з реальних probes.
+Shared Target змінено через REST, unused Target видалено; reverse-document
+restart зберіг зміни, revisions та Monitor ETags, не додав source history.
+Go/vet і production build пройшли; фінальний image повторно дав свіжі healthy
+оцінки. Нових browser clicks не було: UI у цій ітерації не змінювався.
+[Докази](docs/experiments/bootstrap-catalog-2026-11-20/README.md).
+
+Це реалізація декларативного стартового каталогу в межах наявних kind DSL,
+а не твердження про повну відповідність усьому старому ТЗ.
+
 # ExecutionFallback та спільний compiler стартового Monitor
 
 Реалізовано YAML fallback для регулярних checks: чотири технічні причини,

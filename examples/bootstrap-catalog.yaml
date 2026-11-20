@@ -1,0 +1,44 @@
+# Monitor deliberately precedes its referenced resources.
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: shared-http}
+spec:
+  targetRef: shared-target
+  placementRef: primary-office
+  useProfiles:
+    - ref: http-checks
+      as: web
+      parameters: {url: 'http://192.0.2.10/'}
+  assessmentRef: office-health
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Target
+metadata: {name: shared-target}
+spec: {type: host, address: 192.0.2.10}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: CheckProfile
+metadata: {name: http-checks}
+spec:
+  parameters:
+    - {name: url, type: url, required: true}
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config: {url: '${params.url}', expectedStatus: [200]}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: PlacementPolicy
+metadata: {name: primary-office}
+spec: {strategy: fixed, agentRefs: [branch], replicas: 1, zones: [office]}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: AssessmentPolicy
+metadata: {name: office-health}
+spec:
+  requiredZones: [office]
+  freshness: {maxAge: 30s, maxSkew: 15s}
+  checks: [{id: web__http, weight: 1, required: true}]

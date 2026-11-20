@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/apiclient"
 	"github.com/boby-star/NetMonOrc/internal/resources"
-	"gopkg.in/yaml.v3"
 )
 
 func cliContextPath(override string) (string, error) {
@@ -241,53 +239,9 @@ func readCLIInput(path string) ([]byte, error) {
 
 // parseBatch converts syntax only; domain validation remains on Controller.
 func parseBatch(data []byte) (resources.Batch, error) {
-	d := yaml.NewDecoder(bytes.NewReader(data))
-	batch := resources.Batch{}
-	for {
-		var document yaml.Node
-		err := d.Decode(&document)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return batch, fmt.Errorf("invalid YAML/JSON input")
-		}
-		encoded, err := resources.YAMLJSON(&document)
-		if err != nil {
-			return batch, fmt.Errorf("JSON-compatible YAML required")
-		}
-		var envelope map[string]json.RawMessage
-		if json.Unmarshal(encoded, &envelope) != nil {
-			return batch, fmt.Errorf("resource or ConfigBatch object required")
-		}
-		if _, isBatch := envelope["manifests"]; isBatch {
-			if len(batch.Manifests) > 0 {
-				return batch, fmt.Errorf("ConfigBatch cannot be mixed with manifest documents")
-			}
-			decoder := json.NewDecoder(bytes.NewReader(encoded))
-			decoder.DisallowUnknownFields()
-			if err = decoder.Decode(&batch); err != nil {
-				return batch, fmt.Errorf("invalid ConfigBatch")
-			}
-			if d.Decode(new(yaml.Node)) != io.EOF {
-				return batch, fmt.Errorf("one ConfigBatch document required")
-			}
-			break
-		}
-		manifest, err := resources.Decode(encoded)
-		if err != nil {
-			return batch, err
-		}
-		batch.Manifests = append(batch.Manifests, manifest)
-		if len(batch.Manifests) > 20 {
-			return batch, fmt.Errorf("batch exceeds 20 manifests")
-		}
-	}
-	if len(batch.Manifests) < 1 || len(batch.Manifests) > 20 {
-		return batch, fmt.Errorf("expected 1..20 manifests")
-	}
-	return batch, nil
+	return resources.DecodeBatch(data)
 }
+
 func waitOperation(ctx context.Context, client *apiclient.Client, op resources.Operation) error {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()

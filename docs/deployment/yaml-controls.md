@@ -148,3 +148,9 @@ driver limits наведено в [контракті HTTP](http-policy.md).
 Поля поза підтриманим контрактом й далі відхиляються там, де немає runtime семантики. Наявний
 retry/domain confirmation/Blackbox runner не оголошується заміною цих функцій.
 У registry тепер 11 kind; повну сумісність усіх полів DSL не заявлено.
+
+## Стартовий каталог Controller
+
+`-config` приймає [пакет пов’язаних YAML ресурсів](bootstrap-catalog.md).
+Спільний із CLI decoder, атомарний seed графа, явний вибір основного Monitor
+і збереження API-змін/tombstones при restart реалізовані без нових kind DSL.
