@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	jitter "math/rand/v2"
@@ -156,7 +157,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "http:policy-v2", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"components:external-v1", "native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "http:policy-v2", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	for _, cidr := range allowed {
 		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "target-cidr:"+cidr.Masked().String())
 	}
@@ -480,7 +481,7 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 							exporters[oldest].exporter.Close()
 							delete(exporters, oldest)
 						}
-						entry.exporter, e = probe.StartExporter(ctx, blackbox, a.plan)
+						entry.exporter, e = probe.StartAgentExporter(ctx, blackbox, a.plan, id)
 					}
 					if e == nil {
 						entry.used = time.Now()
@@ -504,6 +505,9 @@ func schedule(ctx context.Context, st *state, spool *Spool, id, blackbox string,
 					}
 					now := time.Now().UTC()
 					o = monitor.Observation{ID: hex.EncodeToString(observationID[:]), Monitor: a.plan.Name, Revision: a.plan.Revision, Check: c.ID, Agent: slot.Agent, Zone: slot.Zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "runner_unavailable_or_policy_denied"}
+				}
+				if errors.Is(e, probe.ErrRunnerUnavailable) {
+					o.Reason = "runner_unavailable"
 				}
 				if e = spool.AddReserved(o); e != nil {
 					return e

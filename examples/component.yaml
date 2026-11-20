@@ -1,0 +1,12 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Component
+metadata:
+  name: local-blackbox
+spec:
+  driver: blackbox
+  mode: external
+  agentSelector:
+    matchLabels: {role: probe}
+  endpoint: http://blackbox:9115
+  moduleSet: standard-network
+  enabled: true

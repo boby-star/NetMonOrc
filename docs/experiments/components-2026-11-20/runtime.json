@@ -1,0 +1,33 @@
+{
+  "baseCommit": "bf69c285b786711d492a8c9aa8961b0b802af7f1",
+  "imageID": "sha256:9d9e0104ab85da6d94ebb27265c969c6548b2dec332f8d038bb6a1f442d11e29",
+  "implementationSHA256": {
+    "cmd/netmonorc/main.go": "ab466263ccb1d1ab1e95b99057b57ab80f5fa1f44f72c6ebf753cb0bf4e150e6",
+    "cmd/netmonorc/remote.go": "703559503dd5061b7258f524041010241f1ef56cc70142ed8049f7793d91e3ab",
+    "cmd/netmonorc/validate.go": "4513a671864ea842a2eaf04bcb2cd1ea4d78a39177549794a41c5ed7e033f19b",
+    "internal/agent/client.go": "47c3eef0ed72c8e3ac02024233b0c7a6f8d7e154f1078cbc59b77d551a1a5a1f",
+    "internal/agent/diagnostics.go": "6d491d74c6c2157fddbe82bcc083df29210c4cc7343dc1378d3152eb9f715ef3",
+    "internal/config/verify.go": "bddb13eec5ea6df0e11548d186b41e6a0fb847ce4b5a375595e77894e5a26369",
+    "internal/coordinator/coordinator.go": "34151bec3d87e3a539f80bc3ca4d6b800301e96c74134854f67afbf0a8dbbc37",
+    "internal/httpapi/resources.go": "c62cd2e3b8b58c7f6a8019f8c18f371a542eca06b8f7581fdedc9c92bc126703",
+    "internal/monitor/model.go": "203e69b2809a8a9c4620f5a2d792425de9552859dd596b5a2b2bd0425e5b3550",
+    "internal/probe/blackbox.go": "aec7584cdb0f3645b4e110d0ada9f1fa91800570b17c7e026a6fd0f60e71b8c6",
+    "internal/resources/catalog.go": "6ba097ba4c728dccfa12983f1751e86bf6f7df286b7d8567c4dbe5921e7d2f15",
+    "internal/resources/registry.go": "6afbc0a2f1ec199d7c33dfdb7040de5485c1e83676a6a4a0eab8d29fa556bb7b",
+    "internal/resources/service.go": "89cd7f5cf8d8c541e6cef0dbfd947db36921b79da3c4376786671f01ee9ca2a2",
+    "internal/storage/catalog.go": "d1f1f8de82a12233715c0c76ec4fddf64ce1a50f231575d07d5acc3d187d1eb7",
+    "internal/transport/server.go": "1ca8958219de0b6a7391de59c1758bab636348d14297730a3ba2c6c9f9eea154",
+    "web/src/BatchApply.tsx": "e3ae535128982a2126b531f49eaf5779c523bff1c8ae98bc5f1eca5f46602cee",
+    "web/src/Configuration.tsx": "34e4211dd244918184ab22393d558d8003a29acb2c17aa7c427f1dbb9600bbeb",
+    "cmd/netmonorc/component_config.go": "ed9ea773f5253a1fe7a3c1b1b8cb8f77b8f3022277ecf7d9a8a4fe4cd2697653",
+    "internal/component/endpoint.go": "fcef2b7951953d09defc62f7d5cd304437360f0ad16e620930ffc29885ec4ff8",
+    "internal/config/component.go": "39648b9e0b3366ad72db192a91e5a33f3c9032446e593d833c2dceaeb24d5299",
+    "internal/monitor/component.go": "08759461d816a78b8f7dba384eadb014e1463e9e1bf36db06a172b8d4a9e035f",
+    "internal/probe/component.go": "d7e1dd8733ecfd91a970be7fc7b742b78c765cec94270ac401ec473059846687",
+    "internal/probe/component_test.go": "0910f9838d338644cdd6aa6818ffb651d633564d17ab2849f387baaa6f23eb3f",
+    "internal/resources/component.go": "b870b64a3b896f041aeca6fd5f8ed5bf62a6ec7f0a4863eeb24d9e195b3665fb",
+    "internal/resources/component_test.go": "f13a3fa4988846d4824c6b620158bd8e81f8bdbd85765df61dee1794a608588f",
+    "scripts/lab_components.py": "eab61043ee6bec2d75e371a2eea0da71609cfc3d165976be5e4b45850725d5e8"
+  },
+  "note": "Accepted final image before commit; module generator is closed standard-network/v1 translator; no browser interaction."
+}

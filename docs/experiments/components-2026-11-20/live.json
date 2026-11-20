@@ -1,0 +1,149 @@
+{
+  "status": "passed",
+  "trustedHTTPSAndMTLS": true,
+  "realPostgreSQLAndExporters": true,
+  "regularExternal": [
+    {
+      "agent_id": "branch",
+      "check_id": "dns",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "http",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "tcp",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "dns",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "http",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "tcp",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    }
+  ],
+  "diagnosticExternal": {
+    "configRevision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+    "explanation": {
+      "baselineEvidence": [],
+      "evidencePolicy": {
+        "maxAgeMs": 20000,
+        "maxSkewMs": 15000
+      },
+      "durationMs": 428,
+      "costUnits": 1,
+      "decisions": [
+        {
+          "observationId": "1373610a2f3c8405b5fe404c60bbcd8c",
+          "finishedAt": "2026-11-20T18:12:40.69276658Z",
+          "validUntil": "2026-11-20T18:13:00.69276658Z",
+          "failureDomain": "office-path",
+          "actionId": "external-http",
+          "agentId": "branch",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "not-responding",
+            "responding"
+          ],
+          "gain": 1,
+          "score": 1,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        }
+      ]
+    },
+    "id": "61a3bf0d37117d92d1da4b98da479b0b",
+    "monitorId": "research-web",
+    "profileRef": "external-once",
+    "mode": "fixed",
+    "state": "completed",
+    "startedAt": "2026-11-20T18:12:40.665493Z",
+    "finishedAt": "2026-11-20T18:12:41.10279Z",
+    "remainingHypotheses": [
+      "responding"
+    ],
+    "budgetUsed": {
+      "additionalChecks": 1
+    },
+    "evidenceIds": [
+      "1373610a2f3c8405b5fe404c60bbcd8c"
+    ],
+    "stopReason": "supported_class"
+  },
+  "outageWithoutFallback": [
+    {
+      "agent_id": "branch",
+      "check_id": "dns",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "http",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "tcp",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "dns",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "http",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "tcp",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    }
+  ],
+  "disabledBindingUnknown": true,
+  "restartPreservedRevision": true,
+  "deletionRestoredLegacyRunner": true,
+  "monitorSourceVersionUnchanged": true,
+  "invalidBindingsRejected": true,
+  "productionCLIModulePreparation": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

@@ -22,6 +22,7 @@ import (
 
 // Registry is a closed catalog. Additional kinds need their own validated compiler.
 type Registry struct {
+	Components         map[string]Component
 	AgentLabels        map[string]map[string]string
 	FailureDomains     map[string]string
 	Dependencies       []dependency.Edge
@@ -241,6 +242,9 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	}
 	if r.StaticComparison && (r.ExecuteAll || p.Name == r.Active) {
 		p, err = config.WithStaticComparison(p)
+	}
+	if err == nil {
+		p, err = r.bindComponents(p)
 	}
 	if err == nil && p.HasDynamicPlacement() {
 		bindings := map[string]*monitor.FixedPlacement{m.Metadata.Name: p.FixedPlacement}

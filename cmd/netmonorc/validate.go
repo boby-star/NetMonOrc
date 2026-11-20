@@ -14,9 +14,27 @@ import (
 // The local path uses the same catalog resolver as Controller validate/apply.
 // It checks supplied manifests only, never claiming access to the live roster.
 func localValidate(data []byte, slotsArg, cidrsArg string, labelsFile ...string) error {
-	batch, err := parseBatch(data)
+	_, compiled, abstract, err := resolveLocalCatalog(data, slotsArg, cidrsArg, labelsFile...)
 	if err != nil {
 		return err
+	}
+	keys := make([]string, 0, len(compiled))
+	for key := range compiled {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	summary := []map[string]string{}
+	for _, key := range keys {
+		summary = append(summary, map[string]string{"resource": key, "validationRevision": compiled[key].Revision})
+	}
+	result := map[string]any{"valid": true, "mode": "offline", "planningRequired": true, "abstractZoneContext": abstract, "resources": summary, "warnings": []string{"Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."}}
+	return json.NewEncoder(os.Stdout).Encode(result)
+}
+
+func resolveLocalCatalog(data []byte, slotsArg, cidrsArg string, labelsFile ...string) (resources.Registry, map[string]resources.Compiled, bool, error) {
+	batch, err := parseBatch(data)
+	if err != nil {
+		return resources.Registry{}, nil, false, err
 	}
 	registry := resources.Registry{ManagedWebhooks: true}
 	zones := map[string]bool{}
@@ -25,7 +43,7 @@ func localValidate(data []byte, slotsArg, cidrsArg string, labelsFile ...string)
 		for _, pair := range strings.Split(slotsArg, ",") {
 			id, zone, ok := strings.Cut(pair, "=")
 			if !ok || id == "" || zone == "" || agents[id] {
-				return fmt.Errorf("--slots requires Agent=zone pairs")
+				return resources.Registry{}, nil, false, fmt.Errorf("--slots requires Agent=zone pairs")
 			}
 			agents[id] = true
 			registry.Roster = append(registry.Roster, monitor.Slot{Agent: id, Zone: zone})
@@ -35,11 +53,11 @@ func localValidate(data []byte, slotsArg, cidrsArg string, labelsFile ...string)
 	if len(labelsFile) > 0 && labelsFile[0] != "" {
 		inventory, e := os.ReadFile(labelsFile[0])
 		if e != nil {
-			return e
+			return resources.Registry{}, nil, false, e
 		}
 		registry.AgentLabels, e = resources.ParseAgentLabels(inventory, registry.Roster)
 		if e != nil {
-			return e
+			return resources.Registry{}, nil, false, e
 		}
 	}
 	// A zone placeholder permits schema/type validation of defaulted policies;
@@ -56,24 +74,14 @@ func localValidate(data []byte, slotsArg, cidrsArg string, labelsFile ...string)
 		for _, value := range strings.Split(cidrsArg, ",") {
 			prefix, e := netip.ParsePrefix(value)
 			if e != nil {
-				return fmt.Errorf("invalid --allow-cidrs")
+				return resources.Registry{}, nil, false, fmt.Errorf("invalid --allow-cidrs")
 			}
 			registry.WebhookCIDRs = append(registry.WebhookCIDRs, prefix)
 		}
 	}
-	_, compiled, err := resources.ResolveCatalog(registry, nil, batch.Manifests)
+	resolved, compiled, err := resources.ResolveCatalog(registry, nil, batch.Manifests)
 	if err != nil {
-		return err
+		return resources.Registry{}, nil, false, err
 	}
-	keys := make([]string, 0, len(compiled))
-	for key := range compiled {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	summary := []map[string]string{}
-	for _, key := range keys {
-		summary = append(summary, map[string]string{"resource": key, "validationRevision": compiled[key].Revision})
-	}
-	result := map[string]any{"valid": true, "mode": "offline", "planningRequired": true, "abstractZoneContext": abstract, "resources": summary, "warnings": []string{"Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."}}
-	return json.NewEncoder(os.Stdout).Encode(result)
+	return resolved, compiled, abstract, nil
 }

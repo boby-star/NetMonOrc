@@ -74,7 +74,7 @@ func remoteCommand(args []string) error {
 	defer stop()
 	if args[0] == "get" {
 		if f.NArg() < 1 || f.NArg() > 2 {
-			return fmt.Errorf("get requires Dependency|ResourceGroup|groups|PlacementPolicy|AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
+			return fmt.Errorf("get requires Component|Dependency|ResourceGroup|groups|PlacementPolicy|AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations [name/id]; flags precede positional arguments")
 		}
 		var route string
 		switch f.Arg(0) {
@@ -87,6 +87,8 @@ func remoteCommand(args []string) error {
 				return fmt.Errorf("get groups NAME requires one group")
 			}
 			route = "/api/v1/resource-groups"
+		case "Component":
+			route = "/api/v1/resources/Component"
 		case "PlacementPolicy":
 			route = "/api/v1/resources/PlacementPolicy"
 		case "AssessmentPolicy":
@@ -124,7 +126,7 @@ func remoteCommand(args []string) error {
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get Dependency|ResourceGroup|groups|PlacementPolicy|AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
+			return fmt.Errorf("this CLI supports remote get Component|Dependency|ResourceGroup|groups|PlacementPolicy|AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))

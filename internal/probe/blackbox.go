@@ -25,6 +25,7 @@ import (
 // listener. Manifest content cannot supply executable paths or shell arguments.
 type Exporter struct {
 	endpoint string
+	external bool
 	stop     func()
 }
 
@@ -125,6 +126,14 @@ func (e *Exporter) Run(ctx context.Context, p monitor.Plan, c monitor.Check, s m
 	child, cancel := context.WithTimeout(ctx, c.Timeout+time.Second)
 	defer cancel()
 	query := url.Values{"module": {c.ID}, "target": {target}}
+	if e.external {
+		name, _, err := externalModule(p, c)
+		if err != nil {
+			return o, err
+		}
+		query.Set("module", name)
+		o.Reason = "runner_unavailable"
+	}
 	if c.Type == "icmp" {
 		query.Set("debug", "true")
 	}
@@ -134,6 +143,9 @@ func (e *Exporter) Run(ctx context.Context, p monitor.Plan, c monitor.Check, s m
 		return o, err
 	}
 	tr := &http.Transport{Proxy: nil, MaxResponseHeaderBytes: 16384}
+	if e.external {
+		tr.DialContext = dialLocalExporter
+	}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	resp, err := client.Do(req)

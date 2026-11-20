@@ -100,3 +100,13 @@ reservation для кожного task/retry. API/React показують оц�
 costUnits. [Модель](../deployment/diagnostic-byte-budget.md) не є виміряним
 wire traffic. [Натурне приймання](../experiments/byte-budget-2026-11-19/README.md)
 підтвердило zero/exact limit, restart і no-refund/concurrency у справжній БД.
+
+## Declarative Component / external exporter (20.11.2026)
+
+Registry підтримує 11 kind. Component має trusted selectors, private endpoint
+policy, content-addressed module preparation, Plan provenance, REST/CLI/React
+editing і regular/diagnostic dispatch. [Контракт](../deployment/components.md)
+описує legacy unmatched behavior та відсутній proactive readiness protocol.
+[Натурне приймання](../experiments/components-2026-11-20/README.md) підтвердило
+real external execution, outage/disabled unknown без fallback, restart і
+незмінність Monitor source version. ExecutionFallback/parallel Fixed DAG лишаються.

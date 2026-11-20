@@ -1,3 +1,25 @@
+# Declarative Component / external Blackbox
+
+Додано одинадцятий kind Component: closed YAML/JSON schema, canonical selector/
+endpoint/defaults, trusted Agent selection, ambiguity rejection, effective Plan
+binding hash, REST CRUD/validate/plan/apply/history, CLI get і React editor.
+Production CLI component-config готує content-addressed modules із перевіреного
+каталогу без мережі, install або exporter reload. Agent regular/diagnostic paths
+використовують explicit binding без тихого повернення до локального binary.
+[Контракт та межі сумісності](docs/deployment/components.md).
+
+Натурний Controller–mTLS Agent–external exporter–PostgreSQL–HTTPS сценарій
+підтвердив шість regular success, один реальний diagnostic task, outage unknown
+без fallback, disabled unknown, restart зі сталою revision, відновлення healthy
+і delete binding без зміни Monitor source version. Go/race/vet та production
+React build пройшли; нових browser clicks не було.
+[Докази](docs/experiments/components-2026-11-20/README.md).
+
+Залишаються ExecutionFallback, паралельний Fixed DAG та окремий proactive
+Component readiness protocol. Unmatched Agents зберігають попередній локальний
+prepared runner; це явна сумісність першого release, а не strict external-only
+розгортання. Повної відповідності всіх полів DSL не заявлено.
+
 # Live YAML estimated-byte budget
 
 maxEstimatedBytes приймається live runtime. Coordinator відсікає дорогі

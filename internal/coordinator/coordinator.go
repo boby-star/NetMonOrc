@@ -125,6 +125,10 @@ func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Pla
 		}()
 		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: plan}
 		engine := diagnostics.Engine{EstimateBytes: diagnostics.EstimateBytes, EvidenceMaxAge: plan.MaxAge, EvidenceMaxSkew: plan.MaxSkew, TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
+			binding, explicit := plan.Components[agent.ID]
+			if action.Check.Runner == "blackbox" && explicit && !binding.Enabled {
+				return false
+			}
 			return (!action.Check.NeedsHTTPPolicy() || agent.Supported["http:policy-v2"]) && agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])
 		}}
 		mode := profile.Mode

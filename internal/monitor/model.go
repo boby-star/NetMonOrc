@@ -46,21 +46,22 @@ type TargetContext struct {
 }
 
 type Plan struct {
-	CheckPlacements     map[string]*FixedPlacement `json:",omitempty"`
-	Disabled            bool                       `json:",omitempty"`
-	WeightedDisabled    bool                       `json:",omitempty"`
-	DefaultState        string                     `json:",omitempty"`
-	Dependencies        []dependency.Edge          `json:",omitempty"`
-	SameZoneAggregation string                     `json:",omitempty"`
-	ZoneAggregation     string                     `json:",omitempty"`
-	FixedPlacement      *FixedPlacement            `json:",omitempty"`
-	TargetContext       *TargetContext             `json:",omitempty"`
-	AssessmentRef       string                     `json:",omitempty"`
-	AssessmentHash      string                     `json:",omitempty"`
-	CheckProfiles       []CheckProfileBinding      `json:",omitempty"`
-	TargetRef           string                     `json:",omitempty"`
-	TargetHash          string                     `json:",omitempty"`
-	Diagnostics         *DiagnosticBinding         `json:",omitempty"`
+	Components          map[string]ComponentBinding `json:",omitempty"`
+	CheckPlacements     map[string]*FixedPlacement  `json:",omitempty"`
+	Disabled            bool                        `json:",omitempty"`
+	WeightedDisabled    bool                        `json:",omitempty"`
+	DefaultState        string                      `json:",omitempty"`
+	Dependencies        []dependency.Edge           `json:",omitempty"`
+	SameZoneAggregation string                      `json:",omitempty"`
+	ZoneAggregation     string                      `json:",omitempty"`
+	FixedPlacement      *FixedPlacement             `json:",omitempty"`
+	TargetContext       *TargetContext              `json:",omitempty"`
+	AssessmentRef       string                      `json:",omitempty"`
+	AssessmentHash      string                      `json:",omitempty"`
+	CheckProfiles       []CheckProfileBinding       `json:",omitempty"`
+	TargetRef           string                      `json:",omitempty"`
+	TargetHash          string                      `json:",omitempty"`
+	Diagnostics         *DiagnosticBinding          `json:",omitempty"`
 	Rules               []AssessmentRule
 	Name                string
 	TargetAddress       string

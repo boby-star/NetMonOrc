@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
@@ -101,7 +102,7 @@ func executeTask(ctx context.Context, task *pb.DiagnosticTask, a *assignment, c 
 	var e error
 	o, e = func() (monitor.Observation, error) {
 		if c.Runner == "blackbox" {
-			exporter, err := probe.StartExporter(child, blackbox, p)
+			exporter, err := probe.StartAgentExporter(child, blackbox, p, id)
 			if err != nil {
 				return monitor.Observation{}, err
 			}
@@ -117,6 +118,9 @@ func executeTask(ctx context.Context, task *pb.DiagnosticTask, a *assignment, c 
 	if e != nil {
 		now := time.Now().UTC()
 		o = monitor.Observation{Monitor: p.Name, Revision: p.Revision, Check: c.ID, Agent: id, Zone: a.zone, StartedAt: now, FinishedAt: now, Execution: "execution_failed", Outcome: "unknown", Reason: "diagnostic_runner_or_policy_unavailable"}
+	}
+	if errors.Is(e, probe.ErrRunnerUnavailable) {
+		o.Reason = "runner_unavailable"
 	}
 	o.ID = task.TaskId
 	o.DiagnosticTaskID = task.TaskId

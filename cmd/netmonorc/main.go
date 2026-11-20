@@ -27,7 +27,10 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: netmonorc login|logout|whoami|validate|plan|apply|get|diagnostics|alerts|webhook|probe|assess [flags]")
+		return fmt.Errorf("usage: netmonorc login|logout|whoami|component-config|validate|plan|apply|get|diagnostics|alerts|webhook|probe|assess [flags]")
+	}
+	if args[0] == "component-config" {
+		return componentConfigCommand(args)
 	}
 	if args[0] == "webhook" {
 		return webhookCommand(args)

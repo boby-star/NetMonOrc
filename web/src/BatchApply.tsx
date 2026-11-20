@@ -31,6 +31,7 @@ const reasons: Record<string, string> = {
   insufficient_placement_agents: "Недостатньо допустимих агентів для повного призначення",
   placement_policy_catalogued: "Політику розміщення перевірено та збережено",
   assessment_policy_catalogued: "Політику оцінювання перевірено та збережено",
+  component_catalogued: "Component перевірено та збережено",
   check_profile_catalogued: "CheckProfile перевірено та збережено",
   target_catalogued: "Target перевірено та збережено",
   controller_not_selected: "Monitor не вибрано Controller",
@@ -188,7 +189,7 @@ export function BatchApply({
       {canWrite && (
         <>
           <p>
-            До 20 ресурсів Dependency, ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
+            До 20 ресурсів Component, Dependency, ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>

@@ -131,8 +131,10 @@ Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вж�
 всього старого ТЗ. Поки залишаються:
 
 - ExecutionFallback з окремими корельованими physical attempts;
-- декларативний Component/external binding;
 - паралельне виконання Fixed DAG.
+
+Component/external binding реалізовано: [контракт, підготовка модулів та
+межі сумісності](components.md). Відсутній окремий proactive health protocol.
 
 Live estimated-byte budget реалізовано з durable reservation та явною
 [моделлю оцінки](diagnostic-byte-budget.md).
@@ -142,4 +144,4 @@ driver limits наведено в [контракті HTTP](http-policy.md).
 
 Ці поля й далі не приймаються там, де немає runtime семантики. Наявний
 retry/domain confirmation/Blackbox runner не оголошується заміною цих функцій.
-Повну сумісність 11 kind і всіх полів DSL не заявлено.
+У registry тепер 11 kind; повну сумісність усіх полів DSL не заявлено.

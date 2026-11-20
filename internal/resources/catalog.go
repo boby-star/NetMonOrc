@@ -18,6 +18,7 @@ const MaxCatalogBytes = 8 << 20
 const MaxCatalogResources = 4096
 
 type Compiled struct {
+	Component    *Component
 	Dependency   *dependency.Edge
 	Group        *resourcegroup.Spec
 	GroupMembers []string
@@ -34,7 +35,7 @@ type Compiled struct {
 
 func Key(m Manifest) string { return m.Kind + "/" + m.Metadata.Name }
 func Supported(kind string) bool {
-	return kind == "Dependency" || kind == "ResourceGroup" || kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
+	return kind == "Component" || kind == "Dependency" || kind == "ResourceGroup" || kind == "Monitor" || kind == "DiagnosticProfile" || kind == "AlertRule" || kind == "WebhookEndpoint" || kind == "Target" || kind == "CheckProfile" || kind == "AssessmentPolicy" || kind == "PlacementPolicy"
 }
 
 // ResolveCatalog validates the proposed complete desired graph, independently
@@ -66,6 +67,7 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	registry := base
 	registry.Diagnostic = nil
+	registry.Components = map[string]Component{}
 	registry.Placements = map[string]PlacementPolicy{}
 	registry.Assessments = map[string]AssessmentPolicy{}
 	registry.CheckProfiles = map[string]CheckProfile{}
@@ -141,6 +143,21 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		}
 		registry.Placements[m.Metadata.Name] = *result.Placement
 		compiled[key] = result
+	}
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "Component" {
+			continue
+		}
+		result, err := registry.CompileResource(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.Components[m.Metadata.Name] = *result.Component
+		compiled[key] = result
+	}
+	if _, err := registry.bindComponents(monitor.Plan{}); err != nil {
+		return base, nil, err
 	}
 	registry.Dependencies = nil
 	known := map[string]bool{}
@@ -262,6 +279,13 @@ func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 			return Compiled{}, err
 		}
 		return Compiled{Revision: assessment.Hash(), Assessment: &assessment}, nil
+	}
+	if m.Kind == "Component" {
+		c, err := compileComponent(m)
+		if err != nil {
+			return Compiled{}, err
+		}
+		return Compiled{Revision: c.Hash(), Component: &c}, nil
 	}
 	if m.Kind == "CheckProfile" {
 		profile, err := compileCheckProfile(m)

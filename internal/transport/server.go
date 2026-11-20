@@ -122,6 +122,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
+		if len(plan.Components) > 0 && !capabilities["components:external-v1"] {
+			return status.Error(codes.FailedPrecondition, "external Component capability required")
+		}
 		if len(plan.CheckPlacements) > 0 && !capabilities["placement:per-check"] {
 			return status.Error(codes.FailedPrecondition, "per-check placement capability required")
 		}

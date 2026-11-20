@@ -2,7 +2,8 @@
 
 ## Запуск із веб-панеллю
 
-YAML: [HTTP policy](docs/deployment/http-policy.md),
+YAML: [Component/external exporter](docs/deployment/components.md),
+[HTTP policy](docs/deployment/http-policy.md),
 [оціночний бюджет діагностики](docs/deployment/diagnostic-byte-budget.md),
 [per-check placement](docs/deployment/check-placement.md),
 [детермінованість і фактичний залишок](docs/deployment/yaml-controls.md).
