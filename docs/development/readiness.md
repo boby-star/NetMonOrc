@@ -106,7 +106,19 @@ wire traffic. [Натурне приймання](../experiments/byte-budget-202
 Registry підтримує 11 kind. Component має trusted selectors, private endpoint
 policy, content-addressed module preparation, Plan provenance, REST/CLI/React
 editing і regular/diagnostic dispatch. [Контракт](../deployment/components.md)
-описує legacy unmatched behavior та відсутній proactive readiness protocol.
+описує legacy unmatched behavior; proactive readiness protocol додано
+наступною ітерацією.
 [Натурне приймання](../experiments/components-2026-11-20/README.md) підтвердило
 real external execution, outage/disabled unknown без fallback, restart і
 незмінність Monitor source version. ExecutionFallback/parallel Fixed DAG лишаються.
+
+## Proactive Component readiness
+
+Додано heartbeat readiness для revision/ref/hash, TTL/session fencing і
+перевірку поточного стану до physical diagnostic reservation. REST/React Agents
+відображають process readiness окремо від target health. [Контракт](../architecture/component-readiness.md)
+описує bounds, сумісність та межу між health endpoint і loaded modules.
+
+[Натурне приймання readiness](../experiments/component-readiness-2026-11-20/README.md):
+API ready/unavailable/recovered, manual outage run із нульовим physical budget,
+disabled/restart і regular healthy після відновлення. Go/race/vet та build пройшли.

@@ -28,7 +28,7 @@ func (s *Server) signalAdmissionLocked() {
 
 // One diagnostic slot is shared by all Monitors; the Agent's other slot
 // remains reserved for regular probes. Waiting never creates a physical task.
-func (r DiagnosticRunner) Admit(ctx context.Context, _ diagnostics.Action, e diagnostics.Executor) (diagnostics.Runner, func(), error) {
+func (r DiagnosticRunner) Admit(ctx context.Context, action diagnostics.Action, e diagnostics.Executor) (diagnostics.Runner, func(), error) {
 	s := r.Server
 	for {
 		if err := ctx.Err(); err != nil {
@@ -37,6 +37,9 @@ func (r DiagnosticRunner) Admit(ctx context.Context, _ diagnostics.Action, e dia
 		s.mu.Lock()
 		session, ok := s.active[e.ID]
 		ready := ok && session.appliedRevisions[r.Plan.Revision] && time.Since(session.lastHeartbeat) <= 15*time.Second && session.capacity == 2 && session.capabilities["diagnostics:serial"]
+		if action.Check.Runner == "blackbox" && !s.componentReadyLocked(r.Plan, e.ID, time.Now()) {
+			ready = false
+		}
 		if !ready {
 			s.mu.Unlock()
 			return nil, nil, fmt.Errorf("Agent not ready for diagnostic admission")

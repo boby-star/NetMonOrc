@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -86,6 +87,26 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 	if len(agents) == 0 {
 		return nil
 	}
+	// Wait for an available execution path before consuming the incident session.
+	if len(c.Plan.Components) > 0 {
+		ready := false
+		for _, action := range c.Profile.Actions {
+			for _, agent := range agents {
+				if len(action.Placement.AgentRefs) > 0 && !slices.Contains(action.Placement.AgentRefs, agent.ID) {
+					continue
+				}
+				if len(action.Placement.Zones) > 0 && !slices.Contains(action.Placement.Zones, agent.Zone) {
+					continue
+				}
+				if agent.Supported[action.Check.Runner] && agent.Supported[action.Check.Type] && (action.Check.Runner != "blackbox" || c.Server.ComponentReady(c.Plan, agent.ID, time.Now())) {
+					ready = true
+				}
+			}
+		}
+		if !ready {
+			return nil
+		}
+	}
 	started := time.Now()
 	dbctx, done := context.WithTimeout(ctx, 5*time.Second)
 	id, e := c.Store.StartDiagnostic(dbctx, c.Plan, c.Profile)
@@ -126,7 +147,7 @@ func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Pla
 		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: plan}
 		engine := diagnostics.Engine{EstimateBytes: diagnostics.EstimateBytes, EvidenceMaxAge: plan.MaxAge, EvidenceMaxSkew: plan.MaxSkew, TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
 			binding, explicit := plan.Components[agent.ID]
-			if action.Check.Runner == "blackbox" && explicit && !binding.Enabled {
+			if action.Check.Runner == "blackbox" && explicit && (!binding.Enabled || !c.Server.ComponentReady(plan, agent.ID, time.Now())) {
 				return false
 			}
 			return (!action.Check.NeedsHTTPPolicy() || agent.Supported["http:policy-v2"]) && agent.Supported["diagnostics:serial"] && (len(action.Check.Extract) == 0 || agent.Supported["extraction:regex"])

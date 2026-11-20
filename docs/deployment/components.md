@@ -71,7 +71,7 @@ module or a negative target probe. Native extraction still uses native HTTP.
 The Controller snapshots matched Agent/ref/hash/endpoint/moduleSet/enabled into
 Plan. Binding changes alter the effective Monitor revision and invalidate
 cached placement templates without rewriting Monitor source version/history.
-New Agents advertise components:external-v1; older Agents cannot accept Plans
+New Agents advertise components:external-v1 and components:readiness-v1; older Agents cannot accept Plans
 with binding snapshots. Upgrade Agents with Controller before applying them.
 
 For an explicitly matched binding, regular and diagnostic execution use the
@@ -79,7 +79,9 @@ external endpoint. Disabled bindings exclude Blackbox diagnostic candidates and
 produce regular execution_failed/unknown/runner_unavailable. Missing exporter
 or module produces technical unknown. Regular probes continue to reveal outage
 and recovery; advertised driver support is not a continuous health report.
-There is currently no separate proactive Component readiness/health protocol.
+A separate [proactive readiness protocol](../architecture/component-readiness.md)
+now polls the endpoint and gates diagnostics on a fresh, session-bound report.
+This is process readiness; it does not attest every loaded module.
 
 Compatibility is explicit: Agents without a matching Component retain the
 previous prepared local binary. Adding a Component overrides only matched

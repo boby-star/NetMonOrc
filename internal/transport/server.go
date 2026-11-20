@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/component"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/secure"
@@ -23,6 +24,7 @@ import (
 )
 
 type activeSession struct {
+	components        map[string]component.Readiness
 	certExpiresAt     time.Time
 	generation        int64
 	cancel            context.CancelFunc
@@ -122,8 +124,8 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
-		if len(plan.Components) > 0 && !capabilities["components:external-v1"] {
-			return status.Error(codes.FailedPrecondition, "external Component capability required")
+		if len(plan.Components) > 0 && (!capabilities["components:external-v1"] || !capabilities["components:readiness-v1"]) {
+			return status.Error(codes.FailedPrecondition, "external Component and readiness capabilities required")
 		}
 		if len(plan.CheckPlacements) > 0 && !capabilities["placement:per-check"] {
 			return status.Error(codes.FailedPrecondition, "per-check placement capability required")
@@ -317,6 +319,10 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				if len(applied) == 0 || h.Sequence == 0 || h.MaxConcurrentProbes != 2 || h.ActiveProbes > h.MaxConcurrentProbes {
 					return status.Error(codes.InvalidArgument, "invalid heartbeat")
 				}
+				reports, err := validateComponentReports(id, s.plans(), applied, h.Components, time.Now())
+				if err != nil {
+					return status.Error(codes.InvalidArgument, err.Error())
+				}
 				s.mu.Lock()
 				v := s.active[id]
 				valid := v.generation == generation && h.Sequence > v.heartbeatSequence
@@ -325,6 +331,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 					v.heartbeatSequence = h.Sequence
 					v.capacity = int(h.MaxConcurrentProbes)
 					v.active = int(h.ActiveProbes)
+					v.components = reports
 					s.active[id] = v
 				}
 				s.mu.Unlock()

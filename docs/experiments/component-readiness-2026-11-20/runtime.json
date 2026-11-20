@@ -1,0 +1,26 @@
+{
+  "baseCommit": "ed4006fa6ab17fa797437e1c1e5255727790104b",
+  "imageID": "sha256:9c5f037a1fdef42309eaf5e02b528ef3ac46a25abc61877c152f79c5099f7668",
+  "implementationSHA256": {
+    "internal/agent/client.go": "7d4bb08dc33bb069f8f934a76bea0c62d7fc622a9573c30bd00a621d59d901e6",
+    "internal/agentstatus/model.go": "87ea719cbd9a573744c4123dcd6ed335134140fb122c1b1d3f90d280c62f1f74",
+    "internal/coordinator/coordinator.go": "5756f85dd1f462b74ec1e19c0a4b5229b144732bca3a187f4098d2fdf7e3e730",
+    "internal/transport/admission.go": "356cc27957ac889cc0aab4b9b47ec96859ce8250cc80f2dd9bccc8e0a458ebdb",
+    "internal/transport/agent_status.go": "6fac620cdb072efd2e809fb2d7c4621ce69c7e74856c6ca6f1c1c610b950c55f",
+    "internal/transport/diagnostics.go": "0f64386bc227f88621049e2c558f172476ef1fb8cf8a25799eacc7d8947e6f3d",
+    "internal/transport/server.go": "8b95c0bf804b2942439bf70db5ecf1d0115f0ab406d8f052fa0a9cb77c1cdf00",
+    "proto/netmonorc/agent/v1/agent.pb.go": "797d0249764b63e4fa9def9c17085f396c4b7bdb2d9a7e53fea26df6b87f4994",
+    "proto/netmonorc/agent/v1/agent.proto": "6ea94330dd17dec1256c3c06f4ee9e4202ac6d4eda26e711c0e4c4e906ea4cd8",
+    "scripts/lab_components.py": "e5bcaa4506d617f429eec0beb05fc693a80638e60e3b92ec86d448215c2736e2",
+    "web/src/Agents.tsx": "3ae884c418fc1d1c8536b0216cc72cec3c442c41cf235459c7dc4839c93a0615",
+    "web/src/api.ts": "322e9dfbd04c27e3210f9ed039247b5943d61760b9a450def03f6f928538f00f",
+    "internal/agent/component_readiness.go": "79f48b5a817062ca9752bab34b5486e847596d97f711848be791826f41fbf908",
+    "internal/agent/component_readiness_test.go": "42526827ac88866e5c7269f983e757125bd72426e7ee4a96e73181b6b49784c8",
+    "internal/component/readiness.go": "0f935fb960497409744393ad83fe0c34df3b0eaaebb2c70d28708f976cf0d903",
+    "internal/probe/component_readiness.go": "47de2972598aca47adfdcdf166e4d28c6f7f23b43b6ba348022f0e3e79173bcc",
+    "internal/probe/component_readiness_test.go": "eed33005e776cd564e25c2b75daec38823592f3e731462e39eb9ee6a5ca07df1",
+    "internal/transport/component_readiness.go": "5253c6aaf0d4a6435feec4edda72c0d2bc12a5e392625acb2bee0cc27a1957db",
+    "internal/transport/component_readiness_test.go": "ac1d431e11dd986217466ce12a2803d68cbb9d2e0cb752b697edef169c96b101"
+  },
+  "note": "Accepted final production image before commit; generated protobuf updated using existing pinned tools; no browser interaction."
+}

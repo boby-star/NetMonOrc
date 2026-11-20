@@ -684,7 +684,9 @@ export async function operations(
   return value;
 }
 
+export interface ComponentReadiness { monitorId: string; revision: string; componentRef: string; state: "ready" | "unavailable" | "disabled" | "unknown"; reason: string; checkedAt: string | null }
 export interface AgentView {
+  components?: ComponentReadiness[];
   failureDomain?: string;
   regularMonitoringAssigned?: boolean;
   agentId: string;

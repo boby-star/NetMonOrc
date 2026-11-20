@@ -79,6 +79,17 @@ def verify(lab):
             assessment = current['body'] if current['status'] == 200 else {}
             return response if assessment.get('revision') == revision and assessment.get('state') == want else None
         return lab.wait(ready, 'Component revision '+want, seconds=70)
+    def component_state(want):
+        def ready():
+            source = request('GET', monitor_path, **auth)
+            response = request('GET', '/api/v1/agents', **auth)
+            if source['status'] != 200 or response['status'] != 200: return None
+            revision = source['body']['status']['desiredRevision']
+            rows = [{'agentId': a['agentId'], **c} for a in response['body']['items'] for c in a.get('components', []) if c['componentRef'] == 'local-blackbox' and c['monitorId'] == 'research-web']
+            if len(rows) != 2 or not all(c['revision'] == revision and c['state'] == want for c in rows): return None
+            if want != 'disabled' and not all(c['checkedAt'] for c in rows): return None
+            return rows
+        return lab.wait(ready, 'both Component readiness reports '+want, seconds=45)
     def observations(revision, since='1970-01-01T00:00:00Z'):
         assert len(revision) == 64 and all(c in '0123456789abcdef' for c in revision)
         return json.loads(lab.sql("SELECT COALESCE(json_agg(x),'[]')::text FROM (SELECT DISTINCT agent_id,check_id,payload->>'execution' AS execution,payload->>'outcome' AS outcome,payload->>'reason' AS reason FROM nmo_observations WHERE revision='"+revision+"' AND diagnostic_task_id='' AND finished_at>'"+since+"'::timestamptz ORDER BY agent_id,check_id) x"))
@@ -90,7 +101,7 @@ def verify(lab):
     rejected = request('POST', '/api/v1/resources/Component', duplicate, **auth)
     assert rejected['status'] == 422, rejected
     assert request('POST', '/api/v1/resources/DiagnosticProfile', diagnostic_profile(), **auth)['status'] == 201
-    revision_state('healthy'); request_id = secrets.token_hex(16)
+    revision_state('healthy'); initial_ready = component_state('ready'); request_id = secrets.token_hex(16)
     def start():
         response = request('POST', '/api/v1/monitors/research-web/diagnostics', {'profileRef': 'external-once', 'requestId': request_id}, **auth)
         assert response['status'] in [200, 202, 409, 503], response
@@ -105,28 +116,42 @@ def verify(lab):
     # fall back to its bundled executable, which remains installed and usable.
     lab.compose('stop', 'office-exporter', 'server-exporter')
     since = lab.sql("SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')")
-    revision_state('unknown')
+    revision_state('unknown'); unavailable = component_state('unavailable')
     def outage_records():
         rows = observations(revision, since)
         return rows if len(rows) == 6 and all(x['execution'] == 'execution_failed' and x['outcome'] == 'unknown' and x['reason'] == 'runner_unavailable' for x in rows) else None
     outage = lab.wait(outage_records, 'six external outage results', seconds=60)
-    lab.compose('start', 'office-exporter', 'server-exporter'); revision_state('healthy')
+    blocked_request_id = secrets.token_hex(16)
+    def blocked_start():
+        response = request('POST', '/api/v1/monitors/research-web/diagnostics', {'profileRef': 'external-once', 'requestId': blocked_request_id}, **auth)
+        assert response['status'] in [200, 202, 409, 503], response
+        return response['body'] if response['status'] in [200, 202] else None
+    blocked_run = lab.wait(blocked_start, 'manual run during confirmed Component outage')['id']
+    def blocked_terminal():
+        response = request('GET', '/api/v1/diagnostics/'+blocked_run, **auth)
+        return response['body'] if response['status'] == 200 and response['body']['state'] not in ['created', 'running'] else None
+    blocked_detail = lab.wait(blocked_terminal, 'unavailable Component run without physical budget')
+    assert blocked_detail['state'] == 'inconclusive' and blocked_detail['budgetUsed']['additionalChecks'] == 0, blocked_detail
+    blocked_tasks = request('GET', '/api/v1/diagnostics/'+blocked_run+'/tasks', **auth)['body']['items']
+    assert blocked_tasks == [], blocked_tasks
+    lab.compose('start', 'office-exporter', 'server-exporter'); revision_state('healthy'); recovered = component_state('ready')
     current = request('GET', component_path, **auth); manifest['spec']['enabled'] = False
     assert request('PUT', component_path, manifest, etag=current['etag'], **auth)['status'] == 200
     disabled = revision_state('unknown'); disabled_revision = disabled['body']['status']['desiredRevision']
     lab.wait(lambda: len(observations(disabled_revision)) == 6, 'six disabled binding results')
     assert all(x['reason'] == 'runner_unavailable' for x in observations(disabled_revision))
+    disabled_status = component_state('disabled')
     lab.compose('restart', 'controller')
     restored = revision_state('unknown'); assert restored['body']['status']['desiredRevision'] == disabled_revision
     current = request('GET', component_path, **auth); manifest['spec']['enabled'] = True
     assert request('PUT', component_path, manifest, etag=current['etag'], **auth)['status'] == 200
-    revision_state('healthy')
+    revision_state('healthy'); component_state('ready')
     current = request('GET', component_path, **auth)
     assert request('DELETE', component_path, etag=current['etag'], **auth)['status'] == 204
     final = revision_state('healthy')
     assert final['etag'] == original['etag'] and final['body']['status']['desiredRevision'] == original['body']['status']['desiredRevision']
     assert request('POST', '/api/v1/auth/logout', **auth)['status'] == 204
-    return {'status': 'passed', 'trustedHTTPSAndMTLS': True, 'realPostgreSQLAndExporters': True, 'regularExternal': good, 'diagnosticExternal': detail, 'outageWithoutFallback': outage, 'disabledBindingUnknown': True, 'restartPreservedRevision': True, 'deletionRestoredLegacyRunner': True, 'monitorSourceVersionUnchanged': True, 'invalidBindingsRejected': True, 'productionCLIModulePreparation': True, 'browserInteractionTested': False, 'credentialsOmitted': True}
+    return {'status': 'passed', 'trustedHTTPSAndMTLS': True, 'realPostgreSQLAndExporters': True, 'regularExternal': good, 'diagnosticExternal': detail, 'initialReadiness': initial_ready, 'outageReadiness': unavailable, 'blockedDiagnostic': blocked_detail, 'blockedTasks': blocked_tasks, 'recoveredReadiness': recovered, 'disabledReadiness': disabled_status, 'outageWithoutFallback': outage, 'disabledBindingUnknown': True, 'restartPreservedRevision': True, 'deletionRestoredLegacyRunner': True, 'monitorSourceVersionUnchanged': True, 'invalidBindingsRejected': True, 'productionCLIModulePreparation': True, 'browserInteractionTested': False, 'credentialsOmitted': True}
 
 
 if __name__ == '__main__':
@@ -142,4 +167,4 @@ if __name__ == '__main__':
         if path.exists(): raise FileExistsError('Use a new output path')
         result = verify(lab); path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
         with path.open('x') as f: json.dump(result, f, indent=2); f.write('\n')
-        path.chmod(0o600); print('PASS: real external Component regular/diagnostic, disabled/outage/restart and restoration; secrets omitted')
+        path.chmod(0o600); print('PASS: Component readiness, zero-task outage admission, external probes, disabled/restart and recovery; secrets omitted')

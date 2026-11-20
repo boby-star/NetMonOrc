@@ -80,6 +80,16 @@ message Heartbeat {
   uint64 sequence = 1;
   uint32 max_concurrent_probes = 2;
   uint32 active_probes = 3; // Gauge, not a cumulative counter.
+  repeated ComponentReadiness components = 4;
+}
+// Session-scoped telemetry, never a change to trusted inventory or Plan hash.
+message ComponentReadiness {
+  string revision = 1;
+  string component_ref = 2;
+  string binding_hash = 3;
+  string state = 4; // ready, unavailable, disabled
+  string reason = 5; // Closed Controller-validated codes, no response body.
+  int64 checked_at_unix_milli = 6;
 }
 message DiagnosticTask {
   string task_id = 1;

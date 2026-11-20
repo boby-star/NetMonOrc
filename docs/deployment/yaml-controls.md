@@ -134,7 +134,8 @@ Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вж�
 - паралельне виконання Fixed DAG.
 
 Component/external binding реалізовано: [контракт, підготовка модулів та
-межі сумісності](components.md). Відсутній окремий proactive health protocol.
+межі сумісності](components.md). Також реалізовано [proactive readiness
+protocol](../architecture/component-readiness.md) з session/TTL/admission guards.
 
 Live estimated-byte budget реалізовано з durable reservation та явною
 [моделлю оцінки](diagnostic-byte-budget.md).

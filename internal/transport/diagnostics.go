@@ -104,7 +104,7 @@ func (bound admittedDiagnosticRunner) ExecuteEvidence(ctx context.Context, a dia
 	}
 	s.mu.Lock()
 	permit := bound.permit
-	if s.diagnosticAdmissions[e.ID] != permit || permit.detached {
+	if s.diagnosticAdmissions[e.ID] != permit || permit.detached || (a.Check.Runner == "blackbox" && !s.componentReadyLocked(r.Plan, e.ID, time.Now())) {
 		s.mu.Unlock()
 		return unknown, fmt.Errorf("diagnostic admission expired")
 	}

@@ -1,0 +1,259 @@
+{
+  "status": "passed",
+  "trustedHTTPSAndMTLS": true,
+  "realPostgreSQLAndExporters": true,
+  "regularExternal": [
+    {
+      "agent_id": "branch",
+      "check_id": "dns",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "http",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "tcp",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "dns",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "http",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "tcp",
+      "execution": "completed",
+      "outcome": "success",
+      "reason": "positive_probe"
+    }
+  ],
+  "diagnosticExternal": {
+    "configRevision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+    "explanation": {
+      "baselineEvidence": [],
+      "evidencePolicy": {
+        "maxAgeMs": 20000,
+        "maxSkewMs": 15000
+      },
+      "durationMs": 253,
+      "costUnits": 1,
+      "decisions": [
+        {
+          "observationId": "22573aef0bef6078f6a49368dd37c582",
+          "finishedAt": "2026-11-20T18:32:42.337370966Z",
+          "validUntil": "2026-11-20T18:33:02.337370966Z",
+          "failureDomain": "office-path",
+          "actionId": "external-http",
+          "agentId": "branch",
+          "attemptNo": 1,
+          "hypothesesBefore": [
+            "not-responding",
+            "responding"
+          ],
+          "gain": 1,
+          "score": 1,
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        }
+      ]
+    },
+    "id": "bd57b8cfd46648a7e818abfea7adbbca",
+    "monitorId": "research-web",
+    "profileRef": "external-once",
+    "mode": "fixed",
+    "state": "completed",
+    "startedAt": "2026-11-20T18:32:42.309576Z",
+    "finishedAt": "2026-11-20T18:32:42.570918Z",
+    "remainingHypotheses": [
+      "responding"
+    ],
+    "budgetUsed": {
+      "additionalChecks": 1
+    },
+    "evidenceIds": [
+      "22573aef0bef6078f6a49368dd37c582"
+    ],
+    "stopReason": "supported_class"
+  },
+  "initialReadiness": [
+    {
+      "agentId": "branch",
+      "monitorId": "research-web",
+      "revision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+      "componentRef": "local-blackbox",
+      "state": "ready",
+      "reason": "endpoint_ready",
+      "checkedAt": "2026-11-20T18:32:37.784Z"
+    },
+    {
+      "agentId": "dc",
+      "monitorId": "research-web",
+      "revision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+      "componentRef": "local-blackbox",
+      "state": "ready",
+      "reason": "endpoint_ready",
+      "checkedAt": "2026-11-20T18:32:37.835Z"
+    }
+  ],
+  "outageReadiness": [
+    {
+      "agentId": "branch",
+      "monitorId": "research-web",
+      "revision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+      "componentRef": "local-blackbox",
+      "state": "unavailable",
+      "reason": "endpoint_unavailable",
+      "checkedAt": "2026-11-20T18:32:47.787Z"
+    },
+    {
+      "agentId": "dc",
+      "monitorId": "research-web",
+      "revision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+      "componentRef": "local-blackbox",
+      "state": "unavailable",
+      "reason": "endpoint_unavailable",
+      "checkedAt": "2026-11-20T18:32:47.819Z"
+    }
+  ],
+  "blockedDiagnostic": {
+    "configRevision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+    "explanation": {
+      "baselineEvidence": [],
+      "evidencePolicy": {
+        "maxAgeMs": 20000,
+        "maxSkewMs": 15000
+      },
+      "durationMs": 0,
+      "costUnits": 0,
+      "decisions": []
+    },
+    "id": "719792ecaf718be26c9ebe70f37b6246",
+    "monitorId": "research-web",
+    "profileRef": "external-once",
+    "mode": "fixed",
+    "state": "inconclusive",
+    "startedAt": "2026-11-20T18:32:53.542738Z",
+    "finishedAt": "2026-11-20T18:32:53.548264Z",
+    "remainingHypotheses": [
+      "not-responding",
+      "responding"
+    ],
+    "budgetUsed": {
+      "additionalChecks": 0
+    },
+    "evidenceIds": [],
+    "stopReason": "no_admissible_action"
+  },
+  "blockedTasks": [],
+  "recoveredReadiness": [
+    {
+      "agentId": "branch",
+      "monitorId": "research-web",
+      "revision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+      "componentRef": "local-blackbox",
+      "state": "ready",
+      "reason": "endpoint_ready",
+      "checkedAt": "2026-11-20T18:33:02.784Z"
+    },
+    {
+      "agentId": "dc",
+      "monitorId": "research-web",
+      "revision": "29f60e155607eb532c5b0e6de862f933a5f202d8865eb162cbaa18360b5a74ae",
+      "componentRef": "local-blackbox",
+      "state": "ready",
+      "reason": "endpoint_ready",
+      "checkedAt": "2026-11-20T18:32:57.82Z"
+    }
+  ],
+  "disabledReadiness": [
+    {
+      "agentId": "branch",
+      "monitorId": "research-web",
+      "revision": "ed90f1e6bdb8662a6747419d3865653d2538915192f4523c64a93e19853fd3e4",
+      "componentRef": "local-blackbox",
+      "state": "disabled",
+      "reason": "binding_disabled",
+      "checkedAt": "2026-11-20T18:33:12.783Z"
+    },
+    {
+      "agentId": "dc",
+      "monitorId": "research-web",
+      "revision": "ed90f1e6bdb8662a6747419d3865653d2538915192f4523c64a93e19853fd3e4",
+      "componentRef": "local-blackbox",
+      "state": "disabled",
+      "reason": "binding_disabled",
+      "checkedAt": "2026-11-20T18:33:12.818Z"
+    }
+  ],
+  "outageWithoutFallback": [
+    {
+      "agent_id": "branch",
+      "check_id": "dns",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "http",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "branch",
+      "check_id": "tcp",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "dns",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "http",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    },
+    {
+      "agent_id": "dc",
+      "check_id": "tcp",
+      "execution": "execution_failed",
+      "outcome": "unknown",
+      "reason": "runner_unavailable"
+    }
+  ],
+  "disabledBindingUnknown": true,
+  "restartPreservedRevision": true,
+  "deletionRestoredLegacyRunner": true,
+  "monitorSourceVersionUnchanged": true,
+  "invalidBindingsRejected": true,
+  "productionCLIModulePreparation": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

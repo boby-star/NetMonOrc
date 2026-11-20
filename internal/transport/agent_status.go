@@ -49,6 +49,7 @@ func (s *Server) AgentStatuses(now time.Time) []agentstatus.View {
 				v.CertExpiresAt = &expiry
 			}
 		}
+		v.Components = s.componentStatusesLocked(slot.Agent, now)
 		out = append(out, v)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].AgentID < out[j].AgentID })

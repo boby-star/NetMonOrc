@@ -1,3 +1,21 @@
+# Proactive Component readiness
+
+Agent передає у heartbeat готовність exporter для точної Plan revision/ref/hash.
+Controller відхиляє невірні/несвіжі звіти; reconnect не успадковує ready. Planner,
+спільне admission та bound runner перевіряють свіжий статус перед diagnostic
+reservation. Regular probes працюють і під час outage; native/local paths
+збережено. REST/CLI agents та React показують Component state/time окремо від
+Agent online і target health. [Контракт](docs/architecture/component-readiness.md).
+
+Натурний mTLS/HTTPS/PostgreSQL сценарій підтвердив ready → unavailable → ready,
+manual diagnostic під час outage із 0 додаткових checks і 0 physical tasks,
+disabled/restart та відновлення healthy. Go/race/vet і production React build
+пройшли; нових browser clicks не було.
+[Докази](docs/experiments/component-readiness-2026-11-20/README.md).
+
+Фактичний залишок YAML-функцій: ExecutionFallback і паралельний Fixed DAG.
+Готовність process endpoint не є підтвердженням завантаження всіх modules.
+
 # Declarative Component / external Blackbox
 
 Додано одинадцятий kind Component: closed YAML/JSON schema, canonical selector/

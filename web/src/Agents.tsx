@@ -87,6 +87,7 @@ export function Agents() {
                 <tr>
                   <th>Агент / зона</th>
                   <th>Домен відмови</th>
+                  <th>Готовність Component</th>
                   <th>Стан / heartbeat</th>
                   <th>Регулярне призначення</th>
                   <th>Активні probes / ліміт</th>
@@ -108,6 +109,7 @@ export function Agents() {
                       </small>
                     </td>
                     <td>{a.failureDomain || "Невідомий"}</td>
+                    <td>{a.components?.length ? a.components.map(c => <p key={c.revision}><strong>{c.componentRef}</strong><br/>{c.monitorId}: {{ready: "Готовий", unavailable: "Недоступний", disabled: "Вимкнений", unknown: "Невідомо"}[c.state]}<br/><small>{c.reason} · {c.checkedAt ? new Date(c.checkedAt).toLocaleString("uk-UA") : "Немає звіту"}</small></p>) : "Локальний prepared runner"}</td>
                     <td>
                       {labels[a.onlineState]}
                       <br />

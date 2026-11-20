@@ -1041,6 +1041,7 @@ type Heartbeat struct {
 	Sequence            uint64                 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	MaxConcurrentProbes uint32                 `protobuf:"varint,2,opt,name=max_concurrent_probes,json=maxConcurrentProbes,proto3" json:"max_concurrent_probes,omitempty"`
 	ActiveProbes        uint32                 `protobuf:"varint,3,opt,name=active_probes,json=activeProbes,proto3" json:"active_probes,omitempty"` // Gauge, not a cumulative counter.
+	Components          []*ComponentReadiness  `protobuf:"bytes,4,rep,name=components,proto3" json:"components,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1096,6 +1097,98 @@ func (x *Heartbeat) GetActiveProbes() uint32 {
 	return 0
 }
 
+func (x *Heartbeat) GetComponents() []*ComponentReadiness {
+	if x != nil {
+		return x.Components
+	}
+	return nil
+}
+
+// Session-scoped telemetry, never a change to trusted inventory or Plan hash.
+type ComponentReadiness struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Revision           string                 `protobuf:"bytes,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	ComponentRef       string                 `protobuf:"bytes,2,opt,name=component_ref,json=componentRef,proto3" json:"component_ref,omitempty"`
+	BindingHash        string                 `protobuf:"bytes,3,opt,name=binding_hash,json=bindingHash,proto3" json:"binding_hash,omitempty"`
+	State              string                 `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`   // ready, unavailable, disabled
+	Reason             string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"` // Closed Controller-validated codes, no response body.
+	CheckedAtUnixMilli int64                  `protobuf:"varint,6,opt,name=checked_at_unix_milli,json=checkedAtUnixMilli,proto3" json:"checked_at_unix_milli,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ComponentReadiness) Reset() {
+	*x = ComponentReadiness{}
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComponentReadiness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComponentReadiness) ProtoMessage() {}
+
+func (x *ComponentReadiness) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComponentReadiness.ProtoReflect.Descriptor instead.
+func (*ComponentReadiness) Descriptor() ([]byte, []int) {
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ComponentReadiness) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *ComponentReadiness) GetComponentRef() string {
+	if x != nil {
+		return x.ComponentRef
+	}
+	return ""
+}
+
+func (x *ComponentReadiness) GetBindingHash() string {
+	if x != nil {
+		return x.BindingHash
+	}
+	return ""
+}
+
+func (x *ComponentReadiness) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ComponentReadiness) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ComponentReadiness) GetCheckedAtUnixMilli() int64 {
+	if x != nil {
+		return x.CheckedAtUnixMilli
+	}
+	return 0
+}
+
 type DiagnosticTask struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	TaskId             string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1110,7 +1203,7 @@ type DiagnosticTask struct {
 
 func (x *DiagnosticTask) Reset() {
 	*x = DiagnosticTask{}
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1122,7 +1215,7 @@ func (x *DiagnosticTask) String() string {
 func (*DiagnosticTask) ProtoMessage() {}
 
 func (x *DiagnosticTask) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1135,7 +1228,7 @@ func (x *DiagnosticTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiagnosticTask.ProtoReflect.Descriptor instead.
 func (*DiagnosticTask) Descriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DiagnosticTask) GetTaskId() string {
@@ -1191,7 +1284,7 @@ type TaskReceipt struct {
 
 func (x *TaskReceipt) Reset() {
 	*x = TaskReceipt{}
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1296,7 @@ func (x *TaskReceipt) String() string {
 func (*TaskReceipt) ProtoMessage() {}
 
 func (x *TaskReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1309,7 @@ func (x *TaskReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskReceipt.ProtoReflect.Descriptor instead.
 func (*TaskReceipt) Descriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TaskReceipt) GetTaskId() string {
@@ -1250,7 +1343,7 @@ type TaskCancel struct {
 
 func (x *TaskCancel) Reset() {
 	*x = TaskCancel{}
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1355,7 @@ func (x *TaskCancel) String() string {
 func (*TaskCancel) ProtoMessage() {}
 
 func (x *TaskCancel) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1368,7 @@ func (x *TaskCancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskCancel.ProtoReflect.Descriptor instead.
 func (*TaskCancel) Descriptor() ([]byte, []int) {
-	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *TaskCancel) GetTaskId() string {
@@ -1386,11 +1479,21 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\bACCEPTED\x10\x01\x12\r\n" +
 	"\tDUPLICATE\x10\x02\"T\n" +
 	"\x0eObservationAck\x12B\n" +
-	"\breceipts\x18\x01 \x03(\v2&.netmonorc.agent.v1.ObservationReceiptR\breceipts\"\x80\x01\n" +
+	"\breceipts\x18\x01 \x03(\v2&.netmonorc.agent.v1.ObservationReceiptR\breceipts\"\xc8\x01\n" +
 	"\tHeartbeat\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\x04R\bsequence\x122\n" +
 	"\x15max_concurrent_probes\x18\x02 \x01(\rR\x13maxConcurrentProbes\x12#\n" +
-	"\ractive_probes\x18\x03 \x01(\rR\factiveProbes\"\xdd\x01\n" +
+	"\ractive_probes\x18\x03 \x01(\rR\factiveProbes\x12F\n" +
+	"\n" +
+	"components\x18\x04 \x03(\v2&.netmonorc.agent.v1.ComponentReadinessR\n" +
+	"components\"\xd9\x01\n" +
+	"\x12ComponentReadiness\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\tR\brevision\x12#\n" +
+	"\rcomponent_ref\x18\x02 \x01(\tR\fcomponentRef\x12!\n" +
+	"\fbinding_hash\x18\x03 \x01(\tR\vbindingHash\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x121\n" +
+	"\x15checked_at_unix_milli\x18\x06 \x01(\x03R\x12checkedAtUnixMilli\"\xdd\x01\n" +
 	"\x0eDiagnosticTask\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
 	"\n" +
@@ -1424,7 +1527,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_netmonorc_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(ObservationReceipt_Status)(0), // 0: netmonorc.agent.v1.ObservationReceipt.Status
 	(*AgentFrame)(nil),             // 1: netmonorc.agent.v1.AgentFrame
@@ -1439,36 +1542,38 @@ var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(*ObservationReceipt)(nil),     // 10: netmonorc.agent.v1.ObservationReceipt
 	(*ObservationAck)(nil),         // 11: netmonorc.agent.v1.ObservationAck
 	(*Heartbeat)(nil),              // 12: netmonorc.agent.v1.Heartbeat
-	(*DiagnosticTask)(nil),         // 13: netmonorc.agent.v1.DiagnosticTask
-	(*TaskReceipt)(nil),            // 14: netmonorc.agent.v1.TaskReceipt
-	(*TaskCancel)(nil),             // 15: netmonorc.agent.v1.TaskCancel
-	nil,                            // 16: netmonorc.agent.v1.Observation.ExtractionStatusEntry
-	nil,                            // 17: netmonorc.agent.v1.Observation.ValuesEntry
+	(*ComponentReadiness)(nil),     // 13: netmonorc.agent.v1.ComponentReadiness
+	(*DiagnosticTask)(nil),         // 14: netmonorc.agent.v1.DiagnosticTask
+	(*TaskReceipt)(nil),            // 15: netmonorc.agent.v1.TaskReceipt
+	(*TaskCancel)(nil),             // 16: netmonorc.agent.v1.TaskCancel
+	nil,                            // 17: netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	nil,                            // 18: netmonorc.agent.v1.Observation.ValuesEntry
 }
 var file_proto_netmonorc_agent_v1_agent_proto_depIdxs = []int32{
 	3,  // 0: netmonorc.agent.v1.AgentFrame.hello:type_name -> netmonorc.agent.v1.AgentHello
 	6,  // 1: netmonorc.agent.v1.AgentFrame.config_applied:type_name -> netmonorc.agent.v1.ConfigApplied
 	9,  // 2: netmonorc.agent.v1.AgentFrame.observation_batch:type_name -> netmonorc.agent.v1.ObservationBatch
 	12, // 3: netmonorc.agent.v1.AgentFrame.heartbeat:type_name -> netmonorc.agent.v1.Heartbeat
-	14, // 4: netmonorc.agent.v1.AgentFrame.task_receipt:type_name -> netmonorc.agent.v1.TaskReceipt
+	15, // 4: netmonorc.agent.v1.AgentFrame.task_receipt:type_name -> netmonorc.agent.v1.TaskReceipt
 	4,  // 5: netmonorc.agent.v1.ControllerFrame.hello_accepted:type_name -> netmonorc.agent.v1.HelloAccepted
 	5,  // 6: netmonorc.agent.v1.ControllerFrame.assignment:type_name -> netmonorc.agent.v1.ConfigAssignment
 	11, // 7: netmonorc.agent.v1.ControllerFrame.observation_ack:type_name -> netmonorc.agent.v1.ObservationAck
-	13, // 8: netmonorc.agent.v1.ControllerFrame.diagnostic_task:type_name -> netmonorc.agent.v1.DiagnosticTask
-	15, // 9: netmonorc.agent.v1.ControllerFrame.task_cancel:type_name -> netmonorc.agent.v1.TaskCancel
-	16, // 10: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
-	17, // 11: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
+	14, // 8: netmonorc.agent.v1.ControllerFrame.diagnostic_task:type_name -> netmonorc.agent.v1.DiagnosticTask
+	16, // 9: netmonorc.agent.v1.ControllerFrame.task_cancel:type_name -> netmonorc.agent.v1.TaskCancel
+	17, // 10: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	18, // 11: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
 	7,  // 12: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
 	0,  // 13: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
 	10, // 14: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
-	8,  // 15: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
-	1,  // 16: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
-	2,  // 17: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
-	17, // [17:18] is the sub-list for method output_type
-	16, // [16:17] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	13, // 15: netmonorc.agent.v1.Heartbeat.components:type_name -> netmonorc.agent.v1.ComponentReadiness
+	8,  // 16: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
+	1,  // 17: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
+	2,  // 18: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
+	18, // [18:19] is the sub-list for method output_type
+	17, // [17:18] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_proto_netmonorc_agent_v1_agent_proto_init() }
@@ -1502,7 +1607,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_netmonorc_agent_v1_agent_proto_rawDesc), len(file_proto_netmonorc_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

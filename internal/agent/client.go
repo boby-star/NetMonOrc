@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/component"
 	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/durable"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
@@ -38,6 +39,7 @@ type assignment struct {
 	bootDeadline time.Duration
 }
 type state struct {
+	components     map[string]component.Readiness
 	mu             sync.Mutex
 	current        *assignment
 	assignments    map[string]*assignment
@@ -96,6 +98,9 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 	st := &state{fatal: make(chan error, 1)}
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- schedule(child, st, spool, id, blackbox, allowed) }()
+	componentDone := make(chan struct{})
+	go func() { defer close(componentDone); monitorComponents(child, st, id) }()
+	defer func() { cancel(); <-componentDone }()
 	connectionDone := make(chan struct{})
 	go func() {
 		defer close(connectionDone)
@@ -157,7 +162,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 		return e
 	}
 	f := agentFrame(id)
-	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"components:external-v1", "native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "http:policy-v2", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
+	f.Payload = &pb.AgentFrame_Hello{Hello: &pb.AgentHello{AgentVersion: "research-5", Capabilities: []string{"components:readiness-v1", "components:external-v1", "native-http", "blackbox", "http", "tcp", "dns", "icmp", "extraction:regex", "diagnostics:serial", "placement:fixed", "placement:dynamic", "placement:domains", "placement:per-check", "http:policy-v2", "assessment:zone-any", "assessment:replicas", "context:dependencies", "plans:multiple", "yaml:controls-v1", "diagnostics:cancel", "diagnostics:static-comparison"}}}
 	for _, cidr := range allowed {
 		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "target-cidr:"+cidr.Masked().String())
 	}
@@ -200,7 +205,7 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 			if applied && time.Since(lastHeartbeat) >= 5*time.Second {
 				sequence++
 				f := agentFrame(id)
-				f.Payload = &pb.AgentFrame_Heartbeat{Heartbeat: &pb.Heartbeat{Sequence: sequence, MaxConcurrentProbes: 2, ActiveProbes: uint32(st.active.Load())}}
+				f.Payload = &pb.AgentFrame_Heartbeat{Heartbeat: &pb.Heartbeat{Sequence: sequence, MaxConcurrentProbes: 2, ActiveProbes: uint32(st.active.Load()), Components: componentReports(st, id, appliedRevisions)}}
 				if e = stream.Send(f); e != nil {
 					return e
 				}
