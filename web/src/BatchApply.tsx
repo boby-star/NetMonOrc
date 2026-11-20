@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-  applyConfiguration,
-  validateBatch,
-  planBatchConfiguration,
+  applyConfigurationSource,
+  validateConfigurationSource,
+  planConfigurationSource,
+  prepareConfigurationSource,
   operation,
   operations,
   type Session,
   type VersionedResource,
-  type ConfigBatch,
   type ConfigPlan,
   type Operation,
   type OperationPage,
@@ -51,6 +51,7 @@ export function BatchApply({
 }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [prepared, setPrepared] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState<ConfigPlan | null>(null);
@@ -94,6 +95,7 @@ export function BatchApply({
     };
   }, [selected?.id, selected?.state]);
   function fill() {
+    setPrepared(false);
     setError("");
     setNotice("");
     setPreview(null);
@@ -106,17 +108,13 @@ export function BatchApply({
         current.resource.manifest.metadata.name === manifest.metadata.name
           ? current.resource.resourceVersion
           : null;
-      setText(
-        JSON.stringify(
-          {
-            manifests: [manifest],
-            expectedVersions: { [key]: expected },
-            requestId: crypto.randomUUID(),
-          },
-          null,
-          2,
-        ),
-      );
+      // Only metadata is inspected in JS. Keep the original manifest numbers.
+      setText(`{
+  "manifests": [${draft}],
+  "expectedVersions": ${JSON.stringify({[key]: expected})},
+  "requestId": "${crypto.randomUUID()}"
+}`);
+      setPrepared(true);
     } catch {
       setError("Спочатку перевірте JSON відкритого маніфесту.");
     }
@@ -127,23 +125,19 @@ export function BatchApply({
     setNotice("");
     setPreview(null);
     try {
-      const batch = JSON.parse(text) as ConfigBatch;
-      if (!batch.requestId) {
-        batch.requestId = crypto.randomUUID();
-        setText(JSON.stringify(batch, null, 2));
-      }
       if (action === "validate") {
-        setNotice(JSON.stringify(await validateBatch(session, batch), null, 2));
+        setNotice(JSON.stringify(await validateConfigurationSource(session, text), null, 2));
         return;
       }
       if (action === "plan") {
-        const plan = await planBatchConfiguration(session, batch);
+        const plan = await planConfigurationSource(session, text);
         setPreview(plan);
         setNotice(JSON.stringify(plan, null, 2));
         return;
       }
+      if (!prepared) throw new Error("Спочатку підготуйте пакет і перевірте версії ресурсів.");
       setSelected(null);
-      const accepted = await applyConfiguration(session, batch);
+      const accepted = await applyConfigurationSource(session, text);
       setSelected(accepted);
       setProgressError("");
       setNotice(
@@ -160,6 +154,15 @@ export function BatchApply({
     } finally {
       setBusy(false);
     }
+  }
+  async function prepare() {
+    setBusy(true); setError(""); setNotice(""); setPreview(null); setPrepared(false);
+    try {
+      const result=await prepareConfigurationSource(session,text);
+      setText(result.source); setPrepared(true);
+      setNotice(`Підготовлено ресурсів: ${result.resourceCount}. Перевірте версії та план перед застосуванням.`);
+    } catch(e) { setError(e instanceof Error?e.message:"Не вдалося підготувати пакет."); }
+    finally { setBusy(false); }
   }
   async function list(cursor: string | null) {
     setBusy(true);
@@ -189,7 +192,7 @@ export function BatchApply({
       {canWrite && (
         <>
           <p>
-            До 20 ресурсів Component, Dependency, ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному JSON-пакеті. Для наявного ресурсу задайте
+            До 20 ресурсів Component, Dependency, ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному YAML або JSON-пакеті. YAML-документи розділяйте ---; посилання можуть вести на наступні документи. Для наявного ресурсу задайте
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>
@@ -197,7 +200,7 @@ export function BatchApply({
             Підготувати пакет із відкритого маніфесту
           </button>
           <label>
-            ConfigBatch JSON
+            Пакет YAML / JSON
             <textarea
               className="manifest-editor"
               value={text}
@@ -205,12 +208,14 @@ export function BatchApply({
               spellCheck={false}
               onChange={(e) => {
                 setText(e.target.value);
+                setPrepared(false);
                 setPreview(null);
                 setNotice("");
               }}
             />
           </label>
           <div className="row">
+            <button type="button" disabled={busy || !text} onClick={()=>void prepare()}>Підготувати пакет</button>
             <button
               type="button"
               disabled={busy || !text}
@@ -227,16 +232,16 @@ export function BatchApply({
             </button>
             <button
               type="button"
-              disabled={busy || !text}
+              disabled={busy || !text || !prepared}
               onClick={() => void submit("apply")}
             >
               Застосувати пакет
             </button>
           </div>
           <small>
-            Якщо відповідь втрачена, повторіть незмінний пакет із тим самим
+            Підготовка заповнює відсутні версії, а явно задані умови зберігає. Якщо відповідь втрачена, повторіть незмінний пакет із тим самим
             requestId. Для іншого пакета потрібний новий requestId. Поточний
-            Controller виконує один вибраний Monitor; інші очікують вибору.
+            Controller виконує придатні Monitor із каталогу.
           </small>
         </>
       )}

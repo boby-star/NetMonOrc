@@ -141,12 +141,22 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")
 			return
 		}
-		if r.URL.Path != "/api/v1/config/validate" && r.URL.Path != "/api/v1/config/plan" && r.URL.Path != "/api/v1/config/apply" {
+		if r.URL.Path != "/api/v1/config/prepare" && r.URL.Path != "/api/v1/config/validate" && r.URL.Path != "/api/v1/config/plan" && r.URL.Path != "/api/v1/config/apply" {
 			failure(w, 404, "NOT_FOUND", "Configuration operation unavailable")
 			return
 		}
-		var batch resources.Batch
-		if !resourceJSON(w, r, &batch) {
+		batch, ok := configurationBatch(w, r)
+		if !ok {
+			return
+		}
+		if r.URL.Path == "/api/v1/config/prepare" {
+			prepared, err := h.resources.Prepare(ctx, batch)
+			if err != nil {
+				resourceError(w, err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(prepared)
 			return
 		}
 		if r.URL.Path == "/api/v1/config/apply" {

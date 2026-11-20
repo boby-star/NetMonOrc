@@ -80,3 +80,6 @@ bootstrap відхиляє непорожні requestId/expectedVersions: умо
 [Натурні докази](../experiments/bootstrap-catalog-2026-11-20/README.md): missing
 ref з нульовим seed, два живі Monitor, shared refs, REST-зміна Target і видалення
 невикористаного Target, restart зі зворотним порядком документів без втрати змін.
+
+Для зміни каталогу після старту доступні [YAML-пакети в React та REST](yaml-web.md):
+підготовка optimistic versions/requestId, спільна валідація та атомарний apply.

@@ -154,3 +154,6 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 `-config` приймає [пакет пов’язаних YAML ресурсів](bootstrap-catalog.md).
 Спільний із CLI decoder, атомарний seed графа, явний вибір основного Monitor
 і збереження API-змін/tombstones при restart реалізовані без нових kind DSL.
+
+[YAML-пакети React/REST](yaml-web.md) передають вихідний текст серверному decoder,
+зберігають числові типи та використовують явні versions/requestId для apply.

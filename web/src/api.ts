@@ -1011,3 +1011,24 @@ export async function fallbackRuns(monitor:string,cursor:string|null):Promise<{i
  const response=await apiFetch(`/api/v1/fallback-runs?${query}`,{credentials:"same-origin",cache:"no-store",signal:AbortSignal.timeout(8000)});
  if(!response.ok)throw new Error(`Історія резервних спроб недоступна (${response.status})`);return response.json();
 }
+
+export interface PreparedConfiguration { source: string; requestId: string; resourceCount: number }
+// Keep source text intact: JS number round trips erase typed YAML floats (1.0).
+async function configurationSource<T>(session:Session, action:string, source:string):Promise<T> {
+ const response=await apiFetch(`/api/v1/config/${action}`,{
+  method:"POST",credentials:"same-origin",
+  headers:{"Content-Type":"application/yaml","X-CSRF-Token":session.csrfToken},
+  body:source,signal:AbortSignal.timeout(8000),
+ });
+ if(!response.ok){
+  if(response.status===400)throw new Error("Некоректний YAML/JSON, повторюваний ключ або перевищений ліміт пакета.");
+  if(response.status===428)throw new Error("Підготуйте пакет з поточними версіями ресурсів.");
+  if(response.status===409)throw new Error("Конфлікт створення або повторне використання requestId для іншого пакета.");
+  throw resourceError(response.status);
+ }
+ return response.json() as Promise<T>;
+}
+export const prepareConfigurationSource=(s:Session,text:string)=>configurationSource<PreparedConfiguration>(s,"prepare",text);
+export const validateConfigurationSource=(s:Session,text:string)=>configurationSource<ConfigValidation>(s,"validate",text);
+export const planConfigurationSource=(s:Session,text:string)=>configurationSource<ConfigPlan>(s,"plan",text);
+export const applyConfigurationSource=(s:Session,text:string)=>configurationSource<Operation>(s,"apply",text);

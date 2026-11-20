@@ -1,0 +1,156 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.42kB done
+#1 DONE 0.0s
+
+#2 [controller internal] load build definition from Dockerfile
+#2 ...
+
+#3 [target internal] load build definition from Dockerfile
+#3 transferring dockerfile: 340B done
+#3 DONE 0.1s
+
+#4 [target internal] load metadata for docker.io/library/python:3.12.12-alpine3.22@sha256:848ba4413eb897e225159b8fc1b02094576cbae4aa73fc13142608ae2c8c0e32
+#4 DONE 0.0s
+
+#2 [controller internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.30kB done
+#2 DONE 0.1s
+
+#5 [target internal] load .dockerignore
+#5 transferring context: 2B 0.0s done
+#5 DONE 0.1s
+
+#6 [controller internal] load metadata for docker.io/library/golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb
+#6 DONE 0.0s
+
+#7 [controller internal] load metadata for docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#7 DONE 0.0s
+
+#8 [controller internal] load metadata for docker.io/library/node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+#8 DONE 0.1s
+
+#9 [target 1/4] FROM docker.io/library/python:3.12.12-alpine3.22@sha256:848ba4413eb897e225159b8fc1b02094576cbae4aa73fc13142608ae2c8c0e32
+#9 DONE 0.0s
+
+#10 [target internal] load build context
+#10 transferring context: 99B 0.0s done
+#10 DONE 0.1s
+
+#11 [controller internal] load .dockerignore
+#11 transferring context: 125B done
+#11 DONE 0.1s
+
+#12 [target 2/4] COPY fixture.py /fixture.py
+#12 CACHED
+
+#13 [target 3/4] COPY netns.sh /netns.sh
+#13 CACHED
+
+#14 [target 4/4] COPY --chmod=0555 webhook_receiver.py /webhook_receiver.py
+#14 CACHED
+
+#15 [target] exporting to image
+#15 exporting layers done
+#15 writing image sha256:9d765e5cdeda7c29d863e2eae3f95e485e1026f6bddf3b56283c904facaa6b05 0.0s done
+#15 naming to docker.io/library/netmonorc-lab-fixture:local done
+#15 DONE 0.1s
+
+#16 [controller build 1/8] FROM docker.io/library/golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb
+#16 DONE 0.0s
+
+#17 [controller web 1/7] FROM docker.io/library/node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+#17 DONE 0.0s
+
+#18 [controller exporter 1/1] FROM docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#18 DONE 0.0s
+
+#19 [controller internal] load build context
+#19 transferring context: 17.96kB 0.0s done
+#19 DONE 0.1s
+
+#20 [target] resolving provenance for metadata file
+#20 DONE 0.0s
+
+#21 [controller build 3/8] COPY go.mod go.sum ./
+#21 CACHED
+
+#22 [controller build 2/8] WORKDIR /src
+#22 CACHED
+
+#23 [controller build 4/8] RUN --mount=type=secret,id=build_ca     if [ -s /run/secrets/build_ca ]; then SSL_CERT_FILE=/run/secrets/build_ca go mod download; else go mod download; fi
+#23 CACHED
+
+#24 [controller build 5/8] COPY cmd ./cmd
+#24 CACHED
+
+#25 [controller build 6/8] COPY internal ./internal
+#25 DONE 5.3s
+
+#26 [controller build 7/8] COPY proto ./proto
+#26 DONE 4.1s
+
+#27 [controller build 8/8] RUN --mount=type=cache,target=/root/.cache/go-build go build -trimpath -ldflags='-s -w' -o /out/controller ./cmd/netmonorc-controller &&     go build -trimpath -ldflags='-s -w' -o /out/admin ./cmd/netmonorc-admin &&     go build -trimpath -ldflags='-s -w' -o /out/agent ./cmd/netmonorc-agent &&     go build -trimpath -ldflags='-s -w' -o /out/netmonorc ./cmd/netmonorc &&     go build -trimpath -ldflags='-s -w' -o /out/experiment ./cmd/netmonorc-experiment &&     mkdir -p /runtime/data && chmod 0700 /runtime/data && chown 10001:10001 /runtime/data
+#27 DONE 12.1s
+
+#18 [controller exporter 1/1] FROM docker.io/prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+#18 CACHED
+
+#28 [controller web 2/7] WORKDIR /web
+#28 CACHED
+
+#29 [controller web 3/7] COPY web/package.json web/package-lock.json ./
+#29 CACHED
+
+#30 [controller web 5/7] COPY web/index.html web/tsconfig.json ./
+#30 CACHED
+
+#31 [controller web 6/7] COPY web/src ./src
+#31 CACHED
+
+#32 [controller web 4/7] RUN --mount=type=secret,id=build_ca     if [ -s /run/secrets/build_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/build_ca npm ci --ignore-scripts; else npm ci --ignore-scripts; fi
+#32 CACHED
+
+#33 [controller web 7/7] RUN npm run build
+#33 CACHED
+
+#34 [controller stage-3  1/10] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#34 CACHED
+
+#35 [controller stage-3  2/10] COPY --from=build --chmod=0755 /out/controller /usr/local/bin/netmonorc-controller
+#35 DONE 0.2s
+
+#36 [controller stage-3  3/10] COPY --from=build --chmod=0755 /out/admin /usr/local/bin/netmonorc-admin
+#36 DONE 0.3s
+
+#37 [controller stage-3  4/10] COPY --from=build --chmod=0755 /out/agent /usr/local/bin/netmonorc-agent
+#37 DONE 0.3s
+
+#38 [controller stage-3  5/10] COPY --from=build --chmod=0755 /out/netmonorc /usr/local/bin/netmonorc
+#38 DONE 0.3s
+
+#39 [controller stage-3  6/10] COPY --from=build --chmod=0755 /out/experiment /usr/local/bin/netmonorc-experiment
+#39 DONE 0.5s
+
+#40 [controller stage-3  7/10] COPY --from=exporter --chmod=0755 /bin/blackbox_exporter /usr/local/bin/blackbox_exporter
+#40 DONE 1.0s
+
+#41 [controller stage-3  8/10] COPY --from=build --chown=10001:10001 /runtime /
+#41 DONE 0.6s
+
+#42 [controller stage-3  9/10] COPY --from=web /web/dist /usr/local/share/netmonorc/web
+#42 DONE 0.5s
+
+#43 [controller stage-3 10/10] WORKDIR /data
+#43 DONE 0.6s
+
+#44 [controller] exporting to image
+#44 exporting layers
+#44 exporting layers 0.3s done
+#44 writing image sha256:027f95716231a5ad5413fc46074fc9c83e500bc66a6b4197e05f7e4480d22bb7 done
+#44 naming to docker.io/library/netmonorc-research:local done
+#44 DONE 0.3s
+
+#45 [controller] resolving provenance for metadata file
+#45 DONE 0.0s
+ netmonorc-research:local  Built
+ netmonorc-lab-fixture:local  Built

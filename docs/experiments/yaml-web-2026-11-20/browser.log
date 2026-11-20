@@ -1,0 +1,2 @@
+PASS: browser YAML prepare/validate/plan/apply/replay, numeric fidelity and stale versions
+PASS: real browser YAML package, durable single replay operation, exact integer and source history

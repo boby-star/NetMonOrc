@@ -2,7 +2,8 @@
 
 ## Запуск із веб-панеллю
 
-YAML: [стартовий каталог](docs/deployment/bootstrap-catalog.md),
+YAML: [пакети у React та REST](docs/deployment/yaml-web.md),
+[стартовий каталог](docs/deployment/bootstrap-catalog.md),
 [ExecutionFallback](docs/architecture/execution-fallback.md),
 [Parallel Fixed DAG](docs/architecture/fixed-parallel.md),
 [Component/external exporter](docs/deployment/components.md),

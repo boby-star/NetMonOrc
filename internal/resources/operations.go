@@ -55,8 +55,12 @@ func RequestDigest(batch Batch) []byte {
 	sum := sha256.Sum256(canonicalJSON(data))
 	return sum[:]
 }
+func validRequestID(id string) bool {
+	return len(id) <= 128 && utf8.ValidString(id) && !strings.ContainsFunc(id, unicode.IsControl)
+}
+
 func (s *Service) Apply(ctx context.Context, actor auth.AdminCredential, batch Batch) (Operation, error) {
-	if len(batch.RequestID) > 128 || !utf8.ValidString(batch.RequestID) || strings.ContainsFunc(batch.RequestID, unicode.IsControl) {
+	if !validRequestID(batch.RequestID) {
 		return Operation{}, ErrInvalid
 	}
 	digest := RequestDigest(batch)

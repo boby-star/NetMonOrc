@@ -1,3 +1,23 @@
+# YAML-пакети у React та REST
+
+Пакетний редактор приймає multi-document YAML/ConfigBatch. Серверний prepare
+розв’язує граф, заповнює лише відсутні versions/requestId і повертає текст
+без створення ресурсів. Raw text проходить спільний decoder/compiler, без
+браузерного перетворення Spec numbers. Canonical source зберігає 1.0 і великі
+integer, повторний prepare — requestId/явні preconditions. YAML apply потребує
+requestId; старий JSON ConfigBatch API сумісний. [Контракт](docs/deployment/yaml-web.md).
+
+Натурний браузер підтвердив вхід, YAML validate/prepare/plan/apply, completed
+Agent acknowledgements і healthy від фізичного probe. Повторний UI apply —
+той самий operationId, рівно одна durable операція та source revision Monitor.
+Перевірено exact integer у PostgreSQL, integer/float validation, duplicate key,
+stale version 412, CSRF 403 та anonymous 401. Go/vet і production React build
+пройшли; UI screenshot переглянуто. [Докази](docs/experiments/yaml-web-2026-11-20/README.md).
+
+Редактор одного ресурсу й далі працює з JSON-поданням; точне перенесення
+числових літералів у цій ітерації стосується пакетного редактора. Повну
+відповідність решті старого ТЗ не заявлено.
+
 # Атомарний стартовий YAML-каталог
 
 Controller `-config` приймає 1..20 пов’язаних ресурсів у multi-document YAML

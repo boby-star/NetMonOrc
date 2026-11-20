@@ -1,0 +1,10 @@
+{
+  "baseCommit": "4f1535c0a5ef5fb228dd18cffe2632c7861dcc75",
+  "branch": "prototype/minimal-research",
+  "image": "sha256:027f95716231a5ad5413fc46074fc9c83e500bc66a6b4197e05f7e4480d22bb7",
+  "project": "nmo-yaml-web-final-20261120",
+  "browser": "Chromium headless via project CDP runner",
+  "browserTrust": "Owned Controller server SPKI pin; Node HTTPS additionally verifies CA chain and hostname",
+  "onlyLoopbackPublished": "127.0.0.1:8448",
+  "singleDockerHost": true
+}
