@@ -1,0 +1,15 @@
+{
+  "abstractZoneContext": true,
+  "mode": "offline",
+  "planningRequired": true,
+  "resources": [
+    {
+      "resource": "DiagnosticProfile/parallel-fixed",
+      "validationRevision": "5fe91260e82899cf0a184a4bf5c60f3f068e7c7f67ffe3ed86b9b7f6e5eec3b5"
+    }
+  ],
+  "valid": true,
+  "warnings": [
+    "Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."
+  ]
+}

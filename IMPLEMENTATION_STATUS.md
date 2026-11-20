@@ -1,3 +1,21 @@
+# Parallel Fixed DAG
+
+maxParallel>1 виконує незалежні DAG steps хвилями на різних Agents. Guards
+бачать лише terminal snapshot попередньої хвилі; journal публікується стабільно
+за Step ID, без залежності від фізичного порядку завершення. Count/bytes/retry
+квоти спільні; shared admission зберігає regular slot, PostgreSQL атомарно
+обмежує max_parallel. Новий stepId збережено у physical task/decision та
+відображено REST/CLI/React. [Контракт](docs/architecture/fixed-parallel.md).
+
+Натурно підтверджено два overlapping probes, join після обох, однаковий логічний
+trace у двох запусках, count/byte exhaustion і скасування двох workers без child.
+Справжня БД підтвердила atomic parallel reservation та незалежний byte cap.
+Go/race/vet і production React build пройшли; browser clicks не було.
+[Докази](docs/experiments/fixed-parallel-2026-11-20/README.md).
+
+Наступний незавершений блок YAML-аудиту — ExecutionFallback. Це не твердження
+про повну відповідність кожному полю старого ТЗ.
+
 # Proactive Component readiness
 
 Agent передає у heartbeat готовність exporter для точної Plan revision/ref/hash.
@@ -13,7 +31,8 @@ disabled/restart та відновлення healthy. Go/race/vet і production 
 пройшли; нових browser clicks не було.
 [Докази](docs/experiments/component-readiness-2026-11-20/README.md).
 
-Фактичний залишок YAML-функцій: ExecutionFallback і паралельний Fixed DAG.
+Фактичний залишок цього YAML-аудиту: ExecutionFallback. Parallel Fixed DAG
+додано наступною ітерацією, описаною вище.
 Готовність process endpoint не є підтвердженням завантаження всіх modules.
 
 # Declarative Component / external Blackbox
@@ -33,8 +52,7 @@ Production CLI component-config готує content-addressed modules із пер
 React build пройшли; нових browser clicks не було.
 [Докази](docs/experiments/components-2026-11-20/README.md).
 
-Залишаються ExecutionFallback, паралельний Fixed DAG та окремий proactive
-Component readiness protocol. Unmatched Agents зберігають попередній локальний
+Пізнішими ітераціями додано readiness та parallel DAG; лишається ExecutionFallback. Unmatched Agents зберігають попередній локальний
 prepared runner; це явна сумісність першого release, а не strict external-only
 розгортання. Повної відповідності всіх полів DSL не заявлено.
 

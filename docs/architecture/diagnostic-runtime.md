@@ -94,10 +94,10 @@ healthy/full coverage, replay, TTL і ізоляцію результатів у
 Це кілька процесів на одному хості. Висновків про якість локалізації між
 незалежними мережевими сегментами або перевагу над Static ці дані не дають.
 
-Не реалізовано public/manual start, TaskCancel, replicas,
-паралельний planner, byte estimator, повний placement/PKI та натурні мережеві
-експерименти. Без byte estimator maxEstimatedBytes для live профілю
-відхиляється. Closed-catalog early-stop limitation описано в diagnostic-core.md.
+Наведений вище smoke описує первісний operational slice. Пізніші ітерації
+додали manual start/cancel, replicas та placement, [estimated-byte budget](../deployment/diagnostic-byte-budget.md),
+[parallel Fixed DAG](fixed-parallel.md) і натурні сценарії. Актуальний залишок
+та межі зведено в [YAML contract](../deployment/yaml-controls.md).
 
 ## Вимірювання часу
 

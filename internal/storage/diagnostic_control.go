@@ -157,7 +157,7 @@ func (s *Store) admitDiagnostic(ctx context.Context, p monitor.Plan, profile dia
 	if p.Diagnostics.ComparisonStatic {
 		mode = "static"
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,profile_ref,max_estimated_bytes,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration), profile.Name, profile.Budget.MaxEstimatedBytes); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_runs(id,episode_id,monitor,revision,profile_hash,mode,max_checks,deadline,profile_ref,max_estimated_bytes,max_parallel,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'running')`, run, episode, p.Name, p.Revision, p.Diagnostics.ProfileHash, mode, profile.Budget.MaxChecks, time.Now().Add(profile.Budget.MaxDuration), profile.Name, profile.Budget.MaxEstimatedBytes, max(1, profile.Budget.MaxParallel)); err != nil {
 		return "", err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE nmo_incidents SET episode_id=$2,run_id=$3 WHERE monitor=$1`, p.Name, episode, run); err != nil {

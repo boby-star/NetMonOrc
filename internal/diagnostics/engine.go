@@ -177,7 +177,8 @@ func chooseExecutor(p Placement, agents []Executor, round int) Executor {
 	return agents[0]
 }
 
-// Run executes serially within maxParallel. Static is an experiment mode, not a
+// Run executes Fixed DAG waves within maxParallel; Adaptive/Static remain serial.
+// Static is an experiment mode, not a
 // new YAML enum. All modes share catalog, eligibility and the same budget rules.
 func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Executor, ledger *Ledger, initial []Evidence, monitorState string) (r Result, err error) {
 	started := time.Now()
@@ -346,6 +347,25 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		}
 		return r
 	}
+	recordProof := func(action Action, executor Executor, decision Decision, ordinal int) {
+		at := time.Now()
+		expires := deadline
+		proofID := fmt.Sprintf("attempt:%d", ordinal)
+		if decision.FinishedAt != nil {
+			at = *decision.FinishedAt
+		} else if e.EvidenceMaxAge > 0 || e.EvidenceMaxSkew > 0 {
+			at = time.Time{}
+		}
+		if decision.ValidUntil != nil {
+			expires = *decision.ValidUntil
+		}
+		if decision.ObservationID != "" {
+			proofID = "observation:" + decision.ObservationID
+		}
+		tracker.add(proofID, action, executor, decision.Outcome, at, expires)
+		proofs = append(proofs, timedProof{action: action, agent: executor.ID, outcome: decision.Outcome, at: at, expires: expires})
+		rebuild()
+	}
 	visited := map[string]bool{}
 	if mode == "adaptive" {
 		for id := range ledger.adaptiveAttempted {
@@ -359,6 +379,20 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	sort.Slice(actions, func(i, j int) bool { return actions[i].ID < actions[j].ID })
 	steps := append([]Step(nil), p.Steps...)
 	sort.Slice(steps, func(i, j int) bool { return steps[i].ID < steps[j].ID })
+	if mode == "fixed" && p.Budget.MaxParallel > 1 {
+		reason, complete, incomplete := e.runFixedParallel(child, p, agents, ledger, &r, deadline, monitorState, fixedHooks{
+			refresh:    rebuild,
+			hypotheses: func() []string { return append([]string(nil), r.Hypotheses...) },
+			proofs:     func() []timedProof { return workingProofs(proofs, time.Now(), e.EvidenceMaxSkew) },
+			record:     recordProof,
+		})
+		fixedIncomplete = incomplete
+		if complete {
+			return finish(reason), nil
+		}
+		r.Reason = reason
+		return r, nil
+	}
 	for {
 		rebuild()
 		if child.Err() != nil {
@@ -568,7 +602,9 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		chain := attemptChain{engine: executionEngine, profile: p, ledger: ledger, result: &r, deadline: deadline}
 		outcome, reason := func() (Outcome, string) {
 			defer release()
-			return chain.execute(child, *selected, executor, selectedBytes, phase, selectedGain)
+			dispatched := *selected
+			dispatched.StepID = stepID
+			return chain.execute(child, dispatched, executor, selectedBytes, phase, selectedGain)
 		}()
 		if reason != "" && len(r.Decisions) == attemptsBefore {
 			r.Reason = reason
@@ -584,24 +620,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				fixedIncomplete = true
 			}
 		}
-		decision := r.Decisions[len(r.Decisions)-1]
-		at := time.Now()
-		expires := deadline
-		proofID := fmt.Sprintf("attempt:%d", ledger.UsedChecks)
-		if decision.FinishedAt != nil {
-			at = *decision.FinishedAt
-		} else if e.EvidenceMaxAge > 0 || e.EvidenceMaxSkew > 0 {
-			at = time.Time{}
-		}
-		if decision.ValidUntil != nil {
-			expires = *decision.ValidUntil
-		}
-		if decision.ObservationID != "" {
-			proofID = "observation:" + decision.ObservationID
-		}
-		tracker.add(proofID, *selected, executor, outcome, at, expires)
-		proofs = append(proofs, timedProof{action: *selected, agent: executor.ID, outcome: outcome, at: at, expires: expires})
-		rebuild()
+		recordProof(*selected, executor, r.Decisions[len(r.Decisions)-1], ledger.UsedChecks)
 		rounds[selected.ID]++
 		if stepID != "" {
 			terminal[stepID] = true

@@ -1,0 +1,40 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata: {name: parallel-fixed}
+spec:
+  mode: fixed
+  budget: {maxAdditionalChecks: 3, maxDuration: 60s, maxParallel: 2}
+  hypotheses: [{id: responding}, {id: broken}]
+  actions:
+    - id: office-http
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/parallel-slow', expectedStatus: [200]}
+      placement: {strategy: fixed, agentRefs: [branch]}
+      expectedOutcomes: {responding: success, broken: failure}
+    - id: server-http
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/parallel-fast', expectedStatus: [200]}
+      placement: {strategy: fixed, agentRefs: [dc]}
+      expectedOutcomes: {responding: success, broken: failure}
+    - id: join-http
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/parallel-join', expectedStatus: [200]}
+      placement: {strategy: fixed, agentRefs: [branch]}
+      expectedOutcomes: {responding: success, broken: failure}
+  fixed:
+    steps:
+      - {id: b-office, actionRef: office-http}
+      - {id: c-server, actionRef: server-http}
+      - id: a-join
+        actionRef: join-http
+        dependsOn: [b-office, c-server]
+        when: 'tasks["b-office"].outcome == "success" && tasks["c-server"].outcome == "success"'

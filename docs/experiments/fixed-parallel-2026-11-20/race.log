@@ -1,0 +1,4 @@
+ok  	github.com/boby-star/NetMonOrc/internal/diagnostics	2.429s
+ok  	github.com/boby-star/NetMonOrc/internal/storage	1.070s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	1.136s
+?   	github.com/boby-star/NetMonOrc/internal/coordinator	[no test files]

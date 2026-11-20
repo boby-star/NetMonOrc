@@ -23,7 +23,8 @@ type Placement struct {
 type Action struct {
 	Retry *Retry `json:",omitempty"`
 	// AttemptNo belongs to dispatch only and must not change effective revision.
-	AttemptNo int `json:"-"`
+	AttemptNo int    `json:"-"`
+	StepID    string `json:"-"`
 	ID        string
 	Check     monitor.Check
 	Cost      float64
@@ -99,6 +100,7 @@ type BaselineEvidence struct {
 	ProbeOutcome    string    `json:"probeOutcome"`
 }
 type Decision struct {
+	StepID           string     `json:"stepId,omitempty"`
 	ObservationID    string     `json:"observationId,omitempty"`
 	FinishedAt       *time.Time `json:"finishedAt,omitempty"`
 	ValidUntil       *time.Time `json:"validUntil,omitempty"`

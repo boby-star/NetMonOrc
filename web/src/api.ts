@@ -736,6 +736,7 @@ export interface DiagnosticExplanation {
   durationMs?: number;
   costUnits: number;
   decisions: {
+    stepId?: string;
     observationId?: string; finishedAt?: string; validUntil?: string;
     actionId: string; agentId: string; failureDomain?: string; attemptNo?: number; phase?: string;
     hypothesesBefore: string[] | null; gain: number; score: number;
@@ -765,6 +766,7 @@ export interface DiagnosticSession {
   stopReason: string | null;
 }
 export interface DiagnosticTask {
+ stepId?: string;
   estimatedBytes?: number;
   id: string;
   sessionId: string;

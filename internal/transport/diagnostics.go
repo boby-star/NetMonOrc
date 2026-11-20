@@ -110,7 +110,7 @@ func (bound admittedDiagnosticRunner) ExecuteEvidence(ctx context.Context, a dia
 	}
 	permit.taskID, permit.until, permit.terminal = id, deadline, false
 	s.mu.Unlock()
-	t := storage.DiagnosticTask{ID: id, RunID: r.RunID, Agent: e.ID, Generation: session.generation, Plan: r.Plan, Check: a.Check, Zone: e.Zone, Deadline: deadline, AttemptNo: a.AttemptNo}
+	t := storage.DiagnosticTask{StepID: a.StepID, ID: id, RunID: r.RunID, Agent: e.ID, Generation: session.generation, Plan: r.Plan, Check: a.Check, Zone: e.Zone, Deadline: deadline, AttemptNo: a.AttemptNo}
 	if err = s.Store.ReserveDiagnostic(ctx, t); err != nil {
 		return unknown, err
 	}

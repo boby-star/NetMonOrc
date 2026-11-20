@@ -110,7 +110,7 @@ editing і regular/diagnostic dispatch. [Контракт](../deployment/compone
 наступною ітерацією.
 [Натурне приймання](../experiments/components-2026-11-20/README.md) підтвердило
 real external execution, outage/disabled unknown без fallback, restart і
-незмінність Monitor source version. ExecutionFallback/parallel Fixed DAG лишаються.
+незмінність Monitor source version. Parallel Fixed DAG додано наступною ітерацією; ExecutionFallback лишається.
 
 ## Proactive Component readiness
 
@@ -122,3 +122,10 @@ real external execution, outage/disabled unknown без fallback, restart і
 [Натурне приймання readiness](../experiments/component-readiness-2026-11-20/README.md):
 API ready/unavailable/recovered, manual outage run із нульовим physical budget,
 disabled/restart і regular healthy після відновлення. Go/race/vet та build пройшли.
+
+## Parallel Fixed DAG
+
+[Реалізовано хвилі незалежних steps](../architecture/fixed-parallel.md), спільні
+retry/count/byte quotas, deterministic journal і persisted stepId, PostgreSQL
+max_parallel fence. [Натурне приймання](../experiments/fixed-parallel-2026-11-20/README.md)
+підтвердило overlap, dependencies, quotas/cancel та справжню concurrent DB admission.

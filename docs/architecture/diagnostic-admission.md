@@ -57,3 +57,9 @@ release після result/deadline та відсутність budget charge з�
 Натурний сценарій: `scripts/lab_admission.py` на новому prepared/up project.
 
 Результат натурного запуску: [admission-2026-11-17](../experiments/admission-2026-11-17/README.md).
+
+## Parallel Fixed DAG
+
+Кілька Agent permits отримуються в глобальному Agent ID порядку, щоб дві
+DAG-сесії не утворювали цикл очікування. Хвиля тримає не більше одного
+diagnostic permit на Agent. [Хвилі, бюджет і durable cap](fixed-parallel.md).

@@ -128,10 +128,11 @@ REST JSON також проходить структурну перевірку 
 
 Per-check placement/ref, Agent label selectors і distinctBy=failureDomain вже реалізовано:
 [контракт і міграція](check-placement.md). Наведені зміни не означають реалізацію
-всього старого ТЗ. Поки залишаються:
+всього старого ТЗ. Залишається ExecutionFallback з окремими корельованими
+physical attempts.
 
-- ExecutionFallback з окремими корельованими physical attempts;
-- паралельне виконання Fixed DAG.
+[Паралельний Fixed DAG](../architecture/fixed-parallel.md) реалізовано зі
+спільними квотами, stable wave journal, per-Agent admission та durable cap.
 
 Component/external binding реалізовано: [контракт, підготовка модулів та
 межі сумісності](components.md). Також реалізовано [proactive readiness

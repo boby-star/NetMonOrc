@@ -49,32 +49,9 @@ func (c attemptChain) execute(ctx context.Context, a Action, executor Executor, 
 		c.result.Cost += a.Cost
 		dispatched := a
 		dispatched.AttemptNo = n
-		attempt, done := context.WithTimeout(ctx, a.Check.Timeout+c.engine.TaskOverhead)
-		var evidence ObservedOutcome
-		var err error
-		if runner, ok := c.engine.Runner.(EvidenceRunner); ok {
-			evidence, err = runner.ExecuteEvidence(attempt, dispatched, executor)
-		} else {
-			evidence.Outcome, err = c.engine.Runner.Execute(attempt, dispatched, executor)
-		}
-		observed := evidence.Outcome
-		valid := (observed.Execution == "completed" && (observed.Outcome == "success" || observed.Outcome == "failure" || observed.Outcome == "unknown")) || (observed.Execution == "execution_failed" && observed.Outcome == "unknown")
-		if err != nil || attempt.Err() != nil || !valid {
-			observed = Outcome{"execution_failed", "unknown"}
-		}
-		done()
-		outcome = observed
-		var finished, validUntil *time.Time
-		if !evidence.FinishedAt.IsZero() {
-			at := evidence.FinishedAt
-			finished = &at
-			expires := c.deadline
-			if c.engine.EvidenceMaxAge > 0 && at.Add(c.engine.EvidenceMaxAge).Before(expires) {
-				expires = at.Add(c.engine.EvidenceMaxAge)
-			}
-			validUntil = &expires
-		}
-		c.result.Decisions = append(c.result.Decisions, Decision{ObservationID: evidence.ObservationID, FinishedAt: finished, ValidUntil: validUntil, FailureDomain: executor.FailureDomain, ActionID: a.ID, AgentID: executor.ID, HypothesesBefore: before, Gain: gain, Score: float64(gain) / a.Cost, Outcome: outcome, Phase: phase, AttemptNo: n})
+		decision := c.engine.executeAttempt(ctx, dispatched, executor, c.deadline, phase, gain, before)
+		outcome = decision.Outcome
+		c.result.Decisions = append(c.result.Decisions, decision)
 		if outcome.Execution != "execution_failed" {
 			break
 		}

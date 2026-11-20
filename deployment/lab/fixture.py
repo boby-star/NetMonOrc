@@ -24,6 +24,8 @@ class HTTP(BaseHTTPRequestHandler):
                 return
             if self.path == '/policy-final' and (self.headers.get('Host') != 'service.invalid:8080' or self.headers.get('X-Probe') != 'safe'):
                 self.send_response(400); self.send_header('Content-Length', '0'); self.end_headers(); return
+            if self.path in ["/parallel-slow", "/parallel-fast"]:
+                time.sleep(2 if self.path == "/parallel-slow" else 1)
             if self.path == "/slow":
                 time.sleep(12)  # Fixed private fixture for in-flight cancellation.
             state = mode()

@@ -40,6 +40,7 @@ type BaselineEvidence struct {
 	ProbeOutcome    string    `json:"probeOutcome"`
 }
 type Decision struct {
+	StepID           string     `json:"stepId,omitempty"`
 	ObservationID    string     `json:"observationId,omitempty"`
 	FinishedAt       *time.Time `json:"finishedAt,omitempty"`
 	ValidUntil       *time.Time `json:"validUntil,omitempty"`
@@ -78,6 +79,7 @@ type Session struct {
 	StopReason          *string      `json:"stopReason"`
 }
 type Task struct {
+	StepID         string    `json:"stepId,omitempty"`
 	EstimatedBytes *int64    `json:"estimatedBytes,omitempty"`
 	ID             string    `json:"id"`
 	SessionID      string    `json:"sessionId"`

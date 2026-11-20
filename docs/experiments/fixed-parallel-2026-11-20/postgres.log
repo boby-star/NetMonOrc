@@ -1,0 +1,5 @@
+=== RUN   TestDiagnosticEstimatedBytesAtomicReservation
+--- PASS: TestDiagnosticEstimatedBytesAtomicReservation (0.08s)
+=== RUN   TestDiagnosticParallelReservationIsAtomic
+--- PASS: TestDiagnosticParallelReservationIsAtomic (1.07s)
+PASS

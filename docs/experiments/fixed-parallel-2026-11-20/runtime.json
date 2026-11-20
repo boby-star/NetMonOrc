@@ -1,0 +1,25 @@
+{
+  "baseCommit": "f9a741d4dfa3dc9f7ac2d07e86f5c9636fa60150",
+  "imageID": "sha256:e492e262bb5bbeff9fdf9c740c55dd885b4b973b1942ca240cb7d72ff01d4616",
+  "implementationSHA256": {
+    "deployment/lab/fixture.py": "50e761439f4ac408bd6960d2e8cf05c7a74c7f9dcfad80a61fb1d35d67182780",
+    "internal/diagnostics/engine.go": "89047df5ab61d172ff1d450555acbe8d315764847bdc93f931c3e7d562b8c3b3",
+    "internal/diagnostics/model.go": "bf41c6351cc5d61efdbb42660983df5cbac117c45314c392015c6edb5bf437ed",
+    "internal/diagnostics/retry.go": "2abe240b7a86ef0d8d431c2afde070d032928a57ee9caef264204328089b7258",
+    "internal/diagnosticview/model.go": "c041b4289d38e3d78cc8d9777b261011646c063f9228f0803cc1e9b529beb94c",
+    "internal/storage/diagnostic_bytes_test.go": "10f9636df905697a7b349bb3d939b75414c30eba2bf39959204044026588f294",
+    "internal/storage/diagnostic_control.go": "eee554b8cb8321178c2643783f60337a1e5e736b8c533bf0f6652262d8479cdc",
+    "internal/storage/diagnostic_views.go": "a4404bbf6dd2208913b92f5b4836f59a6cc9d904c8efb93585ca251980079655",
+    "internal/storage/diagnostics.go": "05d85acf24c9f9c5f684c65c8169cdf9cfce4d0d574b61d102c3d40c364ebd5a",
+    "internal/storage/postgres.go": "3f7379c214c44988af33bbd7cab7d0c332f0dcd2b7ba2861c012c152444033da",
+    "internal/transport/diagnostics.go": "a71acc9c9beef9a779bba140bac4dc748fc8790514edd23706b967433a5d002b",
+    "web/src/Diagnostics.tsx": "064cbf93591c69236fdfd161d78ff66bd3cc2b24f37b962a5e8bb7df6ef45f0a",
+    "web/src/api.ts": "20c48c5c33a462179ceb2b318ad474b45e2e2bc8b4de9acd79f6c5a55147e6a8",
+    "internal/diagnostics/attempt.go": "adfbcd0eb2f513cc8346e7955380a5c7ec6dbc184e84352c171484ace0bc8295",
+    "internal/diagnostics/fixed_parallel.go": "26b726227eb456c5ed77cfda20fa2e65ef277a358276eaed7e954bf0ae4287db",
+    "internal/diagnostics/fixed_parallel_test.go": "2a1f170579c590fb767ebe99a8d9b4750857a11d3948e95517df7c0184122c1a",
+    "internal/storage/diagnostic_parallel_test.go": "15705040cd0103fdfb53f3dd5cc2874e9bdbaf6028eb6ce115b6a58bbd6322f1",
+    "scripts/lab_fixed_parallel.py": "64fa9a3af7fb28e515091cfd3c5140cbc5e8fe4f9b72fd9fea268923d9e00ec9"
+  },
+  "note": "Final production image accepted before commit. Native HTTP physical timestamps demonstrate overlap; no browser interaction or multi-host independence claim."
+}

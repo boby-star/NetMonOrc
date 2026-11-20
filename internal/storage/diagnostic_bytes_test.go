@@ -29,7 +29,7 @@ func TestDiagnosticEstimatedBytesAtomicReservation(t *testing.T) {
 	defer s.Close()
 	name := "byte-test-" + newID()
 	p := monitor.Plan{Name: name, Revision: "byte-revision", Diagnostics: &monitor.DiagnosticBinding{Enabled: true, ProfileRef: "bytes", ProfileHash: "hash"}}
-	profile := diagnostics.Profile{Mode: "adaptive", Budget: diagnostics.Budget{MaxChecks: 10, MaxDuration: time.Minute, MaxEstimatedBytes: 8192}}
+	profile := diagnostics.Profile{Mode: "adaptive", Budget: diagnostics.Budget{MaxChecks: 10, MaxDuration: time.Minute, MaxParallel: 2, MaxEstimatedBytes: 8192}}
 	run, err := s.StartDiagnostic(ctx, p, profile)
 	if err != nil || run == "" {
 		t.Fatal(run, err)

@@ -72,7 +72,7 @@ func diagnosticExplanation(raw []byte) (*diagnosticview.Explanation, error) {
 		v.EvidencePolicy = &diagnosticview.EvidencePolicy{MaxAgeMS: r.EvidencePolicy.MaxAgeMS, MaxSkewMS: r.EvidencePolicy.MaxSkewMS}
 	}
 	for _, d := range r.Decisions {
-		v.Decisions = append(v.Decisions, diagnosticview.Decision{ObservationID: d.ObservationID, FinishedAt: d.FinishedAt, ValidUntil: d.ValidUntil, FailureDomain: d.FailureDomain, ActionID: d.ActionID, AgentID: d.AgentID, AttemptNo: d.AttemptNo, Phase: d.Phase, HypothesesBefore: d.HypothesesBefore, Gain: d.Gain, Score: d.Score, ExecutionStatus: d.Outcome.Execution, ProbeOutcome: d.Outcome.Outcome})
+		v.Decisions = append(v.Decisions, diagnosticview.Decision{StepID: d.StepID, ObservationID: d.ObservationID, FinishedAt: d.FinishedAt, ValidUntil: d.ValidUntil, FailureDomain: d.FailureDomain, ActionID: d.ActionID, AgentID: d.AgentID, AttemptNo: d.AttemptNo, Phase: d.Phase, HypothesesBefore: d.HypothesesBefore, Gain: d.Gain, Score: d.Score, ExecutionStatus: d.Outcome.Execution, ProbeOutcome: d.Outcome.Outcome})
 	}
 	if c := r.Confirmation; c != nil {
 		v.Confirmation = &diagnosticview.Confirmation{EvidenceDomains: c.EvidenceDomains, RequiredActions: c.RequiredActions, ObservedActions: c.ObservedActions, Observations: c.Observations, DistinctFailureDomains: c.DistinctFailureDomains, Satisfied: c.Satisfied}
@@ -112,7 +112,7 @@ func (s *Store) DiagnosticTasks(ctx context.Context, id, before string, limit in
 	if limit < 1 || limit > 200 {
 		return nil, fmt.Errorf("invalid bounded task query")
 	}
-	rows, err := s.pool.Query(ctx, `SELECT t.id,t.run_id,t.check_id,t.agent_id,t.state,t.attempt_no,t.deadline,t.estimated_bytes,
+	rows, err := s.pool.Query(ctx, `SELECT t.id,t.run_id,t.check_id,t.agent_id,t.state,t.attempt_no,t.deadline,t.estimated_bytes,t.step_id,
  ARRAY(SELECT o.id FROM nmo_observations o WHERE o.diagnostic_task_id=t.id AND o.diagnostic_task_id<>'' ORDER BY o.id)
  FROM nmo_diagnostic_tasks t WHERE t.run_id=$1 AND t.id>$2 ORDER BY t.id ASC LIMIT $3`, id, before, limit+1)
 	if err != nil {
@@ -122,7 +122,7 @@ func (s *Store) DiagnosticTasks(ctx context.Context, id, before string, limit in
 	out := []diagnosticview.Task{}
 	for rows.Next() {
 		var v diagnosticview.Task
-		if err = rows.Scan(&v.ID, &v.SessionID, &v.ActionID, &v.AgentID, &v.State, &v.AttemptNo, &v.Deadline, &v.EstimatedBytes, &v.ObservationIDs); err != nil {
+		if err = rows.Scan(&v.ID, &v.SessionID, &v.ActionID, &v.AgentID, &v.State, &v.AttemptNo, &v.Deadline, &v.EstimatedBytes, &v.StepID, &v.ObservationIDs); err != nil {
 			return nil, err
 		}
 		out = append(out, v)

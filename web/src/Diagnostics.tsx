@@ -154,7 +154,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
           <thead><tr><th>Крок / фаза</th><th>Дія / Agent / спроба</th><th>Гіпотези до кроку</th><th>Gain / score</th><th>Виконання / результат</th><th>Час доказу / TTL</th></tr></thead>
           <tbody>{selected.explanation.decisions.map((d, i) => <tr key={i}>
             <td>{i + 1} / {d.phase || "не збережено"}</td>
-            <td>{d.actionId}<br/>{d.agentId}<br/>Домен: {d.failureDomain || "невідомий"}<br/>{d.attemptNo ?? "не збережено"}</td>
+            <td>{d.actionId}{d.stepId && <><br/>Крок: {d.stepId}</>}<br/>{d.agentId}<br/>Домен: {d.failureDomain || "невідомий"}<br/>{d.attemptNo ?? "не збережено"}</td>
             <td>{d.hypothesesBefore ? d.hypothesesBefore.join(", ") || "немає" : "не збережено"}</td>
             <td>{d.gain} / {d.score}</td><td>{d.executionStatus} / {d.probeOutcome}</td>
             <td>{d.finishedAt || "не збережено"}<br/>TTL/deadline до: {d.validUntil || "не збережено"}<br/>{d.observationId && <code>{d.observationId}</code>}</td>
@@ -173,7 +173,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       <div className="table-scroll"><table>
         <caption>Фізичні задачі Agent</caption>
         <thead><tr><th>Дія</th><th>Agent</th><th>Спроба</th><th>Стан</th><th>Докази</th></tr></thead>
-        <tbody>{tasks.map(t => <tr key={t.id}><td>{t.actionId}<br/><small>{t.id}</small></td><td>{t.agentId}</td><td>{t.attemptNo}{t.estimatedBytes !== undefined && <><br/>{t.estimatedBytes} оціночних байтів</>}</td><td>{t.state}</td><td>{t.observationIds.length ? t.observationIds.map(id => <p key={id}>{canReadEvidence && <><button type="button" onClick={() => setEvidence(id)}>Відкрити доказ</button><br/></>}<code>{id}</code></p>) : "не отримано"}</td></tr>)}</tbody>
+        <tbody>{tasks.map(t => <tr key={t.id}><td>{t.actionId}{t.stepId && <><br/>Крок: {t.stepId}</>}<br/><small>{t.id}</small></td><td>{t.agentId}</td><td>{t.attemptNo}{t.estimatedBytes !== undefined && <><br/>{t.estimatedBytes} оціночних байтів</>}</td><td>{t.state}</td><td>{t.observationIds.length ? t.observationIds.map(id => <p key={id}>{canReadEvidence && <><button type="button" onClick={() => setEvidence(id)}>Відкрити доказ</button><br/></>}<code>{id}</code></p>) : "не отримано"}</td></tr>)}</tbody>
       </table></div>
       <button type="button" disabled={busy || !taskCursor} onClick={() => void open(selected.id, taskCursor)}>Наступна сторінка задач</button>
     </div>}

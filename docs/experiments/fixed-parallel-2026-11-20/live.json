@@ -1,0 +1,614 @@
+{
+  "status": "passed",
+  "realPostgreSQLAndMTLSAgents": true,
+  "trustedHTTPS": true,
+  "cases": {
+    "overlap-1": {
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "explanation": {
+          "baselineEvidence": [],
+          "evidencePolicy": {
+            "maxAgeMs": 20000,
+            "maxSkewMs": 15000
+          },
+          "durationMs": 3745,
+          "costUnits": 3,
+          "decisions": [
+            {
+              "stepId": "b-left",
+              "observationId": "4d76afb5b7a1c7f8b4f76103a9db0676",
+              "finishedAt": "2026-11-20T19:06:44.204274244Z",
+              "validUntil": "2026-11-20T19:07:04.204274244Z",
+              "failureDomain": "office-path",
+              "actionId": "left",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "broken",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            },
+            {
+              "stepId": "c-right",
+              "observationId": "462b90237ff4bb0b95027e1411b48d79",
+              "finishedAt": "2026-11-20T19:06:43.24050369Z",
+              "validUntil": "2026-11-20T19:07:03.24050369Z",
+              "failureDomain": "server-path",
+              "actionId": "right",
+              "agentId": "dc",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "broken",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            },
+            {
+              "stepId": "a-join",
+              "observationId": "ef98d9ebe05d5b539a151b8ca11d631f",
+              "finishedAt": "2026-11-20T19:06:44.947762812Z",
+              "validUntil": "2026-11-20T19:07:04.947762812Z",
+              "failureDomain": "office-path",
+              "actionId": "join",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "responding"
+              ],
+              "gain": 0,
+              "score": 0,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            }
+          ]
+        },
+        "id": "2562a946688054462b28d59f29b5ffea",
+        "monitorId": "research-web",
+        "profileRef": "parallel-full",
+        "mode": "fixed",
+        "state": "completed",
+        "startedAt": "2026-11-20T19:06:42.173619Z",
+        "finishedAt": "2026-11-20T19:06:45.931815Z",
+        "remainingHypotheses": [
+          "responding"
+        ],
+        "budgetUsed": {
+          "additionalChecks": 3
+        },
+        "evidenceIds": [
+          "462b90237ff4bb0b95027e1411b48d79",
+          "4d76afb5b7a1c7f8b4f76103a9db0676",
+          "ef98d9ebe05d5b539a151b8ca11d631f"
+        ],
+        "stopReason": "supported_class"
+      },
+      "tasks": [
+        {
+          "stepId": "c-right",
+          "id": "462b90237ff4bb0b95027e1411b48d79",
+          "sessionId": "2562a946688054462b28d59f29b5ffea",
+          "actionId": "right",
+          "agentId": "dc",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:07.186404Z",
+          "observationIds": [
+            "462b90237ff4bb0b95027e1411b48d79"
+          ]
+        },
+        {
+          "stepId": "b-left",
+          "id": "4d76afb5b7a1c7f8b4f76103a9db0676",
+          "sessionId": "2562a946688054462b28d59f29b5ffea",
+          "actionId": "left",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:07.186433Z",
+          "observationIds": [
+            "4d76afb5b7a1c7f8b4f76103a9db0676"
+          ]
+        },
+        {
+          "stepId": "a-join",
+          "id": "ef98d9ebe05d5b539a151b8ca11d631f",
+          "sessionId": "2562a946688054462b28d59f29b5ffea",
+          "actionId": "join",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:09.933034Z",
+          "observationIds": [
+            "ef98d9ebe05d5b539a151b8ca11d631f"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "stepId": "a-join",
+          "observation": {
+            "id": "ef98d9ebe05d5b539a151b8ca11d631f",
+            "zone": "office",
+            "agent": "branch",
+            "check": "join",
+            "reason": "expected_status",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "completed",
+            "startedAt": "2026-11-20T19:06:44.945309194Z",
+            "finishedAt": "2026-11-20T19:06:44.947762812Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "ef98d9ebe05d5b539a151b8ca11d631f"
+          }
+        },
+        {
+          "stepId": "b-left",
+          "observation": {
+            "id": "4d76afb5b7a1c7f8b4f76103a9db0676",
+            "zone": "office",
+            "agent": "branch",
+            "check": "left",
+            "reason": "expected_status",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "completed",
+            "startedAt": "2026-11-20T19:06:42.200452947Z",
+            "finishedAt": "2026-11-20T19:06:44.204274244Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "4d76afb5b7a1c7f8b4f76103a9db0676"
+          }
+        },
+        {
+          "stepId": "c-right",
+          "observation": {
+            "id": "462b90237ff4bb0b95027e1411b48d79",
+            "zone": "server",
+            "agent": "dc",
+            "check": "right",
+            "reason": "expected_status",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "completed",
+            "startedAt": "2026-11-20T19:06:42.20602705Z",
+            "finishedAt": "2026-11-20T19:06:43.24050369Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "462b90237ff4bb0b95027e1411b48d79"
+          }
+        }
+      ],
+      "parentsOverlap": true,
+      "joinAfterBoth": true,
+      "journalIndependentOfFinishOrder": true
+    },
+    "overlap-2": {
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "explanation": {
+          "baselineEvidence": [],
+          "evidencePolicy": {
+            "maxAgeMs": 20000,
+            "maxSkewMs": 15000
+          },
+          "durationMs": 3340,
+          "costUnits": 3,
+          "decisions": [
+            {
+              "stepId": "b-left",
+              "observationId": "4f77079fb6f8358eec249d5017a13a1f",
+              "finishedAt": "2026-11-20T19:06:51.619060726Z",
+              "validUntil": "2026-11-20T19:07:11.619060726Z",
+              "failureDomain": "office-path",
+              "actionId": "left",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "broken",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            },
+            {
+              "stepId": "c-right",
+              "observationId": "db4737c1c452c7502a8ecaa29f2cafbf",
+              "finishedAt": "2026-11-20T19:06:50.608918132Z",
+              "validUntil": "2026-11-20T19:07:10.608918132Z",
+              "failureDomain": "server-path",
+              "actionId": "right",
+              "agentId": "dc",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "broken",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            },
+            {
+              "stepId": "a-join",
+              "observationId": "cdb49ac4e05b4bc17302c91b81bea84a",
+              "finishedAt": "2026-11-20T19:06:51.988175682Z",
+              "validUntil": "2026-11-20T19:07:11.988175682Z",
+              "failureDomain": "office-path",
+              "actionId": "join",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "responding"
+              ],
+              "gain": 0,
+              "score": 0,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            }
+          ]
+        },
+        "id": "046dd795860b8e89d3292b3b37eac65a",
+        "monitorId": "research-web",
+        "profileRef": "parallel-full",
+        "mode": "fixed",
+        "state": "completed",
+        "startedAt": "2026-11-20T19:06:49.586319Z",
+        "finishedAt": "2026-11-20T19:06:52.931637Z",
+        "remainingHypotheses": [
+          "responding"
+        ],
+        "budgetUsed": {
+          "additionalChecks": 3
+        },
+        "evidenceIds": [
+          "4f77079fb6f8358eec249d5017a13a1f",
+          "cdb49ac4e05b4bc17302c91b81bea84a",
+          "db4737c1c452c7502a8ecaa29f2cafbf"
+        ],
+        "stopReason": "supported_class"
+      },
+      "tasks": [
+        {
+          "stepId": "b-left",
+          "id": "4f77079fb6f8358eec249d5017a13a1f",
+          "sessionId": "046dd795860b8e89d3292b3b37eac65a",
+          "actionId": "left",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:14.59153Z",
+          "observationIds": [
+            "4f77079fb6f8358eec249d5017a13a1f"
+          ]
+        },
+        {
+          "stepId": "a-join",
+          "id": "cdb49ac4e05b4bc17302c91b81bea84a",
+          "sessionId": "046dd795860b8e89d3292b3b37eac65a",
+          "actionId": "join",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:16.966509Z",
+          "observationIds": [
+            "cdb49ac4e05b4bc17302c91b81bea84a"
+          ]
+        },
+        {
+          "stepId": "c-right",
+          "id": "db4737c1c452c7502a8ecaa29f2cafbf",
+          "sessionId": "046dd795860b8e89d3292b3b37eac65a",
+          "actionId": "right",
+          "agentId": "dc",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:14.59147Z",
+          "observationIds": [
+            "db4737c1c452c7502a8ecaa29f2cafbf"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "stepId": "a-join",
+          "observation": {
+            "id": "cdb49ac4e05b4bc17302c91b81bea84a",
+            "zone": "office",
+            "agent": "branch",
+            "check": "join",
+            "reason": "expected_status",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "completed",
+            "startedAt": "2026-11-20T19:06:51.984155431Z",
+            "finishedAt": "2026-11-20T19:06:51.988175682Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "cdb49ac4e05b4bc17302c91b81bea84a"
+          }
+        },
+        {
+          "stepId": "b-left",
+          "observation": {
+            "id": "4f77079fb6f8358eec249d5017a13a1f",
+            "zone": "office",
+            "agent": "branch",
+            "check": "left",
+            "reason": "expected_status",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "completed",
+            "startedAt": "2026-11-20T19:06:49.61383785Z",
+            "finishedAt": "2026-11-20T19:06:51.619060726Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "4f77079fb6f8358eec249d5017a13a1f"
+          }
+        },
+        {
+          "stepId": "c-right",
+          "observation": {
+            "id": "db4737c1c452c7502a8ecaa29f2cafbf",
+            "zone": "server",
+            "agent": "dc",
+            "check": "right",
+            "reason": "expected_status",
+            "monitor": "research-web",
+            "outcome": "success",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "completed",
+            "startedAt": "2026-11-20T19:06:49.605583529Z",
+            "finishedAt": "2026-11-20T19:06:50.608918132Z",
+            "statusCode": 200,
+            "diagnosticTaskID": "db4737c1c452c7502a8ecaa29f2cafbf"
+          }
+        }
+      ],
+      "parentsOverlap": true,
+      "joinAfterBoth": true,
+      "journalIndependentOfFinishOrder": true
+    },
+    "count": {
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "explanation": {
+          "baselineEvidence": [],
+          "evidencePolicy": {
+            "maxAgeMs": 20000,
+            "maxSkewMs": 15000
+          },
+          "durationMs": 2826,
+          "costUnits": 1,
+          "decisions": [
+            {
+              "stepId": "b-left",
+              "observationId": "2a68ddc6917815f8ebcad12a916e8086",
+              "finishedAt": "2026-11-20T19:06:59.124896726Z",
+              "validUntil": "2026-11-20T19:07:19.124896726Z",
+              "failureDomain": "office-path",
+              "actionId": "left",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "broken",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            }
+          ],
+          "blockedSteps": [
+            "a-join",
+            "c-right"
+          ]
+        },
+        "id": "d449222cd300bb2f79aa0fc5b86904fd",
+        "monitorId": "research-web",
+        "profileRef": "parallel-count",
+        "mode": "fixed",
+        "state": "inconclusive",
+        "startedAt": "2026-11-20T19:06:57.101766Z",
+        "finishedAt": "2026-11-20T19:06:59.933622Z",
+        "remainingHypotheses": [
+          "responding"
+        ],
+        "budgetUsed": {
+          "additionalChecks": 1
+        },
+        "evidenceIds": [
+          "2a68ddc6917815f8ebcad12a916e8086"
+        ],
+        "stopReason": "check_budget_exhausted"
+      },
+      "tasks": [
+        {
+          "stepId": "b-left",
+          "id": "2a68ddc6917815f8ebcad12a916e8086",
+          "sessionId": "d449222cd300bb2f79aa0fc5b86904fd",
+          "actionId": "left",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:22.106798Z",
+          "observationIds": [
+            "2a68ddc6917815f8ebcad12a916e8086"
+          ]
+        }
+      ]
+    },
+    "bytes": {
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "explanation": {
+          "baselineEvidence": [],
+          "evidencePolicy": {
+            "maxAgeMs": 20000,
+            "maxSkewMs": 15000
+          },
+          "durationMs": 2708,
+          "costUnits": 1,
+          "decisions": [
+            {
+              "stepId": "b-left",
+              "observationId": "d221256616624239baf9a57a6bec56b2",
+              "finishedAt": "2026-11-20T19:07:04.27253737Z",
+              "validUntil": "2026-11-20T19:07:24.27253737Z",
+              "failureDomain": "office-path",
+              "actionId": "left",
+              "agentId": "branch",
+              "attemptNo": 1,
+              "hypothesesBefore": [
+                "broken",
+                "responding"
+              ],
+              "gain": 1,
+              "score": 1,
+              "executionStatus": "completed",
+              "probeOutcome": "success"
+            }
+          ],
+          "blockedSteps": [
+            "a-join",
+            "c-right"
+          ]
+        },
+        "id": "21b4940ac89bf432280f2779b199d71d",
+        "monitorId": "research-web",
+        "profileRef": "parallel-bytes",
+        "mode": "fixed",
+        "state": "inconclusive",
+        "startedAt": "2026-11-20T19:07:02.22152Z",
+        "finishedAt": "2026-11-20T19:07:04.936474Z",
+        "remainingHypotheses": [
+          "responding"
+        ],
+        "budgetUsed": {
+          "estimatedBytes": 49189,
+          "additionalChecks": 1
+        },
+        "evidenceIds": [
+          "d221256616624239baf9a57a6bec56b2"
+        ],
+        "stopReason": "no_admissible_action"
+      },
+      "tasks": [
+        {
+          "stepId": "b-left",
+          "estimatedBytes": 49189,
+          "id": "d221256616624239baf9a57a6bec56b2",
+          "sessionId": "21b4940ac89bf432280f2779b199d71d",
+          "actionId": "left",
+          "agentId": "branch",
+          "state": "finished",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:27.227568Z",
+          "observationIds": [
+            "d221256616624239baf9a57a6bec56b2"
+          ]
+        }
+      ]
+    },
+    "cancelledWave": {
+      "detail": {
+        "configRevision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+        "id": "48b95d7633d410cb01ea396ecf73c21a",
+        "monitorId": "research-web",
+        "profileRef": "parallel-cancel",
+        "mode": "fixed",
+        "state": "cancelled",
+        "startedAt": "2026-11-20T19:07:07.664836Z",
+        "finishedAt": "2026-11-20T19:07:09.764564Z",
+        "budgetUsed": {
+          "additionalChecks": 2
+        },
+        "evidenceIds": [
+          "8dafb6b7d92d4fd79b7fa5b6ec37932a",
+          "a0fa563a302e0bf632b89fd83ed1361e"
+        ],
+        "stopReason": "operator_cancelled"
+      },
+      "tasks": [
+        {
+          "stepId": "b-left",
+          "id": "8dafb6b7d92d4fd79b7fa5b6ec37932a",
+          "sessionId": "48b95d7633d410cb01ea396ecf73c21a",
+          "actionId": "left",
+          "agentId": "branch",
+          "state": "cancelled",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:42.670654Z",
+          "observationIds": [
+            "8dafb6b7d92d4fd79b7fa5b6ec37932a"
+          ]
+        },
+        {
+          "stepId": "c-right",
+          "id": "a0fa563a302e0bf632b89fd83ed1361e",
+          "sessionId": "48b95d7633d410cb01ea396ecf73c21a",
+          "actionId": "right",
+          "agentId": "dc",
+          "state": "cancelled",
+          "attemptNo": 1,
+          "deadline": "2026-11-20T19:07:42.670637Z",
+          "observationIds": [
+            "a0fa563a302e0bf632b89fd83ed1361e"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "stepId": "b-left",
+          "observation": {
+            "id": "8dafb6b7d92d4fd79b7fa5b6ec37932a",
+            "zone": "office",
+            "agent": "branch",
+            "check": "left",
+            "reason": "cancelled",
+            "monitor": "research-web",
+            "outcome": "unknown",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "execution_failed",
+            "startedAt": "2026-11-20T19:07:07.685534996Z",
+            "finishedAt": "2026-11-20T19:07:09.770194553Z",
+            "diagnosticTaskID": "8dafb6b7d92d4fd79b7fa5b6ec37932a"
+          }
+        },
+        {
+          "stepId": "c-right",
+          "observation": {
+            "id": "a0fa563a302e0bf632b89fd83ed1361e",
+            "zone": "server",
+            "agent": "dc",
+            "check": "right",
+            "reason": "cancelled",
+            "monitor": "research-web",
+            "outcome": "unknown",
+            "revision": "a97174518996eecbce9844ae1164878bf35c445ac94c5084c3fa4a9d972bb15b",
+            "execution": "execution_failed",
+            "startedAt": "2026-11-20T19:07:07.681645093Z",
+            "finishedAt": "2026-11-20T19:07:09.769306953Z",
+            "diagnosticTaskID": "a0fa563a302e0bf632b89fd83ed1361e"
+          }
+        }
+      ],
+      "joinNotDispatched": true
+    }
+  },
+  "regularHealthy": true,
+  "monitorSourceUnchanged": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

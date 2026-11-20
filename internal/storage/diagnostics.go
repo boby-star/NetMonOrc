@@ -90,6 +90,7 @@ func (s *Store) FinishDiagnostic(ctx context.Context, id string, r diagnostics.R
 }
 
 type DiagnosticTask struct {
+	StepID     string
 	AttemptNo  int
 	ID         string
 	RunID      string
@@ -115,16 +116,23 @@ func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
 		return e
 	}
 	defer tx.Rollback(ctx)
-	var used, limit int
+	var used, limit, parallelLimit int
 	var usedBytes, byteLimit int64
 	var state, revision string
 	var deadline time.Time
-	e = tx.QueryRow(ctx, `SELECT used_checks,max_checks,state,revision,deadline,used_estimated_bytes,max_estimated_bytes FROM nmo_diagnostic_runs WHERE id=$1 FOR UPDATE`, t.RunID).Scan(&used, &limit, &state, &revision, &deadline, &usedBytes, &byteLimit)
+	e = tx.QueryRow(ctx, `SELECT used_checks,max_checks,state,revision,deadline,used_estimated_bytes,max_estimated_bytes,max_parallel FROM nmo_diagnostic_runs WHERE id=$1 FOR UPDATE`, t.RunID).Scan(&used, &limit, &state, &revision, &deadline, &usedBytes, &byteLimit, &parallelLimit)
 	if e != nil {
 		return e
 	}
 	if state != "running" || used >= limit || revision != t.Plan.Revision || !time.Now().Before(deadline) || t.Deadline.After(deadline) || !time.Now().Before(t.Deadline) {
 		return fmt.Errorf("diagnostic run budget or deadline unavailable")
+	}
+	var active int
+	if e = tx.QueryRow(ctx, `SELECT count(*) FROM nmo_diagnostic_tasks WHERE run_id=$1 AND state IN ('reserved','accepted') AND deadline>clock_timestamp()`, t.RunID).Scan(&active); e != nil {
+		return e
+	}
+	if parallelLimit < 1 || active >= parallelLimit {
+		return fmt.Errorf("diagnostic parallel budget unavailable")
 	}
 	var estimate *int64
 	if byteLimit > 0 {
@@ -147,7 +155,7 @@ func (s *Store) ReserveDiagnostic(ctx context.Context, t DiagnosticTask) error {
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_tasks(id,run_id,agent_id,monitor,revision,zone,check_id,deadline,check_spec,state,attempt_no,estimated_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'reserved',$10,$11)`, t.ID, t.RunID, t.Agent, t.Plan.Name, t.Plan.Revision, t.Zone, t.Check.ID, t.Deadline, b, t.AttemptNo, estimate)
+	_, e = tx.Exec(ctx, `INSERT INTO nmo_diagnostic_tasks(id,run_id,agent_id,monitor,revision,zone,check_id,deadline,check_spec,state,attempt_no,estimated_bytes,step_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'reserved',$10,$11,$12)`, t.ID, t.RunID, t.Agent, t.Plan.Name, t.Plan.Revision, t.Zone, t.Check.ID, t.Deadline, b, t.AttemptNo, estimate, t.StepID)
 	if e != nil {
 		return e
 	}
