@@ -81,3 +81,68 @@ func TestBaselineOnlyConclusionPreservesPhysicalInputs(t *testing.T) {
 		t.Fatalf("physical provenance lost: %+v", b)
 	}
 }
+
+func TestFallbackBaselineRequiresControllerEnrichmentAndPreservesPhysicalActor(t *testing.T) {
+	p, _ := profiles(t)
+	p.Actions = p.Actions[:1]
+	p.Hypotheses = []string{"dns-failure", "service-failure"}
+	p.Actions[0].Expected = map[string]string{"dns-failure": "failure", "service-failure": "success"}
+	p.Actions[0].Placement.AgentRefs = []string{"spare"}
+	p.Actions[0].Placement.Zones = []string{"office"}
+	c := p.Actions[0].Check
+	c.ID = "regular-dns"
+	c.MaxAge = time.Minute
+	c.Fallback = &monitor.FallbackPolicy{On: []string{"agent_unreachable"}, Strategy: "same-zone", MaxAttempts: 1}
+	primary := monitor.Slot{Agent: "branch", Zone: "office"}
+	spare := monitor.Slot{Agent: "spare", Zone: "office"}
+	plan := monitor.Plan{Name: "web", Revision: "current", MaxAge: time.Minute, MaxSkew: 10 * time.Second, Checks: []monitor.Check{c}, FallbackRoster: []monitor.Slot{primary, spare}, FixedPlacement: &monitor.FixedPlacement{Selected: []monitor.Slot{primary}}}
+	sources := agents()
+	sources[0].ID = "spare"
+	sources[0].FailureDomain = "spare-domain"
+	now := time.Now().UTC()
+	o := monitor.Observation{ID: "fallback-proof", FallbackTaskID: "fallback-proof", FallbackRunID: "fallback-run", FallbackForAgent: "branch", Monitor: "web", Revision: "current", Check: c.ID, Agent: "spare", Zone: "office", StartedAt: now.Add(-time.Second), FinishedAt: now, Execution: "completed", Outcome: "failure"}
+	initial := d.MatchBaseline(plan, p, []monitor.Observation{o}, sources, now)
+	if len(initial) != 1 || initial[0].AgentID != "spare" || initial[0].FallbackOriginAgentID != "branch" {
+		t.Fatal("fallback provenance lost", initial)
+	}
+	engine := d.Engine{Eligible: gate, Runner: runFunc(func(context.Context, d.Action, d.Executor) (d.Outcome, error) {
+		t.Fatal("new probe despite complete baseline")
+		return d.Outcome{}, nil
+	})}
+	result, err := engine.Run(context.Background(), p, "adaptive", sources, &d.Ledger{}, initial, "unknown")
+	if err != nil || result.Status != "completed" || result.Attempts != 0 || result.BaselineEvidence == nil || len(*result.BaselineEvidence) != 1 {
+		t.Fatal("fallback did not support zero-task conclusion", result, err)
+	}
+	proof := (*result.BaselineEvidence)[0]
+	if proof.FallbackTaskID != o.ID || proof.FallbackRunID != o.FallbackRunID || proof.AgentID != "spare" || proof.FailureDomain != "spare-domain" {
+		t.Fatal("snapshot misidentified physical execution", proof)
+	}
+	for _, change := range []func(*monitor.Observation){func(x *monitor.Observation) { x.FallbackRunID = "" }, func(x *monitor.Observation) { x.FallbackForAgent = "" }, func(x *monitor.Observation) { x.FallbackTaskID = "forged" }, func(x *monitor.Observation) { x.Zone = "server" }, func(x *monitor.Observation) { x.Revision = "old" }} {
+		bad := o
+		change(&bad)
+		if got := d.MatchBaseline(plan, p, []monitor.Observation{bad}, sources, now); len(got) != 0 {
+			t.Fatal("unbound fallback accepted", got)
+		}
+	}
+}
+
+func TestEquivalentCheckBaselinesSelectNewestPhysicalPairDeterministically(t *testing.T) {
+	p, _ := profiles(t)
+	c := p.Actions[0].Check
+	c.ID = "first"
+	other := c
+	other.ID = "second"
+	now := time.Now().UTC()
+	plan := monitor.Plan{Name: "web", Revision: "current", MaxAge: time.Minute, MaxSkew: time.Minute, Checks: []monitor.Check{c, other}}
+	a := monitor.Observation{ID: "a", Monitor: plan.Name, Revision: plan.Revision, Check: c.ID, Agent: "branch", Zone: "office", StartedAt: now, FinishedAt: now, Execution: "completed", Outcome: "success"}
+	b := a
+	b.ID = "z"
+	b.Check = other.ID
+	b.Outcome = "failure"
+	for _, history := range [][]monitor.Observation{{a, b}, {b, a}} {
+		got := d.MatchBaseline(plan, p, history, agents(), now)
+		if len(got) != 1 || got[0].ObservationID != "z" {
+			t.Fatal("map/order selected conflicting physical pair", got)
+		}
+	}
+}

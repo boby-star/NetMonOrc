@@ -11,9 +11,10 @@ type HistoryQuery struct {
 	Limit         int
 }
 type ObservationRecord struct {
-	FallbackRunID       string
-	Observation         Observation
-	ReceivedAt          time.Time
-	SortFinishedAt      time.Time
-	DiagnosticSessionID string
+	FallbackOriginAgentID string
+	FallbackRunID         string
+	Observation           Observation
+	ReceivedAt            time.Time
+	SortFinishedAt        time.Time
+	DiagnosticSessionID   string
 }

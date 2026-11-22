@@ -322,7 +322,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 					}
 					proofs = append(proofs, timedProof{action: a, agent: agent.ID, outcome: proof.Outcome, expires: proof.ValidUntil, at: at})
 					if proof.ObservationID != "" {
-						baseline = append(baseline, BaselineEvidence{ObservationID: proof.ObservationID, ActionID: a.ID, CheckID: proof.CheckID, AgentID: agent.ID, Zone: agent.Zone, ConfigRevision: proof.ConfigRevision, FailureDomain: agent.FailureDomain, FinishedAt: proof.FinishedAt, ValidUntil: proof.ValidUntil, ExecutionStatus: proof.Outcome.Execution, ProbeOutcome: proof.Outcome.Outcome})
+						baseline = append(baseline, BaselineEvidence{FallbackRunID: proof.FallbackRunID, FallbackTaskID: proof.FallbackTaskID, FallbackOriginAgentID: proof.FallbackOriginAgentID, ObservationID: proof.ObservationID, ActionID: a.ID, CheckID: proof.CheckID, AgentID: agent.ID, Zone: agent.Zone, ConfigRevision: proof.ConfigRevision, FailureDomain: agent.FailureDomain, FinishedAt: proof.FinishedAt, ValidUntil: proof.ValidUntil, ExecutionStatus: proof.Outcome.Execution, ProbeOutcome: proof.Outcome.Outcome})
 						tracker.add("observation:"+proof.ObservationID, a, agent, proof.Outcome, at, proof.ValidUntil)
 					}
 				}

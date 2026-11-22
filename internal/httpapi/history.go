@@ -26,24 +26,25 @@ type HistoryLoad func(context.Context, monitor.HistoryQuery) ([]monitor.Observat
 func (h *Handler) SetHistoryLoader(load HistoryLoad) { h.history = load }
 
 type ObservationView struct {
-	FallbackRunID       string                    `json:"fallbackRunId,omitempty"`
-	FallbackTaskID      string                    `json:"fallbackTaskId,omitempty"`
-	ObservationID       string                    `json:"observationId"`
-	MonitorID           string                    `json:"monitorId"`
-	CheckID             string                    `json:"checkId"`
-	AgentID             string                    `json:"agentId"`
-	NetworkZone         string                    `json:"networkZone"`
-	ConfigRevision      string                    `json:"configRevision"`
-	ExecutionStatus     string                    `json:"executionStatus"`
-	ProbeOutcome        string                    `json:"probeOutcome"`
-	ReasonCode          string                    `json:"reasonCode,omitempty"`
-	StartedAt           time.Time                 `json:"startedAt"`
-	FinishedAt          time.Time                 `json:"finishedAt"`
-	ReceivedAt          time.Time                 `json:"receivedAt"`
-	DurationMs          float64                   `json:"durationMs"`
-	Values              map[string]monitor.Scalar `json:"values,omitempty"`
-	DiagnosticSessionID string                    `json:"diagnosticSessionId,omitempty"`
-	DiagnosticTaskID    string                    `json:"diagnosticTaskId,omitempty"`
+	FallbackOriginAgentID string                    `json:"fallbackOriginAgentId,omitempty"`
+	FallbackRunID         string                    `json:"fallbackRunId,omitempty"`
+	FallbackTaskID        string                    `json:"fallbackTaskId,omitempty"`
+	ObservationID         string                    `json:"observationId"`
+	MonitorID             string                    `json:"monitorId"`
+	CheckID               string                    `json:"checkId"`
+	AgentID               string                    `json:"agentId"`
+	NetworkZone           string                    `json:"networkZone"`
+	ConfigRevision        string                    `json:"configRevision"`
+	ExecutionStatus       string                    `json:"executionStatus"`
+	ProbeOutcome          string                    `json:"probeOutcome"`
+	ReasonCode            string                    `json:"reasonCode,omitempty"`
+	StartedAt             time.Time                 `json:"startedAt"`
+	FinishedAt            time.Time                 `json:"finishedAt"`
+	ReceivedAt            time.Time                 `json:"receivedAt"`
+	DurationMs            float64                   `json:"durationMs"`
+	Values                map[string]monitor.Scalar `json:"values,omitempty"`
+	DiagnosticSessionID   string                    `json:"diagnosticSessionId,omitempty"`
+	DiagnosticTaskID      string                    `json:"diagnosticTaskId,omitempty"`
 }
 type ObservationPage struct {
 	Items      []ObservationView `json:"items"`
@@ -172,7 +173,7 @@ func observationView(record monitor.ObservationRecord) ObservationView {
 		ObservationID: o.ID, MonitorID: o.Monitor, CheckID: o.Check, AgentID: o.Agent, NetworkZone: o.Zone,
 		ConfigRevision: o.Revision, ExecutionStatus: o.Execution, ProbeOutcome: o.Outcome, ReasonCode: o.Reason,
 		StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, ReceivedAt: record.ReceivedAt, DurationMs: float64(o.FinishedAt.Sub(o.StartedAt)) / float64(time.Millisecond),
-		FallbackRunID: record.FallbackRunID, FallbackTaskID: o.FallbackTaskID, Values: o.Values, DiagnosticSessionID: record.DiagnosticSessionID, DiagnosticTaskID: o.DiagnosticTaskID,
+		FallbackOriginAgentID: record.FallbackOriginAgentID, FallbackRunID: record.FallbackRunID, FallbackTaskID: o.FallbackTaskID, Values: o.Values, DiagnosticSessionID: record.DiagnosticSessionID, DiagnosticTaskID: o.DiagnosticTaskID,
 	}
 }
 

@@ -3124,6 +3124,9 @@ components:
           type:
           - string
           - 'null'
+        fallbackRunId: {type: string}
+        fallbackTaskId: {type: string}
+        fallbackOriginAgentId: {type: string}
         isReplay:
           type: boolean
     Assessment:
@@ -3203,6 +3206,9 @@ components:
       required: [observationId, actionId, checkId, agentId, zone, configRevision, finishedAt, validUntil, executionStatus, probeOutcome]
       properties:
         observationId: {type: string}
+        fallbackRunId: {type: string}
+        fallbackTaskId: {type: string}
+        fallbackOriginAgentId: {type: string}
         actionId: {type: string}
         checkId: {type: string}
         agentId: {type: string}
@@ -3221,7 +3227,7 @@ components:
       properties:
         baselineEvidence:
           type: array
-          description: Збережені регулярні вхідні докази, не остаточні підтвердження. Порожній масив означає відомий порожній набір; відсутність поля — legacy невідомо.
+          description: Збережені вхідні докази regular або допущеного same-zone fallback, не остаточні підтвердження. Порожній масив означає відомий порожній набір; відсутність поля — legacy невідомо.
           items: {$ref: '#/components/schemas/DiagnosticBaselineEvidence'}
         evidencePolicy:
           type: object

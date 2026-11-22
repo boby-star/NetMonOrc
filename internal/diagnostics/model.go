@@ -74,30 +74,36 @@ type Executor struct {
 	Supported         map[string]bool
 }
 type Evidence struct {
-	CheckID        string
-	ConfigRevision string
-	FinishedAt     time.Time
-	ObservationID  string
-	ValidUntil     time.Time
-	ActionID       string
-	AgentID        string
-	Outcome        Outcome
+	FallbackRunID         string
+	FallbackTaskID        string
+	FallbackOriginAgentID string
+	CheckID               string
+	ConfigRevision        string
+	FinishedAt            time.Time
+	ObservationID         string
+	ValidUntil            time.Time
+	ActionID              string
+	AgentID               string
+	Outcome               Outcome
 }
 
 // BaselineEvidence records regular observations supplied to the planner. It is
 // a historical input snapshot, not a claim that every input remained usable.
 type BaselineEvidence struct {
-	ObservationID   string    `json:"observationId"`
-	ActionID        string    `json:"actionId"`
-	CheckID         string    `json:"checkId"`
-	AgentID         string    `json:"agentId"`
-	Zone            string    `json:"zone"`
-	ConfigRevision  string    `json:"configRevision"`
-	FailureDomain   string    `json:"failureDomain,omitempty"`
-	FinishedAt      time.Time `json:"finishedAt"`
-	ValidUntil      time.Time `json:"validUntil"`
-	ExecutionStatus string    `json:"executionStatus"`
-	ProbeOutcome    string    `json:"probeOutcome"`
+	FallbackRunID         string    `json:"fallbackRunId,omitempty"`
+	FallbackTaskID        string    `json:"fallbackTaskId,omitempty"`
+	FallbackOriginAgentID string    `json:"fallbackOriginAgentId,omitempty"`
+	ObservationID         string    `json:"observationId"`
+	ActionID              string    `json:"actionId"`
+	CheckID               string    `json:"checkId"`
+	AgentID               string    `json:"agentId"`
+	Zone                  string    `json:"zone"`
+	ConfigRevision        string    `json:"configRevision"`
+	FailureDomain         string    `json:"failureDomain,omitempty"`
+	FinishedAt            time.Time `json:"finishedAt"`
+	ValidUntil            time.Time `json:"validUntil"`
+	ExecutionStatus       string    `json:"executionStatus"`
+	ProbeOutcome          string    `json:"probeOutcome"`
 }
 type Decision struct {
 	StepID           string     `json:"stepId,omitempty"`

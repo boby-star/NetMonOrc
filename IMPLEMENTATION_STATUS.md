@@ -1,3 +1,21 @@
+# Same-zone fallback як доказ діагностики
+
+Допущений Controller резервний Observation тепер повторно використовується
+як baseline без нового probe. Збережено фактичного Agent/zone/failureDomain,
+origin Agent та durable run/task links у сесії, REST, React і CLI export.
+Експорт відхиляє підмінені зв’язки. Для еквівалентних Check одного фізичного
+Agent вибір початкового доказу детермінований за finishedAt/observationId.
+[Правила](docs/architecture/fallback-baseline.md).
+
+Натурно підтверджено зупинку primary, fallback від spare, completed diagnosis
+із нульовим additionalChecks/tasks, complete production CLI export та повернення
+primary до healthy. Go/vet, React і Docker build пройшли. Нових browser clicks
+немає; different-zone baseline не підтримується.
+[Докази](docs/experiments/fallback-baseline-2026-11-22/README.md).
+[Актуальна записка](docs/specs/thesis-update-2026-11-22.md) уже містить §2.4;
+старі твердження про порожній підрозділ стосуються попередньої редакції.
+Повну готовність усіх пунктів ТЗ ця ітерація не засвідчує.
+
 # Monitor.spec.dependencies: derived requires context
 
 Додано короткий список Target refs за DSL §15.1: Monitor → Target,

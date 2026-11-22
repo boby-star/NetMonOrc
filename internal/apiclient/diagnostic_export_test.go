@@ -129,3 +129,44 @@ func TestDiagnosticExportRegularBaselineProvenance(t *testing.T) {
 		})
 	}
 }
+
+func TestFallbackBaselineExportRejectsCorrelationMismatch(t *testing.T) {
+	for _, mode := range []string{"valid", "wrong-run", "wrong-origin", "missing-correlation"} {
+		t.Run(mode, func(t *testing.T) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v1/diagnostics/run":
+					task := "proof"
+					if mode == "missing-correlation" {
+						task = ""
+					}
+					fmt.Fprintf(w, `{"id":"run","monitorId":"web","state":"completed","configRevision":"revision","evidenceIds":["proof"],"explanation":{"baselineEvidence":[{"observationId":"proof","actionId":"http","checkId":"regular-http","agentId":"spare","zone":"office","configRevision":"revision","finishedAt":"2026-11-22T00:00:00Z","validUntil":"2026-11-22T00:01:00Z","executionStatus":"completed","probeOutcome":"success","fallbackRunId":"root","fallbackTaskId":%q,"fallbackOriginAgentId":"primary"}]}}`, task)
+				case "/api/v1/diagnostics/run/tasks":
+					fmt.Fprint(w, `{"items":[],"nextCursor":null}`)
+				case "/api/v1/observations/proof":
+					root, origin := "root", "primary"
+					if mode == "wrong-run" {
+						root = "different"
+					}
+					if mode == "wrong-origin" {
+						origin = "different"
+					}
+					fmt.Fprintf(w, `{"observationId":"proof","monitorId":"web","checkId":"regular-http","agentId":"spare","networkZone":"office","configRevision":"revision","finishedAt":"2026-11-22T00:00:00Z","executionStatus":"completed","probeOutcome":"success","fallbackRunId":%q,"fallbackTaskId":"proof","fallbackOriginAgentId":%q}`, root, origin)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			client := &Client{server: server.URL, http: server.Client()}
+			data, err := client.ExportDiagnostic(context.Background(), "run")
+			if mode == "valid" {
+				if err != nil || len(data) == 0 {
+					t.Fatal("valid fallback export rejected", err)
+				}
+			} else if err == nil {
+				t.Fatal("corrupt fallback provenance accepted")
+			}
+		})
+	}
+}

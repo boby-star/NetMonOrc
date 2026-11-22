@@ -132,14 +132,14 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
       {canReadEvidence && <button type="button" disabled={busy || !["completed", "inconclusive", "cancelled"].includes(selected.state)} onClick={() => void downloadEvidence()}>Завантажити пакет доказів</button>}
       {exportNotice && <p role="status">{exportNotice}</p>}
       {selected.explanation ? <div aria-label="Пояснення діагнозу">
-        <h4>Початкові регулярні докази</h4>
+        <h4>Початкові докази моніторингу</h4>
         {selected.explanation.baselineEvidence === undefined ? <p>Початкові докази не збережені в історичному звіті; їхній склад невідомий.</p> : <>
           <p>Збережено вхідні спостереження сесії. Вони могли втратити придатність під час діагностики; це не перелік остаточних підтверджень і не додаткові витрати бюджету.</p>
-          {selected.explanation.baselineEvidence.length === 0 ? <p>Початкових придатних регулярних доказів не було.</p> : <div className="table-scroll"><table>
+          {selected.explanation.baselineEvidence.length === 0 ? <p>Початкових придатних доказів моніторингу не було.</p> : <div className="table-scroll"><table>
             <caption>Походження початкових доказів</caption>
             <thead><tr><th>Дія / перевірка</th><th>Agent / зона / домен</th><th>Результат</th><th>Час / TTL до</th><th>Observation</th></tr></thead>
             <tbody>{selected.explanation.baselineEvidence.map((b, i) => <tr key={i}>
-              <td>{b.actionId}<br/>{b.checkId}</td><td>{b.agentId}<br/>{b.zone}<br/>{b.failureDomain || "невідомий"}</td>
+              <td>{b.actionId}<br/>{b.checkId}{b.fallbackTaskId&&<><br/><strong>Резервна перевірка</strong><br/>Для Agent {b.fallbackOriginAgentId}<br/><small>Run: {b.fallbackRunId}<br/>Task: {b.fallbackTaskId}</small></>}</td><td>{b.agentId}<br/>{b.zone}<br/>{b.failureDomain || "невідомий"}</td>
               <td>{b.executionStatus} / {b.probeOutcome}</td><td>{b.finishedAt}<br/>{b.validUntil}</td>
               <td>{canReadEvidence && <button type="button" onClick={() => setEvidence(b.observationId)}>Відкрити доказ</button>}<br/><code>{b.observationId}</code><br/><small>Ревізія: {b.configRevision}</small></td>
             </tr>)}</tbody>

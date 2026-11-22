@@ -44,7 +44,15 @@ func MatchBaseline(plan monitor.Plan, p Profile, history []monitor.Observation, 
 		if age == 0 {
 			age = plan.MaxAge
 		}
-		if (!a.EvidenceNotBefore.IsZero() && o.StartedAt.Before(a.EvidenceNotBefore)) || o.DiagnosticTaskID != "" || o.FallbackTaskID != "" || !ok || !known || o.ID == "" || o.Monitor != plan.Name || o.Revision != plan.Revision || o.Zone != a.Zone || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+		if (!a.EvidenceNotBefore.IsZero() && o.StartedAt.Before(a.EvidenceNotBefore)) || o.DiagnosticTaskID != "" || !ok || !known || o.ID == "" || o.Monitor != plan.Name || o.Revision != plan.Revision || o.Zone != a.Zone || o.FinishedAt.Before(o.StartedAt) || o.FinishedAt.After(now) || now.Sub(o.FinishedAt) > age {
+			continue
+		}
+		if o.FallbackTaskID != "" {
+			origin := monitor.Slot{Agent: o.FallbackForAgent, Zone: o.Zone}
+			if o.FallbackRunID == "" || o.FallbackForAgent == "" || o.ID != o.FallbackTaskID || !plan.FallbackCandidate(c, origin, monitor.Slot{Agent: o.Agent, Zone: o.Zone}, plan.FallbackDomains) {
+				continue
+			}
+		} else if o.FallbackForAgent != "" || o.FallbackRunID != "" {
 			continue
 		}
 		key := o.Check + "/" + o.Agent
@@ -71,17 +79,28 @@ func MatchBaseline(plan monitor.Plan, p Profile, history []monitor.Observation, 
 			if age == 0 {
 				age = plan.MaxAge
 			}
-			matches = append(matches, matched{Evidence{CheckID: o.Check, ConfigRevision: o.Revision, FinishedAt: o.FinishedAt, ActionID: action.ID, AgentID: o.Agent, Outcome: Outcome{o.Execution, o.Outcome}, ObservationID: o.ID, ValidUntil: o.FinishedAt.Add(age)}, o.FinishedAt})
+			matches = append(matches, matched{Evidence{FallbackRunID: o.FallbackRunID, FallbackTaskID: o.FallbackTaskID, FallbackOriginAgentID: o.FallbackForAgent, CheckID: o.Check, ConfigRevision: o.Revision, FinishedAt: o.FinishedAt, ActionID: action.ID, AgentID: o.Agent, Outcome: Outcome{o.Execution, o.Outcome}, ObservationID: o.ID, ValidUntil: o.FinishedAt.Add(age)}, o.FinishedAt})
 			if newest.IsZero() || o.FinishedAt.After(newest) {
 				newest = o.FinishedAt
 			}
 		}
 	}
-	var out []Evidence
+	// One physical action/Agent pair has one initial fact, even when multiple
+	// equivalent regular check IDs exist. Time/ID, never map order, breaks ties.
+	pairs := map[string]Evidence{}
 	for _, m := range matches {
-		if newest.Sub(m.at) <= plan.MaxSkew {
-			out = append(out, m.proof)
+		if newest.Sub(m.at) > plan.MaxSkew {
+			continue
 		}
+		key := m.proof.ActionID + "/" + m.proof.AgentID
+		old, found := pairs[key]
+		if !found || m.proof.FinishedAt.After(old.FinishedAt) || (m.proof.FinishedAt.Equal(old.FinishedAt) && m.proof.ObservationID > old.ObservationID) {
+			pairs[key] = m.proof
+		}
+	}
+	var out []Evidence
+	for _, proof := range pairs {
+		out = append(out, proof)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].ActionID == out[j].ActionID {

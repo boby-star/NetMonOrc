@@ -169,6 +169,7 @@ export async function changePassword(
 }
 
 export interface ObservationRecord {
+  fallbackOriginAgentId?:string;
   observationId: string;
   monitorId: string;
   checkId: string;
@@ -731,6 +732,7 @@ export async function agents(
 }
 
 export interface DiagnosticBaselineEvidence {
+  fallbackRunId?:string; fallbackTaskId?:string; fallbackOriginAgentId?:string;
   observationId: string; actionId: string; checkId: string; agentId: string; zone: string;
   configRevision: string; failureDomain?: string; finishedAt: string; validUntil: string;
   executionStatus: string; probeOutcome: string;
@@ -960,8 +962,9 @@ export async function exportDiagnostic(id: string, signal: AbortSignal): Promise
   for (const proof of session.explanation?.baselineEvidence ?? []) {
     if (!proof.observationId || !proof.actionId || !proof.checkId || !proof.agentId || !proof.zone || !proof.configRevision || proof.configRevision !== session.configRevision || !Number.isFinite(Date.parse(proof.finishedAt)) || !(Date.parse(proof.validUntil) > Date.parse(proof.finishedAt)))
       throw new Error("Неповне походження початкового доказу.");
+    if((proof.fallbackTaskId&&(!proof.fallbackRunId||!proof.fallbackOriginAgentId||proof.fallbackTaskId!==proof.observationId))||(!proof.fallbackTaskId&&(proof.fallbackRunId||proof.fallbackOriginAgentId)))throw new Error("Неповне походження резервного доказу.");
     const previous = baseline.get(proof.observationId);
-    if (previous && ["checkId", "agentId", "zone", "configRevision", "finishedAt", "validUntil", "executionStatus", "probeOutcome", "failureDomain"].some(key => previous[key as keyof DiagnosticBaselineEvidence] !== proof[key as keyof DiagnosticBaselineEvidence]))
+    if (previous && ["checkId", "agentId", "zone", "configRevision", "finishedAt", "validUntil", "executionStatus", "probeOutcome", "failureDomain", "fallbackRunId", "fallbackTaskId", "fallbackOriginAgentId"].some(key => previous[key as keyof DiagnosticBaselineEvidence] !== proof[key as keyof DiagnosticBaselineEvidence]))
       throw new Error("Суперечливе походження початкового доказу.");
     baseline.set(proof.observationId, proof); ids.add(proof.observationId);
   }
@@ -995,9 +998,9 @@ export async function exportDiagnostic(id: string, signal: AbortSignal): Promise
       throw new Error("Походження доказу не відповідає сесії.");
     const proof = baseline.get(observationId);
     if (proof) {
-      if (expectedTasks.has(observationId) || value.diagnosticSessionId || value.diagnosticTaskId || value.agentId !== proof.agentId || value.checkId !== proof.checkId || value.networkZone !== proof.zone || value.configRevision !== proof.configRevision || value.finishedAt !== proof.finishedAt || value.executionStatus !== proof.executionStatus || value.probeOutcome !== proof.probeOutcome)
+      if (expectedTasks.has(observationId) || value.diagnosticSessionId || value.diagnosticTaskId || (value.fallbackRunId??"")!==(proof.fallbackRunId??"") || (value.fallbackTaskId??"")!==(proof.fallbackTaskId??"") || (value.fallbackOriginAgentId??"")!==(proof.fallbackOriginAgentId??"") || value.agentId !== proof.agentId || value.checkId !== proof.checkId || value.networkZone !== proof.zone || value.configRevision !== proof.configRevision || value.finishedAt !== proof.finishedAt || value.executionStatus !== proof.executionStatus || value.probeOutcome !== proof.probeOutcome)
         throw new Error("Походження доказу не відповідає початковому регулярному спостереженню.");
-    } else if (value.diagnosticSessionId !== id) throw new Error("Походження доказу не відповідає сесії.");
+    } else if (value.diagnosticSessionId !== id || value.fallbackTaskId || value.fallbackRunId || value.fallbackOriginAgentId) throw new Error("Походження доказу не відповідає сесії.");
     const task = expectedTasks.get(observationId);
     if (task && (value.diagnosticTaskId !== task.id || value.agentId !== task.agentId)) throw new Error("Походження доказу не відповідає фізичному завданню.");
     observations.push(raw);

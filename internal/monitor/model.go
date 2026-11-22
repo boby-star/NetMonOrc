@@ -86,6 +86,7 @@ type Slot struct {
 
 type Observation struct {
 	FallbackTaskID   string            `json:"fallbackTaskID,omitempty"`
+	FallbackRunID    string            `json:"-"`
 	FallbackForAgent string            `json:"-"`
 	DiagnosticTaskID string            `json:"diagnosticTaskID,omitempty"`
 	Values           map[string]Scalar `json:"values,omitempty"`

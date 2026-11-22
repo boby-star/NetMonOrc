@@ -100,7 +100,8 @@ healthy і незмінність Monitor source version. Конфігураці
 варіантів немає. React пройшов production build, нових browser clicks не було.
 [Докази](../experiments/execution-fallback-2026-11-20/README.md).
 
-Fallback results поки не використовуються як автоматичний diagnostic baseline:
-там збережено консервативну вимогу первинного regular provenance. Окремі proof
-links доступні в історії fallback. Це не повна сертифікація всіх полів старого
-ТЗ, HA/scale benchmark або доказ фізично незалежних хостів.
+Допущені Controller same-zone fallback results тепер використовуються як
+[початкові докази діагностики](fallback-baseline.md) зі збереженням фактичного
+виконавця та run/task/origin provenance. Different-zone до baseline не входять.
+Це не повна сертифікація старого ТЗ, HA/scale benchmark або доказ фізично
+незалежних хостів.

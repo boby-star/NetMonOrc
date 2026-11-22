@@ -1,0 +1,8 @@
+{
+  "baseCommit": "3034e5c48916e519db36edf48de066557ba81872",
+  "project": "nmo-fallback-proof2-20261122",
+  "image": "sha256:61a472a3e656e5af3249695252341edd0f5151f29efc3bdc58259a9716f509c0",
+  "singleDockerHost": true,
+  "browserInteractionTested": false,
+  "thesisSHA256": "910615e8281e4978ffd1b1fe30cafb163b05b14057009e4cc7b41522bd0fd308"
+}

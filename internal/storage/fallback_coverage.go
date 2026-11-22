@@ -68,6 +68,7 @@ func (s *Store) Latest(ctx context.Context, p monitor.Plan, now time.Time) ([]mo
 			continue
 		}
 		o.FallbackForAgent = r.OriginAgent
+		o.FallbackRunID = r.ID
 		regular = append(regular, o)
 	}
 	return regular, rows.Err()

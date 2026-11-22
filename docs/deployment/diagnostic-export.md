@@ -87,3 +87,10 @@ Schema 1 доповнено `baselineEvidenceKnown`: true означає збе�
 незбереженої історії. CLI виводить цей прапорець, React окремо пояснює
 невідомий склад legacy baseline. Retention 404 для baseline також створює
 `missingObservationIds`/complete=false; інші помилки припиняють export.
+
+## Резервні початкові докази
+
+Допущений same-zone fallback може бути baseline із optional fallbackRunId,
+fallbackTaskId та fallbackOriginAgentId. Експорт звіряє всі три поля з durable
+Observation; фактичний Agent лишається виконавцем. Неповні зв’язки відхиляються.
+[Правила допуску та бюджету](../architecture/fallback-baseline.md).

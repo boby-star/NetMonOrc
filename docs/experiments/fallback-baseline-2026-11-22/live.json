@@ -1,0 +1,172 @@
+{
+  "status": "passed",
+  "root": {
+    "id": "f48129ef4a4c51699d4fa4287f1fd1d1",
+    "monitor": "research-web",
+    "revision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+    "check": "http",
+    "originObservationId": "",
+    "originAgent": "branch",
+    "originZone": "office",
+    "cause": "agent_unreachable",
+    "strategy": "same-zone",
+    "maxAttempts": 2,
+    "startedAt": "2026-11-22T20:59:50Z",
+    "deadline": "2026-11-22T21:01:20Z",
+    "state": "completed",
+    "usedAttempts": 1,
+    "tasks": [
+      {
+        "id": "44df02b17633ad516443cd7a69a8097e",
+        "agent": "dc",
+        "zone": "office",
+        "attempt": 1,
+        "state": "finished",
+        "deadline": "2026-11-22T21:00:08.844707Z",
+        "observationId": "44df02b17633ad516443cd7a69a8097e"
+      }
+    ]
+  },
+  "session": {
+    "configRevision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+    "explanation": {
+      "baselineEvidence": [
+        {
+          "fallbackRunId": "f48129ef4a4c51699d4fa4287f1fd1d1",
+          "fallbackTaskId": "44df02b17633ad516443cd7a69a8097e",
+          "fallbackOriginAgentId": "branch",
+          "observationId": "44df02b17633ad516443cd7a69a8097e",
+          "actionId": "same-http",
+          "checkId": "http",
+          "agentId": "dc",
+          "zone": "office",
+          "configRevision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+          "failureDomain": "server-path",
+          "finishedAt": "2026-11-22T20:59:51.89231242Z",
+          "validUntil": "2026-11-22T21:00:51.89231242Z",
+          "executionStatus": "completed",
+          "probeOutcome": "success"
+        }
+      ],
+      "evidencePolicy": {
+        "maxAgeMs": 60000,
+        "maxSkewMs": 15000
+      },
+      "durationMs": 0,
+      "costUnits": 0,
+      "decisions": []
+    },
+    "id": "572bbb75f0a2a3fe99399874166a850e",
+    "monitorId": "research-web",
+    "profileRef": "fallback-baseline",
+    "mode": "adaptive",
+    "state": "completed",
+    "startedAt": "2026-11-22T20:59:54.755978Z",
+    "finishedAt": "2026-11-22T20:59:54.768236Z",
+    "remainingHypotheses": [
+      "responding"
+    ],
+    "budgetUsed": {
+      "additionalChecks": 0
+    },
+    "evidenceIds": [],
+    "stopReason": "supported_class"
+  },
+  "fallbackObservation": {
+    "fallbackOriginAgentId": "branch",
+    "fallbackRunId": "f48129ef4a4c51699d4fa4287f1fd1d1",
+    "fallbackTaskId": "44df02b17633ad516443cd7a69a8097e",
+    "observationId": "44df02b17633ad516443cd7a69a8097e",
+    "monitorId": "research-web",
+    "checkId": "http",
+    "agentId": "dc",
+    "networkZone": "office",
+    "configRevision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+    "executionStatus": "completed",
+    "probeOutcome": "success",
+    "reasonCode": "positive_probe",
+    "startedAt": "2026-11-22T20:59:51.885734311Z",
+    "finishedAt": "2026-11-22T20:59:51.89231242Z",
+    "receivedAt": "2026-11-22T20:59:52.070531Z",
+    "durationMs": 6.578109
+  },
+  "cliExport": {
+    "baselineEvidenceKnown": true,
+    "schema": 1,
+    "collectedAt": "2026-11-22T20:59:58.108081011Z",
+    "complete": true,
+    "session": {
+      "configRevision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+      "explanation": {
+        "baselineEvidence": [
+          {
+            "fallbackRunId": "f48129ef4a4c51699d4fa4287f1fd1d1",
+            "fallbackTaskId": "44df02b17633ad516443cd7a69a8097e",
+            "fallbackOriginAgentId": "branch",
+            "observationId": "44df02b17633ad516443cd7a69a8097e",
+            "actionId": "same-http",
+            "checkId": "http",
+            "agentId": "dc",
+            "zone": "office",
+            "configRevision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+            "failureDomain": "server-path",
+            "finishedAt": "2026-11-22T20:59:51.89231242Z",
+            "validUntil": "2026-11-22T21:00:51.89231242Z",
+            "executionStatus": "completed",
+            "probeOutcome": "success"
+          }
+        ],
+        "evidencePolicy": {
+          "maxAgeMs": 60000,
+          "maxSkewMs": 15000
+        },
+        "durationMs": 0,
+        "costUnits": 0,
+        "decisions": []
+      },
+      "id": "572bbb75f0a2a3fe99399874166a850e",
+      "monitorId": "research-web",
+      "profileRef": "fallback-baseline",
+      "mode": "adaptive",
+      "state": "completed",
+      "startedAt": "2026-11-22T20:59:54.755978Z",
+      "finishedAt": "2026-11-22T20:59:54.768236Z",
+      "remainingHypotheses": [
+        "responding"
+      ],
+      "budgetUsed": {
+        "additionalChecks": 0
+      },
+      "evidenceIds": [],
+      "stopReason": "supported_class"
+    },
+    "tasks": [],
+    "observations": [
+      {
+        "fallbackOriginAgentId": "branch",
+        "fallbackRunId": "f48129ef4a4c51699d4fa4287f1fd1d1",
+        "fallbackTaskId": "44df02b17633ad516443cd7a69a8097e",
+        "observationId": "44df02b17633ad516443cd7a69a8097e",
+        "monitorId": "research-web",
+        "checkId": "http",
+        "agentId": "dc",
+        "networkZone": "office",
+        "configRevision": "31e0be6135a03ad1ca94dfa1d89fe4de34ce05fd25a190b910ab70dea69d0163",
+        "executionStatus": "completed",
+        "probeOutcome": "success",
+        "reasonCode": "positive_probe",
+        "startedAt": "2026-11-22T20:59:51.885734311Z",
+        "finishedAt": "2026-11-22T20:59:51.89231242Z",
+        "receivedAt": "2026-11-22T20:59:52.070531Z",
+        "durationMs": 6.578109
+      }
+    ],
+    "missingObservationIds": []
+  },
+  "physicalAgentPreserved": true,
+  "noAdditionalDiagnosticTasks": true,
+  "noInventedInitialObservation": true,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true,
+  "primaryRestored": true
+}
