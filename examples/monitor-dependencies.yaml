@@ -1,0 +1,26 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: service-with-dependencies}
+spec:
+  target: {address: 192.0.2.10}
+  dependencies: [resolver, gateway]
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://192.0.2.10/', expectedStatus: [200]}
+  assessment:
+    requiredZones: [office]
+    checks: [{id: http, weight: 1, required: true}]
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Target
+metadata: {name: resolver}
+spec: {type: logical, description: 'Declared DNS dependency; no inherited health'}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Target
+metadata: {name: gateway}
+spec: {type: logical}

@@ -6,6 +6,8 @@ export interface DependencyReference {
 }
 export interface DependencyLink {
   name: string;
+  derived?: boolean;
+  declaredBy?: string;
   from: DependencyReference;
   to: DependencyReference;
   relation: "requires" | "routesThrough" | "hostedOn" | "resolvesVia" | "relatedTo";

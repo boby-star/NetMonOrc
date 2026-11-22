@@ -341,7 +341,7 @@ function App() {
             monitor={connection.monitor}
           />
         )}
-        {session?.scopes.includes("resources:read") && <Dependencies key={"dependencies:" + session.userId} />}
+        {session?.scopes.includes("resources:read") && <Dependencies key={"dependencies:" + session.userId+":"+(connection?.monitor??"")} monitor={connection?.monitor} />}
         {session?.scopes.includes("resources:read") && <ResourceGroups key={"groups:" + session.userId} />}
         {session?.scopes.includes("agents:read") && (
           <Agents key={"agents:" + session.userId} />

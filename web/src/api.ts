@@ -1045,3 +1045,9 @@ export async function saveResourceSource(session:Session, source:string, documen
   body:source,signal:AbortSignal.timeout(8000),
  }));
 }
+
+export async function monitorDependencyContext(name:string,signal?:AbortSignal):Promise<{monitor:string;configRevision:string;items:import("./dependency-view").DependencyLink[]}>{
+ const response=await apiFetch(`/api/v1/resources/Monitor/${encodeURIComponent(name)}/dependencies`,{credentials:"same-origin",cache:"no-store",signal:signal?AbortSignal.any([signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)});
+ if(!response.ok)throw resourceError(response.status);
+ return response.json();
+}

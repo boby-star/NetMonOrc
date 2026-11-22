@@ -1,3 +1,22 @@
+# Monitor.spec.dependencies: derived requires context
+
+Додано короткий список Target refs за DSL §15.1: Monitor → Target,
+requires/soft. Явний requires тієї самої пари має пріоритет без дублювання.
+Спільний graph validator відхиляє dangling refs, неправильні типи/дублікати та
+змішані cycles. Порядок списку не змінює revision, [] зберігає старий hash.
+Delete Target захищений; похідні links не мають фіктивних ресурсів у БД.
+Read-only compiled context доступний REST/CLI/React; OpenAPI містить новий
+endpoint. [Контракт](docs/deployment/monitor-dependencies.md).
+
+Фінальний browser trial підтвердив ACK Agent і healthy з реального probe,
+граф із derived provenance, 409 на DELETE, atomic rejection змішаного cycle,
+вилучення посилання/Target і повернення healthy. Dependency resources у БД=0;
+Monitor source history=2. Production CLI прочитав порожній контекст після
+вилучення. Go/vet і production build пройшли; screenshot переглянуто.
+[Докази](docs/experiments/monitor-dependencies-2026-11-22/README.md).
+Це закриває конкретну прогалину shorthand з попереднього аудиту, а не всі
+залишки повного ТЗ чи весь OpenAPI contract.
+
 # Одиночний YAML-редактор без втрати числових типів
 
 GET/POST/PUT одного ресурсу повертають source, сформований сервером із тієї

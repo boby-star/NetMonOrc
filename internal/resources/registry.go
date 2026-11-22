@@ -84,6 +84,11 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err := validateMetadata(m); err != nil {
 		return monitor.Plan{}, err
 	}
+	var err error
+	r, m, err = r.lowerMonitorDependencies(m)
+	if err != nil {
+		return monitor.Plan{}, err
+	}
 	placed, placement, err := r.resolvePlacement(m)
 	if err != nil {
 		return monitor.Plan{}, err

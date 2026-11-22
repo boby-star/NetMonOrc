@@ -1,0 +1,8 @@
+{
+  "baseCommit": "ac98d7dd14da2f2b41d2aa9d8c82c83df742709d",
+  "project": "nmo-shortdeps-final-20261122",
+  "image": "sha256:63265fe9130199509de7964db8aa979c15c66a455d417b1323be0b591d3b2384",
+  "loopbackPort": 8451,
+  "singleDockerHost": true,
+  "browserTrust": "Owned Controller SPKI pin, separate Node CA/hostname validation"
+}

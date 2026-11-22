@@ -1,0 +1,82 @@
+{
+  "status": "passed",
+  "shorthandContext": {
+    "monitor": "yaml-web",
+    "configRevision": "55d5b3279a5bdb95febba5be372dc0950ded2af97299e6e8d1b1304e1d6bb342",
+    "items": [
+      {
+        "name": "inline-5aa9ac214fb7b86f7c4fe7aac71e4a09b5ac8dda5685b93fb1c5",
+        "from": {
+          "kind": "Monitor",
+          "name": "yaml-web"
+        },
+        "to": {
+          "kind": "Target",
+          "name": "yaml-upstream"
+        },
+        "relation": "requires",
+        "strength": "soft",
+        "derived": true,
+        "declaredBy": "Monitor/yaml-web"
+      }
+    ]
+  },
+  "shorthandTested": true,
+  "mixedCycleRolledBack": true,
+  "shorthandReferenceDeleteProtected": true,
+  "shorthandRemovalAllowsDelete": true,
+  "singleEditorTested": false,
+  "singleEditorHashUnchanged": false,
+  "singleYAMLToBatchPreservesLoadedVersion": false,
+  "singleStaleSaveRejected": false,
+  "browserInteractionTested": true,
+  "strictNodeTLS": true,
+  "browserPinnedOwnedServerKey": true,
+  "globalBrowserTrustUnchanged": true,
+  "realPasswordLogin": true,
+  "rawYAMLValidation": true,
+  "prepareDoesNotCreateResources": true,
+  "typedFloatPreserved": true,
+  "largeIntegerPreserved": "9007199254740993",
+  "integerFloatCoercionRejected": true,
+  "duplicateKeyRejected": true,
+  "preparedRequestId": "52a4ef523bcea7c3facc8785df33f615",
+  "operationId": "1342e352-3a2d-4af2-92e5-1d01f88f3a79",
+  "idempotentReplaySameOperation": true,
+  "explicitStaleVersionsPreserved": true,
+  "staleApplyStatus": 412,
+  "csrfStatus": 403,
+  "unauthenticatedPrepareStatus": 401,
+  "healthyFromRealProbe": {
+    "monitorId": "yaml-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "f039d15aad0d1280ade1eaf5dcc1b460"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "f039d15aad0d1280ade1eaf5dcc1b460"
+    ],
+    "evaluatedAt": "2026-11-22T20:21:12.626927765Z",
+    "revision": "b1b599ba8bc136639a4c338c046e95ba043da1fff6d8675a7d04614541fd9a13"
+  },
+  "consoleExceptions": 0,
+  "credentialsOmitted": true,
+  "durableOperationCountForReplay": 1,
+  "targetCounterExactInPostgreSQL": "9007199254740993",
+  "newMonitorSourceHistoryCount": 2,
+  "persistedDependencyCount": 0
+}

@@ -55,3 +55,10 @@ Backend у цьому сценарії — read-only fixture; credentials не �
 mutating requests заборонені. Це не перевірка auth/RBAC enforcement сервера,
 TLS/PG/Agent integration або browser clicks проти live Controller. Останній
 live dependency workflow збережено окремо в dependencies-r27.
+
+## Контекст Monitor зі shorthand
+
+Кнопка «Контекст Monitor NAME» читає [скомпільований desired context](monitor-dependencies.md),
+включно з похідними links із Monitor.spec.dependencies. Вони позначені окремо
+та не видаються за збережені ресурси Dependency. Повернення до каталогу
+явних ресурсів — «Оновити граф».

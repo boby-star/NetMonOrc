@@ -161,3 +161,6 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 [Одиночний редактор YAML/JSON](yaml-editor.md) отримує source та ETag одного
 ресурсу разом; запис і перенесення в пакет зберігають точність чисел і версію
 завантаженої чернетки.
+
+[Monitor.spec.dependencies](monitor-dependencies.md) підтримує requires/soft
+від Monitor до Target, канонізацію refs, спільний DAG і захист видалення.

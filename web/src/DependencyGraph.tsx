@@ -42,7 +42,7 @@ export function DependencyGraph({ links, selectedNode, selectedLink, onNode, onL
         <marker id={id + "-arrow"} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#365b45" /></marker>
         <marker id={id + "-selected-arrow"} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#875400" /></marker>
       </defs>
-      {links.map((link, i) => <g key={link.name} role="button" tabIndex={0} aria-label={`Зв’язок ${link.name}`} aria-pressed={selectedLink === link.name}
+      {links.map((link, i) => <g key={link.name} role="button" tabIndex={0} aria-label={`Зв’язок ${link.derived?referenceKey(link.from)+" → "+referenceKey(link.to):link.name}`} aria-pressed={selectedLink === link.name}
         onClick={() => onLink(link.name)} onKeyDown={event => activate(event, () => onLink(link.name))} className="dependency-link">
         <title>{`${link.name}: ${referenceKey(link.from)} → ${referenceKey(link.to)}; ${link.relation}, ${link.strength}`}</title>
         <path className="dependency-edge-hit" d={path(link, i)} fill="none" stroke="transparent" strokeWidth="18" />

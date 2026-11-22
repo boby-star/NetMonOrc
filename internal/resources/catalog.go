@@ -176,6 +176,21 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		registry.Dependencies = append(registry.Dependencies, *result.Dependency)
 		compiled[key] = result
 	}
+	// Expand all Monitor shorthand before validating the combined requires DAG.
+	for _, key := range keys {
+		m := all[key]
+		if m.Kind != "Monitor" {
+			continue
+		}
+		_, refs, err := monitorDependencyRefs(m)
+		if err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		registry.Dependencies, err = derivedRequirements(m, refs, registry.Dependencies, registry.Targets)
+		if err != nil {
+			return base, nil, err
+		}
+	}
 	if err := dependency.ValidateGraph(registry.Dependencies, known); err != nil {
 		return base, nil, err
 	}

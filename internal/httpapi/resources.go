@@ -237,6 +237,23 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(parts) == 3 && r.Method == "GET" {
 		switch parts[2] {
+		case "dependencies":
+			if parts[0] != "Monitor" {
+				failure(w, 404, "NOT_FOUND", "Monitor dependency context required")
+				return
+			}
+			if r.URL.RawQuery != "" {
+				failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")
+				return
+			}
+			view, err := h.resources.MonitorDependencyContext(ctx, name)
+			if err != nil {
+				resourceError(w, err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(view)
+			return
 		case "status":
 			if r.URL.RawQuery != "" {
 				failure(w, 400, "INVALID_ARGUMENT", "No query parameters supported")

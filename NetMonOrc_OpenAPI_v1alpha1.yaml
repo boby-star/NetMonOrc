@@ -820,6 +820,30 @@ paths:
           $ref: '#/components/responses/StandardError'
         '503':
           $ref: '#/components/responses/StandardError'
+  /api/v1/resources/Monitor/{name}/dependencies:
+    get:
+      tags: [Resources]
+      summary: Отримати скомпільований контекст залежностей Monitor
+      description: Read-only desired context, including derived Monitor.spec.dependencies; never evidence of health or causality.
+      operationId: getMonitorDependencyContext
+      x-netmonorc-rbac: viewer
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z][a-z0-9-]{0,62}$'}
+      responses:
+        '200':
+          description: Resolved desired dependency context; no persistent implicit resources
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MonitorDependencyContext'}
+        '400': {$ref: '#/components/responses/StandardError'}
+        '401': {$ref: '#/components/responses/StandardError'}
+        '403': {$ref: '#/components/responses/StandardError'}
+        '404': {$ref: '#/components/responses/StandardError'}
+        '429': {$ref: '#/components/responses/StandardError'}
+        '503': {$ref: '#/components/responses/StandardError'}
   /api/v1/config/validate:
     post:
       tags:
@@ -2377,6 +2401,37 @@ components:
       bearerFormat: opaque PAT
       description: CLI personal API token.
   schemas:
+    DependencyContextReference:
+      type: object
+      additionalProperties: false
+      required: [kind, name]
+      properties:
+        kind: {type: string, enum: [Target, Monitor]}
+        name: {type: string}
+    DependencyContextLink:
+      type: object
+      additionalProperties: false
+      required: [name, from, to, relation, strength, derived, declaredBy]
+      properties:
+        name: {type: string}
+        from: {$ref: '#/components/schemas/DependencyContextReference'}
+        to: {$ref: '#/components/schemas/DependencyContextReference'}
+        relation: {type: string, enum: [requires, routesThrough, hostedOn, resolvesVia, relatedTo]}
+        strength: {type: string, enum: [hard, soft]}
+        description: {type: string}
+        derived: {type: boolean}
+        declaredBy: {type: string, description: 'Monitor/name for shorthand or Dependency/name for explicit resource'}
+    MonitorDependencyContext:
+      type: object
+      additionalProperties: false
+      required: [monitor, configRevision, items]
+      properties:
+        monitor: {type: string}
+        configRevision: {type: string}
+        items:
+          type: array
+          maxItems: 4096
+          items: {$ref: '#/components/schemas/DependencyContextLink'}
     ErrorDetail:
       type: object
       properties:

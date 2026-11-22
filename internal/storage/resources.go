@@ -246,7 +246,7 @@ func (s *Store) DeleteResourceKind(ctx context.Context, actor auth.AdminCredenti
 	}
 	if kind == "Target" {
 		var refs bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='Monitor' AND manifest->'spec'->>'targetRef'=$1)`, name).Scan(&refs); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_resources WHERE kind='Monitor' AND (manifest->'spec'->>'targetRef'=$1 OR COALESCE(manifest->'spec'->'dependencies','[]'::jsonb) ? $1))`, name).Scan(&refs); err != nil {
 			return err
 		}
 		if refs {

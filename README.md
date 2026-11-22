@@ -2,7 +2,8 @@
 
 ## Запуск із веб-панеллю
 
-YAML: [редактор одного ресурсу](docs/deployment/yaml-editor.md),
+YAML: [короткі залежності Monitor](docs/deployment/monitor-dependencies.md),
+[редактор одного ресурсу](docs/deployment/yaml-editor.md),
 [пакети у React та REST](docs/deployment/yaml-web.md),
 [стартовий каталог](docs/deployment/bootstrap-catalog.md),
 [ExecutionFallback](docs/architecture/execution-fallback.md),

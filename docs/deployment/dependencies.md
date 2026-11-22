@@ -66,14 +66,13 @@ netmonorc apply --context-file /private/context.json -f dependencies.yaml --wait
 він не відсіює класи за здогадкою з Dependency. Доступність graph context в IR
 не видається за реалізований автоматичний RCA.
 
-## Межі та неузгоджений shorthand
+## Короткий запис (додано 22.11.2026)
 
-R27 підтримує окремі Dependency. Monitor.spec.dependencies поки відхиляється.
-DSL §4 каже про requires «від inline/linked target», тоді як §15.1 — від
-Monitor до Target. Це різні вузли графа, тому shorthand не реалізується
-мовчазним вибором. Рекомендація для наступного уточнення — source Monitor,
-як явно визначено в §15.1; окремий Dependency уже дозволяє задати потрібний
-source без неоднозначності. Нормативні документи цим етапом не переписуються.
+Monitor.spec.dependencies реалізовано за конкретним правилом DSL §15.1:
+Monitor → Target, requires/soft. Явний requires має пріоритет для тієї самої
+пари; спільний DAG, hash, delete guards і API/CLI/React context описані в
+[актуальному контракті](monitor-dependencies.md). Формулювання §4.1 про
+inline/linked target не використовується для створення прихованих Target.
 
 Критичні перевірки: requires/non-requires cycles, unknown refs/self refs,
 JSONB defaults, атомарна відмова cycle, delete guards, optimistic locking,
