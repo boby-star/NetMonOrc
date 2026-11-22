@@ -1,0 +1,117 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"sort"
+	"strings"
+
+	"github.com/boby-star/NetMonOrc/internal/alerting"
+	"github.com/boby-star/NetMonOrc/internal/config"
+	"github.com/boby-star/NetMonOrc/internal/diagnostics"
+	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resources"
+)
+
+type result struct {
+	Name         string `json:"name"`
+	Accepted     bool   `json:"accepted"`
+	Error        string `json:"error,omitempty"`
+	RuntimeError string `json:"runtimeError,omitempty"`
+}
+
+func main() {
+	var results []result
+	add := func(name string, err error) {
+		r := result{Name: name, Accepted: err == nil}
+		if err != nil {
+			r.Error = err.Error()
+		}
+		results = append(results, r)
+	}
+	trigger, err := diagnostics.CompileTrigger(`monitor.sttae == "down"`)
+	add("trigger_unknown_monitor_field", err)
+	if err == nil {
+		_, e := trigger(context.Background(), monitor.Assessment{State: "down"})
+		if e != nil {
+			results[len(results)-1].RuntimeError = e.Error()
+		}
+	}
+	for name, expression := range map[string]string{"trigger_monitor_labels": `monitor.labels["service"] == "web"`, "trigger_weighted_score": `monitor.weightedScore > 0.5`} {
+		_, err := diagnostics.CompileTrigger(expression)
+		add(name, err)
+	}
+	p := monitor.Plan{Checks: []monitor.Check{{ID: "http"}}, Rules: []monitor.AssessmentRule{{ID: "example", Priority: 100, When: `checks["typo"].outcome == "failure"`, State: "down", Reason: "CHECK_FAILED"}}}
+	_, err = monitor.NewAssessor(p)
+	add("assessment_unknown_check", err)
+	for name, expression := range map[string]string{"assessment_target_attributes": `target.attributes["tier"] == "web"`, "assessment_target_labels": `target.labels["service"] == "web"`, "assessment_recursive_zone_state": `zone.state == "healthy"`} {
+		p.Rules[0].When = expression
+		_, err = monitor.NewAssessor(p)
+		add(name, err)
+	}
+	_, err = alerting.New(alerting.Rule{Name: "audit", When: `checks["http"].outcome == "failure"`, ResolveWhen: `monitor.state == "healthy"`})
+	add("alert_checks_context", err)
+	_, err = alerting.New(alerting.Rule{Name: "audit", When: `monitor.labels["service"] == "web"`, ResolveWhen: `monitor.state == "healthy"`})
+	add("alert_monitor_labels", err)
+	source, err := os.ReadFile("examples/diagnostics/fixed.yaml")
+	if err != nil {
+		panic(err)
+	}
+	for name, expression := range map[string]string{"fixed_task_values": `tasks["s01-dns"].values.depth > 0`, "fixed_task_reason_code": `tasks["s01-dns"].reasonCode == "TARGET_TIMEOUT"`, "fixed_checks_context": `checks["http"].outcome == "failure"`, "fixed_monitor_name": `monitor.name == "web"`, "fixed_unknown_predecessor": `tasks["missing"].outcome == "failure"`} {
+		b := strings.Replace(string(source), `tasks["s01-dns"].outcome == "success"`, expression, 1)
+		_, err := config.CompileDiagnostics([]byte(b))
+		add(name, err)
+	}
+	base, err := os.ReadFile("examples/http.yaml")
+	if err != nil {
+		panic(err)
+	}
+	_, err = config.Compile([]byte(strings.Replace(string(base), "  assessment:", "  assessment:\n    defaultState: healthy", 1)))
+	add("assessment_default_healthy", err)
+	manifest, err := resources.DecodeYAML(source)
+	if err != nil {
+		panic(err)
+	}
+	for name, placement := range map[string]map[string]any{
+		"diagnostic_placement_selector":        {"selector": map[string]any{"matchLabels": map[string]string{"role": "probe"}}},
+		"diagnostic_placement_replicas":        {"replicas": 2},
+		"diagnostic_placement_distinct_domain": {"distinctBy": "failureDomain"},
+	} {
+		var spec map[string]any
+		json.Unmarshal(manifest.Spec, &spec)
+		spec["actions"].([]any)[0].(map[string]any)["placement"] = placement
+		manifest.Spec, _ = json.Marshal(spec)
+		encoded, _ := json.Marshal(manifest)
+		_, err := config.CompileDiagnostics(encoded)
+		add(name, err)
+	}
+	var spec map[string]any
+	json.Unmarshal(manifest.Spec, &spec)
+	first := spec["actions"].([]any)[0].(map[string]any)
+	delete(first, "placement")
+	first["placementRef"] = "agent-policy"
+	manifest.Spec, _ = json.Marshal(spec)
+	encoded, _ := json.Marshal(manifest)
+	_, err = config.CompileDiagnostics(encoded)
+	add("diagnostic_placement_ref", err)
+	partial, _ := resources.DecodeYAML([]byte("apiVersion: netmonorc.io/v1alpha1\nkind: PlacementPolicy\nmetadata: {name: partial}\nspec: {strategy: leastLoaded, onInsufficientAgents: partial}\n"))
+	_, err = (resources.Registry{}).CompileResource(partial)
+	add("regular_placement_partial", err)
+
+	for name, source := range map[string]string{
+		"yaml_duplicate_key":    "kind: Target\nkind: Monitor\n",
+		"yaml_nan":              "apiVersion: netmonorc.io/v1alpha1\nkind: Target\nmetadata: {name: audit}\nspec: {attributes: {x: .nan}}\n",
+		"yaml_alias_cycle":      "apiVersion: netmonorc.io/v1alpha1\nkind: Target\nmetadata: {name: audit}\nspec: &x {attributes: *x}\n",
+		"yaml_status_in_source": "apiVersion: netmonorc.io/v1alpha1\nkind: Target\nmetadata: {name: audit}\nspec: {type: logical}\nstatus: {state: healthy}\n",
+	} {
+		_, err := resources.DecodeBatch([]byte(source))
+		add(name, err)
+	}
+	kinds := map[string]bool{}
+	for _, kind := range []string{"Target", "Monitor", "CheckProfile", "PlacementPolicy", "AssessmentPolicy", "DiagnosticProfile", "AlertRule", "ResourceGroup", "Dependency", "Component", "WebhookEndpoint", "Agent", "Observation", "AgentEnrollment"} {
+		kinds[kind] = resources.Supported(kind)
+	}
+	sort.Slice(results, func(i, j int) bool { return results[i].Name < results[j].Name })
+	json.NewEncoder(os.Stdout).Encode(map[string]any{"kinds": kinds, "cases": results, "scope": "Compile and bounded CEL evaluation only; no new live stand"})
+}

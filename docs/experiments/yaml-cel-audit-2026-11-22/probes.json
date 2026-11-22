@@ -1,0 +1,139 @@
+{
+  "cases": [
+    {
+      "name": "alert_checks_context",
+      "accepted": false,
+      "error": "ERROR: <input>:1:1: undeclared reference to 'checks' (in container '')\n | checks[\"http\"].outcome == \"failure\"\n | ^"
+    },
+    {
+      "name": "alert_monitor_labels",
+      "accepted": false,
+      "error": "ERROR: <input>:1:8: undefined field 'labels'\n | monitor.labels[\"service\"] == \"web\"\n | .......^"
+    },
+    {
+      "name": "assessment_default_healthy",
+      "accepted": true
+    },
+    {
+      "name": "assessment_recursive_zone_state",
+      "accepted": false,
+      "error": "rule example: ERROR: <input>:1:5: undefined field 'state'\n | zone.state == \"healthy\"\n | ....^"
+    },
+    {
+      "name": "assessment_target_attributes",
+      "accepted": false,
+      "error": "rule example: ERROR: <input>:1:7: undefined field 'attributes'\n | target.attributes[\"tier\"] == \"web\"\n | ......^"
+    },
+    {
+      "name": "assessment_target_labels",
+      "accepted": true
+    },
+    {
+      "name": "assessment_unknown_check",
+      "accepted": false,
+      "error": "rule example references unknown check \"typo\""
+    },
+    {
+      "name": "diagnostic_placement_distinct_domain",
+      "accepted": false,
+      "error": "spec: actions: [0]: placement: distinctBy: unknown field (line 1)"
+    },
+    {
+      "name": "diagnostic_placement_ref",
+      "accepted": false,
+      "error": "spec: actions: [0]: placementRef: unknown field (line 1)"
+    },
+    {
+      "name": "diagnostic_placement_replicas",
+      "accepted": false,
+      "error": "diagnostic replicas>1 not yet supported"
+    },
+    {
+      "name": "diagnostic_placement_selector",
+      "accepted": false,
+      "error": "spec: actions: [0]: placement: selector: unknown field (line 1)"
+    },
+    {
+      "name": "fixed_checks_context",
+      "accepted": false,
+      "error": "fixed step s02-tcp: ERROR: <input>:1:1: undeclared reference to 'checks' (in container '')\n | checks[\"http\"].outcome == \"failure\"\n | ^"
+    },
+    {
+      "name": "fixed_monitor_name",
+      "accepted": false,
+      "error": "fixed step s02-tcp: ERROR: <input>:1:8: undefined field 'name'\n | monitor.name == \"web\"\n | .......^"
+    },
+    {
+      "name": "fixed_task_reason_code",
+      "accepted": false,
+      "error": "fixed step s02-tcp: ERROR: <input>:1:17: undefined field 'reasonCode'\n | tasks[\"s01-dns\"].reasonCode == \"TARGET_TIMEOUT\"\n | ................^"
+    },
+    {
+      "name": "fixed_task_values",
+      "accepted": false,
+      "error": "fixed step s02-tcp: ERROR: <input>:1:17: undefined field 'values'\n | tasks[\"s01-dns\"].values.depth > 0\n | ................^"
+    },
+    {
+      "name": "fixed_unknown_predecessor",
+      "accepted": false,
+      "error": "fixed step s02-tcp: task \"missing\" must be a dependsOn predecessor"
+    },
+    {
+      "name": "regular_placement_partial",
+      "accepted": false,
+      "error": "partial regular placement is disabled"
+    },
+    {
+      "name": "trigger_monitor_labels",
+      "accepted": false,
+      "error": "ERROR: <input>:1:15: found no matching overload for '_[_]' applied to '(string, string)'\n | monitor.labels[\"service\"] == \"web\"\n | ..............^"
+    },
+    {
+      "name": "trigger_unknown_monitor_field",
+      "accepted": true,
+      "runtimeError": "no such key: sttae"
+    },
+    {
+      "name": "trigger_weighted_score",
+      "accepted": false,
+      "error": "ERROR: <input>:1:23: found no matching overload for '_>_' applied to '(string, double)'\n | monitor.weightedScore > 0.5\n | ......................^"
+    },
+    {
+      "name": "yaml_alias_cycle",
+      "accepted": false,
+      "error": "JSON-compatible YAML required"
+    },
+    {
+      "name": "yaml_duplicate_key",
+      "accepted": false,
+      "error": "JSON-compatible YAML required"
+    },
+    {
+      "name": "yaml_nan",
+      "accepted": false,
+      "error": "JSON-compatible YAML required"
+    },
+    {
+      "name": "yaml_status_in_source",
+      "accepted": false,
+      "error": "invalid resource envelope: json: unknown field \"status\""
+    }
+  ],
+  "kinds": {
+    "Agent": false,
+    "AgentEnrollment": false,
+    "AlertRule": true,
+    "AssessmentPolicy": true,
+    "CheckProfile": true,
+    "Component": true,
+    "Dependency": true,
+    "DiagnosticProfile": true,
+    "Monitor": true,
+    "Observation": false,
+    "PlacementPolicy": true,
+    "ResourceGroup": true,
+    "Target": true,
+    "WebhookEndpoint": true
+  },
+  "scope": "Compile and bounded CEL evaluation only; no new live stand"
+}

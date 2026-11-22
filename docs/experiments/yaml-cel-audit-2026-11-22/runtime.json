@@ -1,0 +1,9 @@
+{
+  "reviewedCommit": "e2be554d68385c58cdc9bad11afc3902c6b24cfe",
+  "branch": "prototype/minimal-research",
+  "thesisSHA256": "910615e8281e4978ffd1b1fe30cafb163b05b14057009e4cc7b41522bd0fd308",
+  "probeCases": 24,
+  "newLiveStand": false,
+  "newBrowserTrial": false,
+  "runtimeCodeChanged": false
+}
