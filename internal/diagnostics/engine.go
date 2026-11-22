@@ -378,6 +378,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	actions := append([]Action(nil), p.Actions...)
 	sort.Slice(actions, func(i, j int) bool { return actions[i].ID < actions[j].ID })
 	steps := append([]Step(nil), p.Steps...)
+	predecessors := FixedPredecessors(steps)
 	sort.Slice(steps, func(i, j int) bool { return steps[i].ID < steps[j].ID })
 	if mode == "fixed" && p.Budget.MaxParallel > 1 {
 		reason, complete, incomplete := e.runFixedParallel(child, p, agents, ledger, &r, deadline, monitorState, fixedHooks{
@@ -445,7 +446,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				ok := true
 				var err error
 				if step.When != nil {
-					ok, err = step.When(child, tasks, monitorState)
+					ok, err = step.When(child, fixedTaskContext(predecessors[step.ID], tasks), monitorState)
 				}
 				if err != nil {
 					fixedIncomplete = true

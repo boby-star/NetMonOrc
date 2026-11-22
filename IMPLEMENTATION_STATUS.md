@@ -1,3 +1,18 @@
+# Детерміновані умови Fixed DAG
+
+Типізовано tasks[id].outcome/executionStatus і monitor.state. Невідомі поля та
+статичні посилання на себе/незалежний/неіснуючий крок відхиляються до запису
+DiagnosticProfile. Прямі й транзитивні dependsOn задають доступний контекст
+умови; serial/parallel runtime ізолюють його також для computed keys.
+[Контракт і приклад](docs/deployment/fixed-context.md).
+
+Натурно підтверджено API/CLI rejection, незмінний ETag після відмови,
+чотирикроковий DAG із транзитивною умовою та однакову ізоляцію незалежних
+результатів за maxParallel=1/2. Go/vet і production build пройшли.
+[Докази й межі](docs/experiments/fixed-context-2026-11-22/README.md).
+Values/reasonCode у Fixed condition не реалізовано; нових browser clicks немає.
+Повної готовності решти ТЗ не заявлено.
+
 # Валідація посилань CEL на checks у YAML
 
 Закрито статичні посилання SC-18: невідомі checks["id"], checks.id,

@@ -34,6 +34,7 @@ type fixedJob struct {
 // One diagnostic activation per Agent matches the live shared admission model.
 func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Executor, ledger *Ledger, r *Result, deadline time.Time, monitorState string, hooks fixedHooks) (string, bool, bool) {
 	steps := append([]Step(nil), p.Steps...)
+	predecessors := FixedPredecessors(steps)
 	sort.Slice(steps, func(i, j int) bool { return steps[i].ID < steps[j].ID })
 	actions := map[string]Action{}
 	for _, a := range p.Actions {
@@ -70,10 +71,6 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 		}
 		before := hooks.hypotheses()
 		proofsBefore := hooks.proofs()
-		guardTasks := map[string]Outcome{}
-		for k, v := range tasks {
-			guardTasks[k] = v
-		}
 		usedAgents := map[string]bool{}
 		var jobs []*fixedJob
 		var skipped []Step
@@ -94,7 +91,7 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 			}
 			activation, started := activations[step.ID]
 			if !started && step.When != nil {
-				yes, err := step.When(ctx, guardTasks, monitorState)
+				yes, err := step.When(ctx, fixedTaskContext(predecessors[step.ID], tasks), monitorState)
 				if err != nil {
 					incomplete = true
 					r.BlockedSteps = append(r.BlockedSteps, step.ID)

@@ -94,3 +94,10 @@ real overlapping probes, reversed physical completion order with stable logical
 journal, downstream dependency, count/byte quotas, two-worker cancellation and
 actual PostgreSQL concurrent reservation tests. No new browser interaction or
 multi-host fault-domain independence is claimed.
+
+## Scoped condition context
+
+Fixed conditions now receive only completed direct/transitive predecessors,
+for both serial and parallel execution. Static references outside dependsOn
+are rejected; computed keys see the same restricted context. Task/monitor
+fields are typed. See [validation and compatibility](../deployment/fixed-context.md).

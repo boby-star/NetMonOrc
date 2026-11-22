@@ -1,0 +1,9 @@
+{
+  "baseCommit": "bf3ab3d013cbbfd3bededfb88702ca6ab92c888c",
+  "project": "nmo-fixed-context2-20261122",
+  "image": "sha256:31598986430de2748af207a81a015a3109ed62dcd6c283b1cc44c22a0bc02762",
+  "singleDockerHost": true,
+  "browserInteractionTested": false,
+  "goTestAndVetExitCode": 0,
+  "thesisSHA256": "910615e8281e4978ffd1b1fe30cafb163b05b14057009e4cc7b41522bd0fd308"
+}

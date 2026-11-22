@@ -168,3 +168,6 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 [Статичні посилання CEL на checks](cel-check-references.md) перевіряються
 після expansion до збереження desired; reusable AssessmentPolicy звіряє імена
 при binding, а computed keys лишаються runtime CEL.
+
+[Умови Fixed DAG](fixed-context.md) типізують task/monitor fields, перевіряють
+статичні task refs за dependsOn та ізолюють predecessor context у runtime.

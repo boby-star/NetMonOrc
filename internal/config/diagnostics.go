@@ -10,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boby-star/NetMonOrc/internal/celrefs"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
 	"github.com/google/cel-go/cel"
+	"github.com/google/cel-go/ext"
 	"gopkg.in/yaml.v3"
 )
 
@@ -215,22 +217,41 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 			step := diagnostics.Step{ID: v.ID, ActionID: v.ActionRef, DependsOn: v.DependsOn}
 			if v.When != nil {
 				step.Expression = *v.When
-				step.When, e = diagnosticCondition(*v.When)
-				if e != nil {
-					return p, fmt.Errorf("fixed step %s: %w", v.ID, e)
-				}
 			}
 			p.Steps = append(p.Steps, step)
 		}
 	}
-	return p, diagnostics.Validate(p)
+	if err := diagnostics.Validate(p); err != nil {
+		return p, err
+	}
+	if p.Mode == "fixed" {
+		predecessors := diagnostics.FixedPredecessors(p.Steps)
+		for i, v := range s.Fixed.Steps {
+			if v.When != nil {
+				p.Steps[i].When, e = diagnosticCondition(*v.When, predecessors[v.ID])
+				if e != nil {
+					return p, fmt.Errorf("fixed step %s: %w", v.ID, e)
+				}
+			}
+		}
+	}
+	return p, nil
 }
 
-func diagnosticCondition(expression string) (func(context.Context, map[string]diagnostics.Outcome, string) (bool, error), error) {
+// Fixed CEL views expose only fields currently supplied by the engine.
+type FixedTaskView struct {
+	Outcome         string `cel:"outcome"`
+	ExecutionStatus string `cel:"executionStatus"`
+}
+type FixedMonitorView struct {
+	State string `cel:"state"`
+}
+
+func diagnosticCondition(expression string, predecessors ...map[string]bool) (func(context.Context, map[string]diagnostics.Outcome, string) (bool, error), error) {
 	if len(expression) > 2048 || strings.TrimSpace(expression) == "" {
 		return nil, fmt.Errorf("invalid CEL expression size")
 	}
-	env, e := cel.NewEnv(cel.Variable("tasks", cel.MapType(cel.StringType, cel.MapType(cel.StringType, cel.StringType))), cel.Variable("monitor", cel.MapType(cel.StringType, cel.StringType)))
+	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(FixedTaskView{}), reflect.TypeOf(FixedMonitorView{}), ext.ParseStructTags(true)), cel.Variable("tasks", cel.MapType(cel.StringType, cel.ObjectType("config.FixedTaskView"))), cel.Variable("monitor", cel.ObjectType("config.FixedMonitorView")))
 	if e != nil {
 		return nil, e
 	}
@@ -241,12 +262,19 @@ func diagnosticCondition(expression string) (func(context.Context, map[string]di
 	if ast.OutputType() != cel.BoolType {
 		return nil, fmt.Errorf("fixed when must return bool")
 	}
+	if len(predecessors) > 0 {
+		for _, ref := range celrefs.StaticMapKeys(ast.Expr(), "tasks") {
+			if !predecessors[0][ref] {
+				return nil, fmt.Errorf("task %q must be a dependsOn predecessor", ref)
+			}
+		}
+	}
 	program, e := env.Program(ast, cel.CostLimit(1024), cel.InterruptCheckFrequency(50))
 	if e != nil {
 		return nil, e
 	}
 	return func(ctx context.Context, tasks map[string]diagnostics.Outcome, state string) (bool, error) {
-		input := map[string]map[string]string{}
+		input := map[string]FixedTaskView{}
 		for id, t := range tasks {
 			execution := t.Execution
 			if execution == "execution_failed" {
@@ -255,9 +283,9 @@ func diagnosticCondition(expression string) (func(context.Context, map[string]di
 			if execution == "skipped" {
 				execution = "not_executed"
 			}
-			input[id] = map[string]string{"outcome": t.Outcome, "executionStatus": execution}
+			input[id] = FixedTaskView{Outcome: t.Outcome, ExecutionStatus: execution}
 		}
-		out, _, e := program.ContextEval(ctx, map[string]any{"tasks": input, "monitor": map[string]string{"state": state}})
+		out, _, e := program.ContextEval(ctx, map[string]any{"tasks": input, "monitor": FixedMonitorView{State: state}})
 		if e != nil {
 			return false, e
 		}
