@@ -173,3 +173,50 @@ func TestZoneAnyUsesActualZonesAndKeepsRequiredFailure(t *testing.T) {
 		t.Fatal("all-required hid negative zone", a, err)
 	}
 }
+
+func TestReusableAssessmentCELReferencesResolveOnBinding(t *testing.T) {
+	policy, m := assessmentFixtures(t)
+	// Without an explicit check list the policy can precede its concrete Monitor.
+	policy.Spec = json.RawMessage(`{"rules":[{"id":"http-down","when":"checks[\"http\"].outcome == \"failure\"","then":{"state":"down","reason":"HTTP_FAILED"}}]}`)
+	registry := Registry{Active: "service", Zones: []string{"office"}}
+	if _, err := registry.CompileResource(policy); err != nil {
+		t.Fatal("unbound policy rejected", err)
+	}
+	if _, _, err := ResolveCatalog(registry, nil, []Manifest{policy, m}); err != nil {
+		t.Fatal("valid binding rejected", err)
+	}
+	policy.Spec = json.RawMessage(`{"rules":[{"id":"http-down","when":"checks[\"typo\"].outcome == \"failure\"","then":{"state":"down","reason":"HTTP_FAILED"}}]}`)
+	if _, err := registry.CompileResource(policy); err != nil {
+		t.Fatal("unbound references must await binding", err)
+	}
+	if _, _, err := ResolveCatalog(registry, nil, []Manifest{policy, m}); err == nil {
+		t.Fatal("unknown policy check admitted into Monitor")
+	}
+	// An explicit policy list closes the reference set even before binding.
+	policy.Spec = json.RawMessage(`{"checks":[{"id":"http"}],"rules":[{"id":"http-down","when":"checks[\"typo\"].outcome == \"failure\"","then":{"state":"down","reason":"HTTP_FAILED"}}]}`)
+	if _, err := registry.CompileResource(policy); err == nil {
+		t.Fatal("unknown check in explicit policy list admitted")
+	}
+}
+
+func TestAssessmentCELReferencesUseExpandedProfileIDs(t *testing.T) {
+	profile, err := Decode([]byte(`{"apiVersion":"netmonorc.io/v1alpha1","kind":"CheckProfile","metadata":{"name":"web-probes"},"spec":{"checks":[{"id":"http","type":"http","interval":"10s","timeout":"1s","config":{"url":"http://127.0.0.1/"}}]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, m := assessmentFixtures(t)
+	m.Spec = json.RawMessage(`{"target":{"address":"127.0.0.1"},"useProfiles":[{"ref":"web-probes","as":"web"}],"assessment":{"rules":[{"id":"http-down","when":"checks[\"web__http\"].outcome == \"failure\"","then":{"state":"down","reason":"HTTP_FAILED"}}]}}`)
+	registry := Registry{Active: "service", Zones: []string{"office"}}
+	if _, _, err := ResolveCatalog(registry, nil, []Manifest{m, profile}); err != nil {
+		t.Fatal("expanded reference rejected", err)
+	}
+	var spec map[string]any
+	if err := json.Unmarshal(m.Spec, &spec); err != nil {
+		t.Fatal(err)
+	}
+	spec["assessment"] = map[string]any{"rules": []any{map[string]any{"id": "http-down", "when": `checks["http"].outcome == "failure"`, "then": map[string]string{"state": "down", "reason": "HTTP_FAILED"}}}}
+	m.Spec, _ = json.Marshal(spec)
+	if _, _, err := ResolveCatalog(registry, nil, []Manifest{m, profile}); err == nil {
+		t.Fatal("unexpanded check ID admitted")
+	}
+}

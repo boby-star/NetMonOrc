@@ -1,0 +1,31 @@
+# Rule references use the expanded check ID: <profile alias>__<check id>.
+apiVersion: netmonorc.io/v1alpha1
+kind: CheckProfile
+metadata: {name: web-probes}
+spec:
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://192.0.2.10/', expectedStatus: [200]}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: AssessmentPolicy
+metadata: {name: web-assessment}
+spec:
+  requiredZones: [office]
+  rules:
+    - id: http-failed
+      when: 'checks["web__http"].outcome == "failure"'
+      then: {state: down, reason: HTTP_FAILED}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: cel-web}
+spec:
+  target: {address: 192.0.2.10}
+  placement: {strategy: fixed, agentRefs: [branch], replicas: 1}
+  useProfiles: [{ref: web-probes, as: web}]
+  assessmentRef: web-assessment

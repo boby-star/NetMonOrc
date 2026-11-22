@@ -49,6 +49,10 @@ type Assessor struct {
 var ruleID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 var ruleReason = regexp.MustCompile(`^[A-Z0-9_]+$`)
 
+func assessmentEnvironment() (*cel.Env, error) {
+	return cel.NewEnv(ext.NativeTypes(reflect.TypeOf(CheckView{}), reflect.TypeOf(ZoneView{}), reflect.TypeOf(TargetView{}), ext.ParseStructTags(true)), cel.CrossTypeNumericComparisons(true), cel.Variable("checks", cel.MapType(cel.StringType, cel.ObjectType("monitor.CheckView"))), cel.Variable("zone", cel.ObjectType("monitor.ZoneView")), cel.Variable("target", cel.ObjectType("monitor.TargetView")))
+}
+
 func NewAssessor(p Plan) (*Assessor, error) {
 	if p.DefaultState != "" && p.DefaultState != "unknown" && p.DefaultState != "healthy" && p.DefaultState != "degraded" && p.DefaultState != "down" {
 		return nil, fmt.Errorf("invalid defaultState")
@@ -66,7 +70,7 @@ func NewAssessor(p Plan) (*Assessor, error) {
 	if len(p.Rules) > 100 {
 		return nil, fmt.Errorf("at most 100 assessment rules supported")
 	}
-	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(CheckView{}), reflect.TypeOf(ZoneView{}), reflect.TypeOf(TargetView{}), ext.ParseStructTags(true)), cel.CrossTypeNumericComparisons(true), cel.Variable("checks", cel.MapType(cel.StringType, cel.ObjectType("monitor.CheckView"))), cel.Variable("zone", cel.ObjectType("monitor.ZoneView")), cel.Variable("target", cel.ObjectType("monitor.TargetView")))
+	env, e := assessmentEnvironment()
 	if e != nil {
 		return nil, e
 	}
@@ -96,6 +100,18 @@ func NewAssessor(p Plan) (*Assessor, error) {
 		checked, checkedErr := cel.AstToCheckedExpr(ast)
 		if checkedErr != nil {
 			return nil, checkedErr
+		}
+		for _, name := range assessmentCheckReferences(ast.Expr()) {
+			found := false
+			for _, check := range p.Checks {
+				if check.ID == name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("rule %s references unknown check %q", r.ID, name)
+			}
 		}
 		a.replicaValues = a.replicaValues || replicaValueAccess(ast.Expr(), checked.TypeMap)
 		program, e := env.Program(ast, cel.CostLimit(1024), cel.InterruptCheckFrequency(50))

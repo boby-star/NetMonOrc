@@ -164,3 +164,7 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 
 [Monitor.spec.dependencies](monitor-dependencies.md) підтримує requires/soft
 від Monitor до Target, канонізацію refs, спільний DAG і захист видалення.
+
+[Статичні посилання CEL на checks](cel-check-references.md) перевіряються
+після expansion до збереження desired; reusable AssessmentPolicy звіряє імена
+при binding, а computed keys лишаються runtime CEL.

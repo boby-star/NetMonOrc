@@ -1,3 +1,18 @@
+# Валідація посилань CEL на checks у YAML
+
+Закрито статичні посилання SC-18: невідомі checks["id"], checks.id,
+has/membership відхиляються до запису desired. Перевіряються кінцеві IDs після
+CheckProfile expansion; reusable AssessmentPolicy без списку checks проходить
+окрему перевірку типів, а імена звіряються при binding. Враховано локальні
+змінні CEL macro, сортування імен та ліміти попередньої компіляції.
+[Контракт і YAML-приклад](docs/deployment/cel-check-references.md).
+
+Live HTTPS trial підтвердив valid=false, 422 для plan/apply/PUT, незмінні
+ETag/revision після відмови, production CLI YAML validation та healthy після
+виправленого правила. Go/vet і Docker build пройшли; нових browser clicks
+немає. Computed keys не розв'язуються статично; повна відповідність решті ТЗ
+не заявлена. [Докази](docs/experiments/cel-check-references-2026-11-22/README.md).
+
 # Same-zone fallback як доказ діагностики
 
 Допущений Controller резервний Observation тепер повторно використовується

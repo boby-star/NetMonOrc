@@ -89,6 +89,9 @@ func NormalizeAssessmentPolicy(data []byte) ([]byte, error) {
 		a.Checks[i].Weight = &weight
 	}
 	sort.Slice(a.Checks, func(i, j int) bool { return a.Checks[i].ID < a.Checks[j].ID })
+	if len(a.Rules) > 100 {
+		return nil, fmt.Errorf("at most 100 assessment rules supported")
+	}
 	for i := range a.Rules {
 		if a.Rules[i].Priority == nil {
 			priority := 100
@@ -117,6 +120,31 @@ func NormalizeAssessmentPolicy(data []byte) ([]byte, error) {
 		for _, check := range a.Checks {
 			ids = append(ids, check.ID)
 		}
+	}
+	// A policy without an explicit check list is reusable. Validate CEL types
+	// against witnesses here; the concrete Monitor must still contain every ref.
+	if a.Checks == nil {
+		ids = nil
+		seen := map[string]bool{}
+		for _, rule := range a.Rules {
+			refs, err := monitor.AssessmentCheckReferences(rule.When)
+			if err != nil {
+				return nil, err
+			}
+			for _, ref := range refs {
+				if !seen[ref] {
+					ids = append(ids, ref)
+					if len(ids) > 100 {
+						return nil, fmt.Errorf("assessment rules reference more than 100 checks")
+					}
+					seen[ref] = true
+				}
+			}
+		}
+		if len(ids) == 0 {
+			ids = []string{"policy_validation"}
+		}
+		sort.Strings(ids)
 	}
 	probes := []any{}
 	for _, id := range ids {

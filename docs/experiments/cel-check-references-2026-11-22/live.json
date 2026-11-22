@@ -1,0 +1,110 @@
+{
+  "status": "passed",
+  "validation": {
+    "valid": false,
+    "errors": [
+      {
+        "code": "INVALID_MANIFEST",
+        "message": "invalid or unsupported resource: Monitor/research-web: rule http-down references unknown check \"htttp\""
+      }
+    ],
+    "warnings": [],
+    "normalizedSummary": {}
+  },
+  "rejectionStatuses": {
+    "plan": 422,
+    "apply": 422,
+    "put": 422
+  },
+  "invalidWritePreservedETagAndRevision": true,
+  "offlineCLIRejectedTypo": true,
+  "offlineCLIAcceptedCorrected": {
+    "abstractZoneContext": true,
+    "mode": "offline",
+    "planningRequired": true,
+    "resources": [
+      {
+        "resource": "Monitor/research-web",
+        "validationRevision": "1fc4182953f0c934380f1f2f2935dc1e3fd5dc0e20b1fa6834ef2af13244a01b"
+      }
+    ],
+    "valid": true,
+    "warnings": [
+      "Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."
+    ]
+  },
+  "yamlProfileCatalogValidated": {
+    "abstractZoneContext": false,
+    "mode": "offline",
+    "planningRequired": true,
+    "resources": [
+      {
+        "resource": "AssessmentPolicy/web-assessment",
+        "validationRevision": "1f5efa17ab5e7ced7d8b67026d64ebd8cecf35425bc0e2e1d246d71c0e17cd91"
+      },
+      {
+        "resource": "CheckProfile/web-probes",
+        "validationRevision": "f25fbb3635ca635a9af89812540fa9b5b765896f1e48756dbf090fb28ed7af28"
+      },
+      {
+        "resource": "Monitor/cel-web",
+        "validationRevision": "11810593f63c177f58df48d5bc7570073b423196f11bad4c2821f9d5caec98e6"
+      }
+    ],
+    "valid": true,
+    "warnings": [
+      "Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."
+    ]
+  },
+  "yamlExpandedCheckTypoRejected": true,
+  "correctedRevision": "69338b7eeb307f8b13b4f5d894884211655aea68b942dbb0f5dac6752074fcd6",
+  "assessment": {
+    "monitorId": "research-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "979ac90a2dab881dc62354f25e3eca66",
+          "dc88ba253088606e690b562f10812e3b",
+          "f4b4d4a8d522f096e8a5180c502f914a"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "3d91a0a91e6966b45062c6bea3574491",
+          "a27deb29018a57f1014714ae079f034f",
+          "fd74e9117b9ebe17762ac22e7b0b2cd6"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success",
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "979ac90a2dab881dc62354f25e3eca66",
+      "dc88ba253088606e690b562f10812e3b",
+      "f4b4d4a8d522f096e8a5180c502f914a",
+      "3d91a0a91e6966b45062c6bea3574491",
+      "a27deb29018a57f1014714ae079f034f",
+      "fd74e9117b9ebe17762ac22e7b0b2cd6"
+    ],
+    "evaluatedAt": "2026-11-22T21:14:03.787861963Z",
+    "revision": "69338b7eeb307f8b13b4f5d894884211655aea68b942dbb0f5dac6752074fcd6"
+  },
+  "browserInteractionTested": false,
+  "credentialsOmitted": true
+}

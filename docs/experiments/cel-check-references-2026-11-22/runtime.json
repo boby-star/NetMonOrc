@@ -1,0 +1,8 @@
+{
+  "baseCommit": "396347b307b832da7710acb2f91b14bbbc4ad0be",
+  "project": "nmo-cel-refs2-20261122",
+  "image": "sha256:1fb3eff8773c9dd954cb2c4a18d83223dde720fea3dfe94efeba8db6feebb6b1",
+  "singleDockerHost": true,
+  "browserInteractionTested": false,
+  "goTestAndVetExitCode": 0
+}
