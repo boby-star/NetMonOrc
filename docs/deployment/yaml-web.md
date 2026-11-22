@@ -52,7 +52,7 @@ keys та невідомих полів. Результат prepare теж ма�
 
 | POST endpoint | Результат |
 |---|---|
-| `/api/v1/config/prepare` | `{source, requestId, resourceCount}`; source — канонічний ConfigBatch JSON як рядок |
+| `/api/v1/config/prepare` | `{source, requestId, resourceCount, documents}`; source — канонічний ConfigBatch JSON як рядок |
 | `/api/v1/config/validate` | Перевірка каталогу з valid/errors/warnings |
 | `/api/v1/config/plan` | Пропоновані зміни та placement |
 | `/api/v1/config/apply` | Durable operation, HTTP 202; той самий атомарний apply |
@@ -68,8 +68,8 @@ prepare також приймає один JSON manifest. Синтаксичні
 для cookie-сесії потрібен CSRF token. Prepare використовує ту саму обмежену
 чергу й timeout, що керування конфігурацією. Автоматичного повторення POST немає.
 
-Редактор одного ресурсу лишається JSON-поданням; для YAML та точного перенесення
-числових літералів використовуйте пакетний редактор. Це не зміна алгоритму
+[Редактор одного ресурсу](yaml-editor.md) також підтримує YAML і серверне
+текстове подання без втрати точності чисел. Це не зміна алгоритму
 Assessment, probe runner або YAML DSL і не повна сертифікація старого ТЗ.
 
 [Натурна браузерна перевірка](../experiments/yaml-web-2026-11-20/README.md).

@@ -71,6 +71,25 @@ try {
   assert.equal(await evaluate(`[...(${batch}).querySelectorAll('p')].find(p=>p.textContent.startsWith('Операція ')).textContent.split(' ')[1]`),operationId);
   await evaluate(`(${batch}).scrollIntoView()`);
   const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(config.screenshot,Buffer.from(shot.data,'base64'),{flag:'wx',mode:0o600});
+
+  const editor=`[...document.querySelectorAll('main > section')].find(s=>s.querySelector('h2')?.textContent==='Конфігурація моніторингу')`;
+  if(config.singleEditor){
+    stage='single-load';await field(`(${editor}).querySelector('select')`,'Target','HTMLSelectElement');await field(`(${editor}).querySelector('input')`,'yaml-target');await click(editor,'Завантажити');
+    await wait(`(${editor}).querySelector('textarea')?.value.includes('9007199254740993')`);
+    const loaded=await evaluate(`(${editor}).querySelector('textarea').value`);assert.match(loaded,/"ratio": 1\.0/);
+    stage='single-yaml-validate';await field(`(${editor}).querySelector('textarea')`,config.targetYaml,'HTMLTextAreaElement');await click(editor,'Перевірити');
+    await wait(`(${editor}).querySelector(':scope > pre.config-result')?.textContent.includes('"valid": true')`);
+    await click(editor,'Показати план');await wait(`(${editor}).querySelector(':scope > pre.config-result')?.textContent.includes('"planId"')`);
+    stage='single-yaml-save';await click(editor,'Зберегти поточний');await wait(`(${editor}).querySelector(':scope > pre.config-result')?.textContent.includes('Збережено')`);
+    const saved=await evaluate(`(${editor}).querySelector('textarea').value`);assert.ok(saved.includes('9007199254740993'));assert.match(saved,/"ratio": 1\.0/);
+    const current=await evaluate(`fetch('/api/v1/resources/Monitor/yaml-web',{credentials:'same-origin'}).then(r=>r.json())`);assert.equal(current.status.desiredRevision,healthy.revision);
+    stage='single-yaml-to-batch';await field(`(${editor}).querySelector('textarea')`,config.targetYaml,'HTMLTextAreaElement');
+    await click(batch,'Підготувати пакет із відкритого маніфесту');
+    await wait(`(${batch}).querySelector('textarea').value.includes('"Target/yaml-target"')`);
+    const copied=await evaluate(`(${batch}).querySelector('textarea').value`);assert.ok(copied.includes('9007199254740993'));assert.match(copied,/"ratio": 1\.0/);
+    const target=await evaluate(`fetch('/api/v1/resources/Target/yaml-target',{credentials:'same-origin'}).then(r=>r.json())`);
+    assert.equal(JSON.parse(copied).expectedVersions['Target/yaml-target'],target.resourceVersion);
+  }
   stage='integer-not-coerced';await field(`(${batch}).querySelector('textarea')`,config.badIntegerYaml,'HTMLTextAreaElement');await click(batch,'Перевірити пакет');await wait(`(${batch}).querySelector('pre.config-result')?.textContent.includes('"valid": false')`);
   stage='duplicate-key';await field(`(${batch}).querySelector('textarea')`,config.yaml+'\nkind: Target\n','HTMLTextAreaElement');await click(batch,'Перевірити пакет');await wait(`(${batch}).querySelector('[role="alert"]')?.textContent.includes('Некоректний YAML/JSON')`);
   stage='explicit-preconditions';const old=await evaluate(`yamlRequest('/api/v1/config/prepare',${JSON.stringify(config.targetYaml)})`);assert.equal(old.status,200);const oldSource=JSON.parse(old.body).source;
@@ -80,10 +99,20 @@ try {
   const stale=await evaluate(`yamlRequest('/api/v1/config/prepare',${JSON.stringify(oldSource)})`);assert.equal(stale.status,200);assert.equal(JSON.parse(stale.body).source,oldSource);
   const denied=await evaluate(`yamlRequest('/api/v1/config/apply',${JSON.stringify(oldSource)})`);assert.equal(denied.status,412);
   const csrf=await evaluate(`yamlRequest('/api/v1/config/prepare',${JSON.stringify(config.targetYaml)},false)`);assert.equal(csrf.status,403);
+
+  if(config.singleEditor){
+    stage='single-stale-save';await click(editor,'Зберегти поточний');await wait(`(${editor}).querySelector(':scope > [role="alert"]')?.textContent.includes('Конфігурацію вже змінено')`);
+    assert.ok(responses.some(r=>r.path==='/api/v1/resources/Target/yaml-target'&&r.method==='PUT'&&r.status===412));
+    stage='single-reload';await click(editor,'Завантажити');await wait(`(${editor}).querySelector('textarea')?.value.includes('"criticality": 4')`);
+    const reloaded=await evaluate(`(${editor}).querySelector('textarea').value`);assert.ok(reloaded.includes('9007199254740993'));assert.match(reloaded,/"ratio": 1\.0/);
+    await evaluate(`(${editor}).scrollIntoView()`);
+    const sourceShot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+    await writeFile(config.screenshot.replace(/\.png$/,'-single.png'),Buffer.from(sourceShot.data,'base64'),{flag:'wx',mode:0o600});
+  }
   stage='logout';await click(`document.querySelector('main > section')`,'Від’єднатися');await wait(`document.querySelector('input[autocomplete="username"]')`);
   assert.equal(await evaluate(`fetch('/api/v1/config/prepare',{method:'POST',headers:{'Content-Type':'application/yaml'},body:${JSON.stringify(config.targetYaml)}}).then(r=>r.status)`),401);
   assert.deepEqual(errors,[]);
-  await writeFile(config.output,JSON.stringify({status:'passed',browserInteractionTested:true,strictNodeTLS:true,browserPinnedOwnedServerKey:true,globalBrowserTrustUnchanged:true,realPasswordLogin:true,rawYAMLValidation:true,prepareDoesNotCreateResources:true,typedFloatPreserved:true,largeIntegerPreserved:'9007199254740993',integerFloatCoercionRejected:true,duplicateKeyRejected:true,preparedRequestId:requestId,operationId,idempotentReplaySameOperation:true,explicitStaleVersionsPreserved:true,staleApplyStatus:denied.status,csrfStatus:csrf.status,unauthenticatedPrepareStatus:401,healthyFromRealProbe:healthy,consoleExceptions:errors.length,credentialsOmitted:true},null,2)+'\n',{flag:'wx',mode:0o600});
+  await writeFile(config.output,JSON.stringify({status:'passed',singleEditorTested:config.singleEditor===true,singleEditorHashUnchanged:config.singleEditor===true,singleYAMLToBatchPreservesLoadedVersion:config.singleEditor===true,singleStaleSaveRejected:config.singleEditor===true,browserInteractionTested:true,strictNodeTLS:true,browserPinnedOwnedServerKey:true,globalBrowserTrustUnchanged:true,realPasswordLogin:true,rawYAMLValidation:true,prepareDoesNotCreateResources:true,typedFloatPreserved:true,largeIntegerPreserved:'9007199254740993',integerFloatCoercionRejected:true,duplicateKeyRejected:true,preparedRequestId:requestId,operationId,idempotentReplaySameOperation:true,explicitStaleVersionsPreserved:true,staleApplyStatus:denied.status,csrfStatus:csrf.status,unauthenticatedPrepareStatus:401,healthyFromRealProbe:healthy,consoleExceptions:errors.length,credentialsOmitted:true},null,2)+'\n',{flag:'wx',mode:0o600});
   console.log('PASS: browser YAML prepare/validate/plan/apply/replay, numeric fidelity and stale versions');
 } catch(error) {console.error('YAML browser verification failed at stage: '+stage);console.error('Failure category: '+(['Browser condition timeout','Browser evaluation failed','CDP timeout','CDP command failed'].includes(error.message)?error.message:'assertion or transport failure'));try{console.error('DOM metadata: '+JSON.stringify(await debugEvaluate(`({buttons:[...document.querySelectorAll('button')].map(b=>({text:b.textContent,disabled:b.disabled})),inputs:[...document.querySelectorAll('input')].map(i=>({type:i.type,autocomplete:i.autocomplete,length:i.value.length,valid:i.validity.valid})),errors:[...document.querySelectorAll('[role=alert]')].map(e=>e.textContent)})`)));}catch{};console.error('HTTP error metadata: '+JSON.stringify(responses.filter(r=>r.status>=400)));process.exitCode=1;}
 finally {

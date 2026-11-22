@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "assessment": {
+    "monitor": "yaml-web",
+    "revision": "e3b8fbe80a489934d4392095228c21af725b2c930d41ef101cb5448e42e6c202",
+    "at": "2026-11-22T19:57:12.043510282Z",
+    "state": "healthy",
+    "zones": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "3669f7b001254c4e1bc1c9f0b0588b6f"
+        ],
+        "reason": "sufficient_success"
+      }
+    ]
+  },
+  "sourceCounterExact": true,
+  "sourceFloatExact": true,
+  "sourceMatchesETag": true,
+  "targetVersion": "7b795d99-2afb-435c-9fcd-e09e8a8d1a19:3",
+  "targetCriticality": 4,
+  "targetSourceHistoryCount": 3
+}

@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "singleEditorTested": true,
+  "singleEditorHashUnchanged": true,
+  "singleYAMLToBatchPreservesLoadedVersion": true,
+  "singleStaleSaveRejected": true,
+  "browserInteractionTested": true,
+  "strictNodeTLS": true,
+  "browserPinnedOwnedServerKey": true,
+  "globalBrowserTrustUnchanged": true,
+  "realPasswordLogin": true,
+  "rawYAMLValidation": true,
+  "prepareDoesNotCreateResources": true,
+  "typedFloatPreserved": true,
+  "largeIntegerPreserved": "9007199254740993",
+  "integerFloatCoercionRejected": true,
+  "duplicateKeyRejected": true,
+  "preparedRequestId": "64786d929ed613b7f0f549ea691c85be",
+  "operationId": "19ebf430-6ea4-40a3-8b06-ca7cb9764840",
+  "idempotentReplaySameOperation": true,
+  "explicitStaleVersionsPreserved": true,
+  "staleApplyStatus": 412,
+  "csrfStatus": 403,
+  "unauthenticatedPrepareStatus": 401,
+  "healthyFromRealProbe": {
+    "monitorId": "yaml-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "8ea98ef197f6fe113adf49eb51dc06d1"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "8ea98ef197f6fe113adf49eb51dc06d1"
+    ],
+    "evaluatedAt": "2026-11-22T19:53:46.353535576Z",
+    "revision": "13e05ebcdb25a771cbbcbd818bfdc35bab431f3083a074e8f3d905aca7dff0f1"
+  },
+  "consoleExceptions": 0,
+  "credentialsOmitted": true,
+  "durableOperationCountForReplay": 1,
+  "targetCounterExactInPostgreSQL": "9007199254740993",
+  "newMonitorSourceHistoryCount": 1,
+  "singleTargetHistoryCount": 3
+}

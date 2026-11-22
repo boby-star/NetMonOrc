@@ -157,3 +157,7 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 
 [YAML-пакети React/REST](yaml-web.md) передають вихідний текст серверному decoder,
 зберігають числові типи та використовують явні versions/requestId для apply.
+
+[Одиночний редактор YAML/JSON](yaml-editor.md) отримує source та ETag одного
+ресурсу разом; запис і перенесення в пакет зберігають точність чисел і версію
+завантаженої чернетки.

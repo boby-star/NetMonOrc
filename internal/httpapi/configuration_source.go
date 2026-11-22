@@ -35,3 +35,21 @@ func configurationBatch(w http.ResponseWriter, r *http.Request) (resources.Batch
 	}
 	return batch, true
 }
+
+// Single-resource CRUD does not silently discard ConfigBatch conditions.
+func resourceManifest(w http.ResponseWriter, r *http.Request, out *resources.Manifest) bool {
+	kind, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err == nil && kind == "application/json" {
+		return resourceJSON(w, r, out)
+	}
+	batch, ok := configurationBatch(w, r)
+	if !ok {
+		return false
+	}
+	if len(batch.Manifests) != 1 || batch.RequestID != "" || len(batch.ExpectedVersions) > 0 {
+		failure(w, 400, "INVALID_ARGUMENT", "One manifest without batch conditions required; use config/apply for packages")
+		return false
+	}
+	*out = batch.Manifests[0]
+	return true
+}

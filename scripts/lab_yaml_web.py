@@ -49,7 +49,7 @@ spec:
 '''
 
 
-def verify(lab, output, screenshot):
+def verify(lab, output, screenshot, single_editor=False):
     lab.require()
     credentials = lab.work/'yaml-browser-credentials.json'
     if lab.sql('SELECT count(*) FROM nmo_users') != '0':
@@ -61,7 +61,7 @@ def verify(lab, output, screenshot):
         lab.compose('exec', '-T', 'controller', '/usr/local/bin/netmonorc-admin', '-database-file', '/run/netmonorc/database.dsn', '-username', 'yaml-admin', '-password-stdin', input=password.encode())
         with credentials.open('x') as private: json.dump({'password': password},private)
         credentials.chmod(0o600)
-    config = {'origin': 'https://localhost:'+str(lab.ui_port()), 'username': 'yaml-admin', 'password': password, 'caFile': str(lab.work/'pki/ca.crt'), 'certFile': str(lab.work/'pki/controller.crt'), 'yaml': YAML+TARGET, 'targetYaml': TARGET, 'badIntegerYaml': (YAML+TARGET).replace('status: 200}', 'status: 200.0}'), 'output': str(output.resolve()), 'screenshot': str(screenshot.resolve())}
+    config = {'origin': 'https://localhost:'+str(lab.ui_port()), 'username': 'yaml-admin', 'password': password, 'caFile': str(lab.work/'pki/ca.crt'), 'certFile': str(lab.work/'pki/controller.crt'), 'yaml': YAML+TARGET, 'targetYaml': TARGET, 'badIntegerYaml': (YAML+TARGET).replace('status: 200}', 'status: 200.0}'), 'singleEditor': single_editor, 'output': str(output.resolve()), 'screenshot': str(screenshot.resolve())}
     subprocess.run(['node', str(ROOT/'scripts/live_yaml_browser.mjs')], input=json.dumps(config).encode(), check=True, timeout=300)
     password = ''; config['password'] = ''
     result = json.loads(output.read_text())
@@ -73,12 +73,15 @@ def verify(lab, output, screenshot):
     assert result['targetCounterExactInPostgreSQL'] == '9007199254740993'
     result['newMonitorSourceHistoryCount'] = int(lab.sql("SELECT count(*) FROM nmo_resource_revisions WHERE manifest->>'kind'='Monitor' AND manifest->'metadata'->>'name'='yaml-web'"))
     assert result['newMonitorSourceHistoryCount'] == 1
+    if single_editor:
+        result['singleTargetHistoryCount'] = int(lab.sql("SELECT count(*) FROM nmo_resource_revisions WHERE manifest->>'kind'='Target' AND manifest->'metadata'->>'name'='yaml-target'"))
+        assert result['singleTargetHistoryCount'] == 3, 'stale single-resource save changed history'
     output.write_text(json.dumps(result, indent=2)+'\n'); output.chmod(0o600)
     print('PASS: real browser YAML package, durable single replay operation, exact integer and source history')
 
 
 if __name__ == '__main__':
-    p = argparse.ArgumentParser(description=__doc__); p.add_argument('action', choices=['prepare', 'verify', 'down']); p.add_argument('--project', required=True); p.add_argument('--prefix', required=True); p.add_argument('--port', type=int, default=8447); p.add_argument('--output'); p.add_argument('--screenshot')
+    p = argparse.ArgumentParser(description=__doc__); p.add_argument('action', choices=['prepare', 'verify', 'down']); p.add_argument('--project', required=True); p.add_argument('--prefix', required=True); p.add_argument('--port', type=int, default=8447); p.add_argument('--output'); p.add_argument('--screenshot'); p.add_argument('--single-editor', action='store_true')
     a = p.parse_args(); lab = Lab(a.project, a.prefix)
     if a.action == 'prepare':
         if lab.work.exists(): raise RuntimeError('Use a new owned project')
@@ -89,4 +92,4 @@ if __name__ == '__main__':
         output = Path(a.output); screenshot = Path(a.screenshot)
         if output.exists() or screenshot.exists(): raise FileExistsError('Use new output paths')
         output.parent.mkdir(parents=True, mode=0o700, exist_ok=True); screenshot.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-        lab.up(); verify(lab, output, screenshot)
+        lab.up(); verify(lab, output, screenshot, a.single_editor)

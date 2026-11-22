@@ -1,3 +1,19 @@
+# Одиночний YAML-редактор без втрати числових типів
+
+GET/POST/PUT одного ресурсу повертають source, сформований сервером із тієї
+самої View, що UID/version/ETag. React читає й записує текст YAML/JSON; Spec не
+перетворюється на JS numbers. Prepare додає documents[] для перенесення до
+ConfigBatch без округлення та зі збереженням завантаженої версії. CRUD YAML
+обмежений одним manifest без batch conditions; URI/If-Match лишаються чинними.
+[Контракт](docs/deployment/yaml-editor.md).
+
+На справжньому браузері/HTTPS/mTLS/PostgreSQL підтверджено відкриття точних
+1.0/9007199254740993, YAML validate/plan/save, незмінний effective hash,
+копіювання YAML у пакет, 412 після сторонньої зміни та reload актуального source.
+Go/vet і production build пройшли. [Докази](docs/experiments/yaml-editor-2026-11-22/README.md).
+Це закриває зазначене нижче попереднє обмеження одиночного редактора.
+Повну відповідність решті старого ТЗ не заявлено.
+
 # YAML-пакети у React та REST
 
 Пакетний редактор приймає multi-document YAML/ConfigBatch. Серверний prepare

@@ -3,13 +3,13 @@ import { BatchApply } from "./BatchApply";
 import {
   monitorResource,
   resourceCatalog,
-  checkConfiguration,
-  planConfiguration,
-  saveMonitor,
+  validateConfigurationSource,
+  planConfigurationSource,
+  prepareConfigurationSource,
+  saveResourceSource,
   deleteMonitor,
   type Session,
   type VersionedResource,
-  type ResourceManifest,
   type MonitorResource,
 } from "./api";
 
@@ -36,7 +36,7 @@ export function Configuration({
       .then((v) => {
         if (active) {
           setCurrent(v);
-          setText(JSON.stringify(v.resource.manifest, null, 2));
+          setText(v.source);
         }
       })
       .catch((e) => {
@@ -73,7 +73,7 @@ export function Configuration({
         const loaded = await monitorResource(targetName, resourceKind);
         setName(targetName);
         setCurrent(loaded);
-        setText(JSON.stringify(loaded.resource.manifest, null, 2));
+        setText(loaded.source);
         return;
       }
       if (kind === "delete") {
@@ -83,42 +83,37 @@ export function Configuration({
         setResult("Ресурс видалено. Історія змін збережена сервером.");
         return;
       }
-      const manifest = JSON.parse(text) as ResourceManifest;
-      if (
-        kind === "save" && current &&
-        manifest.kind !== current.resource.manifest.kind
-      )
-        throw new Error("Тип ресурсу не можна змінити під час заміни.");
       if (kind === "validate") {
         setResult(
-          JSON.stringify(await checkConfiguration(session, manifest), null, 2),
+          JSON.stringify(await validateConfigurationSource(session, text), null, 2),
         );
         return;
       }
       if (kind === "plan") {
         setResult(
-          JSON.stringify(await planConfiguration(session, manifest), null, 2),
+          JSON.stringify(await planConfigurationSource(session, text), null, 2),
         );
         return;
       }
       if (kind === "save" && !current)
         throw new Error("Спочатку завантажте ресурс для заміни.");
-      const saved = await saveMonitor(
-        session,
-        manifest,
-        kind === "create" ? null : current,
-      );
+      const prepared=await prepareConfigurationSource(session,text);
+      if(prepared.documents.length!==1)throw new Error("Для кількох документів використайте пакетне застосування нижче.");
+      const document=prepared.documents[0];
+      if(kind==="save"&&current&&(document.kind!==current.resource.manifest.kind||document.name!==current.resource.manifest.metadata.name))
+        throw new Error("Тип і назву ресурсу не можна змінити під час заміни.");
+      const saved=await saveResourceSource(session,text,document,kind==="create"?null:current);
       setResourceKind(saved.resource.manifest.kind);
       setCurrent(saved);
       setName(saved.resource.manifest.metadata.name);
-      setText(JSON.stringify(saved.resource.manifest, null, 2));
+      setText(saved.source);
       setResult(
         "Збережено. Controller завантажить нову ревізію Monitor і передасть плани агентам; оновіть запис за кілька секунд. AlertRule підхоплюються чинним runtime автоматично. WebhookEndpoint застосовується через перезавантаження конфігурації Controller.",
       );
     } catch (e) {
       setError(
         e instanceof SyntaxError
-          ? "Некоректний JSON. Перевірте синтаксис."
+          ? "Некоректний YAML/JSON. Перевірте синтаксис."
           : e instanceof Error
             ? e.message
             : "Операцію не підтверджено.",
@@ -131,7 +126,7 @@ export function Configuration({
     <section>
       <h2>Конфігурація моніторингу</h2>
       <p>
-        JSON-подання декларативного маніфесту. Перевірку та компіляцію виконує
+        Один декларативний маніфест у YAML або JSON. Перевірку та компіляцію виконує
         сервер. Controller виконує Monitor із каталогу у фіксованих мережевих
         зонах; вибір Monitor у панелі змінює перегляд.
       </p>
@@ -206,7 +201,7 @@ export function Configuration({
         </p>
       )}
       <label>
-        Маніфест JSON
+        Маніфест YAML / JSON
         <textarea
           className="manifest-editor"
           value={text}

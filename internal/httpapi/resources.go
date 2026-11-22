@@ -66,10 +66,18 @@ func resourceMatch(w http.ResponseWriter, r *http.Request) (string, bool) {
 	return raw[1 : len(raw)-1], true
 }
 func resourceView(w http.ResponseWriter, status int, v resources.View) {
+	document, err := resources.ManifestDocument(v.Manifest)
+	if err != nil {
+		failure(w, 503, "SOURCE_UNAVAILABLE", "Resource source unavailable")
+		return
+	}
 	w.Header().Set("ETag", `"`+v.ResourceVersion+`"`)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(struct {
+		resources.View
+		Source string `json:"source"`
+	}{View: v, Source: document.Source})
 }
 func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -307,7 +315,7 @@ func (h *Handler) resourceRoutes(w http.ResponseWriter, r *http.Request) {
 			expected = &version
 		}
 		var m resources.Manifest
-		if !resourceJSON(w, r, &m) {
+		if !resourceManifest(w, r, &m) {
 			return
 		}
 		if m.Kind != parts[0] || (name != "" && m.Metadata.Name != name) {

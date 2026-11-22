@@ -12,9 +12,10 @@ import (
 // PreparedConfiguration keeps JSON numeric spelling inside Source. Passing
 // manifests through browser JSON.parse/stringify would turn typed 1.0 into 1.
 type PreparedConfiguration struct {
-	Source        string `json:"source"`
-	RequestID     string `json:"requestId"`
-	ResourceCount int    `json:"resourceCount"`
+	Source        string     `json:"source"`
+	RequestID     string     `json:"requestId"`
+	ResourceCount int        `json:"resourceCount"`
+	Documents     []Document `json:"documents"`
 }
 
 // Prepare only reads the catalog. Explicit preconditions and request IDs survive
@@ -73,5 +74,13 @@ func (s *Service) Prepare(ctx context.Context, batch Batch) (PreparedConfigurati
 	if len(data) > 1<<20 {
 		return PreparedConfiguration{}, ErrInvalid
 	}
-	return PreparedConfiguration{Source: string(data), RequestID: batch.RequestID, ResourceCount: len(batch.Manifests)}, nil
+	documents := make([]Document, 0, len(batch.Manifests))
+	for _, m := range batch.Manifests {
+		document, err := ManifestDocument(m)
+		if err != nil {
+			return PreparedConfiguration{}, err
+		}
+		documents = append(documents, document)
+	}
+	return PreparedConfiguration{Source: string(data), RequestID: batch.RequestID, ResourceCount: len(batch.Manifests), Documents: documents}, nil
 }

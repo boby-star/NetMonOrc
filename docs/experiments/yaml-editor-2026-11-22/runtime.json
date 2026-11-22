@@ -1,0 +1,9 @@
+{
+  "baseCommit": "c554d6abac2d5903106d0b9edae2d262c0331da8",
+  "project": "nmo-yaml-editor-20261122",
+  "trialImage": "sha256:7f652ae1230fd51ad50f7c41ff2b422bc1c386451ab5cb3037a8b4ed0c1fd4de",
+  "browserTrust": "Owned Controller SPKI pin with separate Node CA/hostname validation",
+  "loopbackPort": 8449,
+  "singleDockerHost": true,
+  "finalImage": "sha256:7e81a3324c80de6e692927de7d40d69e14c6dfee45bfd83721d8fd9896c06eb5"
+}

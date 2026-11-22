@@ -94,30 +94,22 @@ export function BatchApply({
       clearInterval(timer);
     };
   }, [selected?.id, selected?.state]);
-  function fill() {
-    setPrepared(false);
-    setError("");
-    setNotice("");
-    setPreview(null);
+  async function fill() {
+    setPrepared(false);setError("");setNotice("");setPreview(null);setBusy(true);
     try {
-      const manifest = JSON.parse(draft);
-      const key = manifest.kind + "/" + manifest.metadata.name;
-      const expected =
-        current &&
-        current.resource.manifest.kind === manifest.kind &&
-        current.resource.manifest.metadata.name === manifest.metadata.name
-          ? current.resource.resourceVersion
-          : null;
-      // Only metadata is inspected in JS. Keep the original manifest numbers.
+      const normalized=await prepareConfigurationSource(session,draft);
+      if(normalized.documents.length!==1)throw new Error("Вставте кілька документів безпосередньо в пакетний редактор.");
+      const document=normalized.documents[0];
+      const key=document.kind+"/"+document.name;
+      const expected=current&&current.resource.manifest.kind===document.kind&&current.resource.manifest.metadata.name===document.name?current.resource.resourceVersion:null;
       setText(`{
-  "manifests": [${draft}],
-  "expectedVersions": ${JSON.stringify({[key]: expected})},
-  "requestId": "${crypto.randomUUID()}"
+  "manifests": [${document.source}],
+  "expectedVersions": ${JSON.stringify({[key]:expected})},
+  "requestId": "${normalized.requestId}"
 }`);
       setPrepared(true);
-    } catch {
-      setError("Спочатку перевірте JSON відкритого маніфесту.");
-    }
+    } catch(e) {setError(e instanceof Error?e.message:"Не вдалося прочитати маніфест.");}
+    finally {setBusy(false);}
   }
   async function submit(action: "validate" | "plan" | "apply") {
     setBusy(true);
@@ -196,7 +188,7 @@ export function BatchApply({
             його resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>
-          <button type="button" disabled={busy || !draft} onClick={fill}>
+          <button type="button" disabled={busy || !draft} onClick={()=>void fill()}>
             Підготувати пакет із відкритого маніфесту
           </button>
           <label>

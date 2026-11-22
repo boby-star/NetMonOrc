@@ -426,6 +426,7 @@ export interface MonitorResource {
   };
 }
 export interface VersionedResource {
+  source: string;
   resource: MonitorResource;
   etag: string;
 }
@@ -476,7 +477,9 @@ async function resourceResponse(
   if (!response.ok) throw resourceError(response.status);
   const etag = response.headers.get("ETag");
   if (!etag) throw new Error("Відсутня версія ресурсу.");
-  return { resource: (await response.json()) as MonitorResource, etag };
+  const resource=await response.json() as MonitorResource & {source?:string};
+  if(typeof resource.source!=="string")throw new Error("Відсутнє точне текстове подання маніфесту.");
+  return {resource,etag,source:resource.source};
 }
 export async function monitorResource(
   name: string,
@@ -1012,7 +1015,8 @@ export async function fallbackRuns(monitor:string,cursor:string|null):Promise<{i
  if(!response.ok)throw new Error(`Історія резервних спроб недоступна (${response.status})`);return response.json();
 }
 
-export interface PreparedConfiguration { source: string; requestId: string; resourceCount: number }
+export interface ResourceDocument {kind:string; name:string; source:string}
+export interface PreparedConfiguration { source: string; requestId: string; resourceCount: number; documents: ResourceDocument[] }
 // Keep source text intact: JS number round trips erase typed YAML floats (1.0).
 async function configurationSource<T>(session:Session, action:string, source:string):Promise<T> {
  const response=await apiFetch(`/api/v1/config/${action}`,{
@@ -1032,3 +1036,12 @@ export const prepareConfigurationSource=(s:Session,text:string)=>configurationSo
 export const validateConfigurationSource=(s:Session,text:string)=>configurationSource<ConfigValidation>(s,"validate",text);
 export const planConfigurationSource=(s:Session,text:string)=>configurationSource<ConfigPlan>(s,"plan",text);
 export const applyConfigurationSource=(s:Session,text:string)=>configurationSource<Operation>(s,"apply",text);
+
+export async function saveResourceSource(session:Session, source:string, document:ResourceDocument, current:VersionedResource|null):Promise<VersionedResource>{
+ const path="/api/v1/resources/"+encodeURIComponent(document.kind)+(current?"/"+encodeURIComponent(current.resource.manifest.metadata.name):"");
+ return resourceResponse(await apiFetch(path,{
+  method:current?"PUT":"POST",credentials:"same-origin",
+  headers:{"Content-Type":"application/yaml","X-CSRF-Token":session.csrfToken,...(current?{"If-Match":current.etag}:{})},
+  body:source,signal:AbortSignal.timeout(8000),
+ }));
+}

@@ -1,0 +1,35 @@
+ok  	github.com/boby-star/NetMonOrc/cmd/netmonorc	(cached)
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-admin	[no test files]
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-agent	[no test files]
+ok  	github.com/boby-star/NetMonOrc/cmd/netmonorc-controller	(cached)
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-experiment	[no test files]
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-report	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/agent	(cached)
+?   	github.com/boby-star/NetMonOrc/internal/agentstatus	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/alerting	(cached)
+?   	github.com/boby-star/NetMonOrc/internal/alertview	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/apiclient	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/auth	(cached)
+?   	github.com/boby-star/NetMonOrc/internal/component	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/config	(cached)
+?   	github.com/boby-star/NetMonOrc/internal/coordinator	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/dashboard	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/dependency	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/diagnostics	(cached)
+?   	github.com/boby-star/NetMonOrc/internal/diagnosticview	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/durable	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/fallback	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/httpapi	0.063s
+ok  	github.com/boby-star/NetMonOrc/internal/monitor	(cached)
+?   	github.com/boby-star/NetMonOrc/internal/notify	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/operationview	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/placement	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/probe	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/report	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/resourcegroup	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/resources	0.623s
+ok  	github.com/boby-star/NetMonOrc/internal/secure	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/storage	0.012s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/webhook	(cached)
+?   	github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1	[no test files]
