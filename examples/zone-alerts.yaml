@@ -1,0 +1,50 @@
+# Documentation-only addresses; adapt the endpoint/allowlist before deployment.
+apiVersion: netmonorc.io/v1alpha1
+kind: WebhookEndpoint
+metadata: {name: research-events}
+spec:
+  url: https://192.0.2.99/events
+  enabled: false
+  auth: {type: none}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Target
+metadata: {name: research-target}
+spec:
+  type: endpoint
+  address: 192.0.2.10
+  attributes: {serial: 9007199254740993}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: zone-web
+  labels: {environment: research}
+spec:
+  targetRef: research-target
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://192.0.2.10/', expectedStatus: [200]}
+  assessment:
+    requiredZones: [office, server]
+    checks: [{id: http, weight: 1, required: true}]
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: AlertRule
+metadata: {name: research-zone-outage}
+spec:
+  selector: {matchLabels: {environment: research}}
+  scope: zone
+  when: >-
+    zone.state == "down" && zone.checks.http.outcome == "failure" &&
+    monitor.labels.environment == "research" &&
+    target.attributes.serial == 9007199254740993
+  resolveWhen: 'zone.state == "healthy"'
+  for: 10s
+  cooldown: 5m
+  severity: critical
+  channelRef: research-events

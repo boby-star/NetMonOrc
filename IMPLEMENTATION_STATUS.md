@@ -1,3 +1,23 @@
+# Зональні AlertRule, YAML selectors та повний CEL context
+
+AlertRule підтримує monitorRef XOR selector і scope monitor/zone. Додано typed
+monitor labels/score, Target attributes та zone/checks/zones; невідомі поля й
+статичні check/zone refs перевіряються перед записом. Для кожної пари Monitor–зона
+ведуться окремі FSM/for/cooldown, ACK, evidence та durable webhook events.
+Вилучення зі selector не створює recovery і забороняє нові firing; активні
+прив'язки та DELETE захищені 409. Apply --wait перевіряє поточні ревізії всіх
+вибраних Monitor/зон, нуль збігів має reason alert_selector_empty.
+React показує зону та дозволяє фільтрування. [Контракт](docs/deployment/zone-alerts.md),
+[приклад YAML](examples/zone-alerts.yaml).
+
+Виправлено повторний DDL bootstrap адміністратора на ініціалізованій БД,
+який міг спричиняти deadlock із Controller. Новій БД збережено ініціалізацію схеми.
+[Перевірки та межі](docs/experiments/zone-alerts-2026-11-23/README.md).
+Загальна готовність усього ТЗ не оголошується: partial placement, regular
+multi-replica values aggregation, UID lifecycle повторно створених AlertRule
+та вилучення required zones при активних сповіщеннях залишаються окремими пунктами.
+Історичні записи нижче описують стан відповідних ітерацій.
+
 # Завершення replicas та CEL-контексту діагностики
 
 Реалізовані DiagnosticAction replicas 1–10 для Fixed/Adaptive/Static: повний

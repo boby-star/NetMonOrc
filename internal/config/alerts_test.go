@@ -25,7 +25,7 @@ func TestAlertContractDefaultsAndRejections(t *testing.T) {
 	if err != nil || r.For != 0 || r.Cooldown != 5*time.Minute || r.Scope != "monitor" || !r.Enabled || len(r.NotifyEvents) != 2 {
 		t.Fatalf("defaults: %+v %v", r, err)
 	}
-	for _, fields := range []string{"  scope: zone\n", "  for: -1s\n", "  cooldown: 123\n", "  notifyEvents: [firing, firing]\n", "  severity: fatal\n", "  unknown: value\n"} {
+	for _, fields := range []string{"  scope: invalid\n", "  for: -1s\n", "  cooldown: 123\n", "  notifyEvents: [firing, firing]\n", "  severity: fatal\n", "  unknown: value\n"} {
 		if _, err := CompileAlert([]byte(alertYAML + fields)); err == nil {
 			t.Errorf("accepted %s", fields)
 		}

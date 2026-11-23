@@ -35,7 +35,7 @@ func run() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	store, err := storage.Open(ctx, strings.TrimSpace(string(dsn)))
+	store, err := storage.OpenAdmin(ctx, strings.TrimSpace(string(dsn)))
 	if err != nil {
 		return err
 	}

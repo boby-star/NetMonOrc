@@ -6,7 +6,7 @@ import (
 )
 
 func (s *Store) AlertRuleResources(ctx context.Context, monitor string) ([]resources.View, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind='AlertRule' AND manifest->'spec'->>'monitorRef'=$1 ORDER BY name LIMIT $2`, monitor, resources.MaxCatalogResources+1)
+	rows, err := s.pool.Query(ctx, `SELECT `+resourceColumns+` FROM nmo_resources WHERE kind='AlertRule' AND (manifest->'spec'->>'monitorRef'=$1 OR manifest->'spec' ? 'selector') ORDER BY name LIMIT $2`, monitor, resources.MaxCatalogResources+1)
 	if err != nil {
 		return nil, err
 	}

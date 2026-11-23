@@ -24,6 +24,16 @@ type Store struct {
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {
+	return openStore(ctx, dsn, false)
+}
+
+// OpenAdmin reuses an initialized schema without taking DDL locks against the
+// running Controller. A fresh database still receives the normal migrations.
+func OpenAdmin(ctx context.Context, dsn string) (*Store, error) {
+	return openStore(ctx, dsn, true)
+}
+
+func openStore(ctx context.Context, dsn string, reuseSchema bool) (*Store, error) {
 	c, e := pgxpool.ParseConfig(dsn)
 	if e != nil {
 		return nil, errors.New("invalid database configuration")
@@ -37,6 +47,16 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	if e = p.Ping(ctx); e != nil {
 		p.Close()
 		return nil, fmt.Errorf("database unavailable: %w", e)
+	}
+	if reuseSchema {
+		var initialized bool
+		if e = p.QueryRow(ctx, `SELECT to_regclass('nmo_users') IS NOT NULL AND to_regclass('nmo_identity_audit') IS NOT NULL`).Scan(&initialized); e != nil {
+			p.Close()
+			return nil, e
+		}
+		if initialized {
+			return s, nil
+		}
 	}
 	tx, e := p.Begin(ctx)
 	if e != nil {

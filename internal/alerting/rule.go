@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/google/cel-go/cel"
-	"github.com/google/cel-go/ext"
-	"reflect"
 	"time"
 )
 
 type Rule struct {
+	Selector     *resourcegroup.Selector `json:",omitempty"`
 	Name         string
 	Monitor      string
 	Scope        string
@@ -28,11 +28,8 @@ type Rule struct {
 	Enabled      bool
 	Description  string
 }
-type MonitorView struct {
-	Name          string `cel:"name"`
-	State         string `cel:"state"`
-	CoverageState string `cel:"coverageState"`
-}
+type MonitorView = monitor.RuntimeMonitorView
+
 type Evaluator struct {
 	Rule          Rule
 	Hash          string
@@ -41,12 +38,12 @@ type Evaluator struct {
 }
 
 func New(r Rule) (*Evaluator, error) {
-	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(MonitorView{}), ext.ParseStructTags(true)), cel.Variable("monitor", cel.ObjectType("alerting.MonitorView")))
+	env, e := Environment(r.Scope)
 	if e != nil {
 		return nil, e
 	}
 	compile := func(s string) (cel.Program, error) {
-		if len(s) == 0 || len(s) > 2048 {
+		if len(s) == 0 || len(s) > 4096 {
 			return nil, fmt.Errorf("invalid alert expression length")
 		}
 		ast, issues := env.Compile(s)
@@ -98,7 +95,13 @@ type Evaluation struct {
 	Suppressed bool
 }
 
-func (e *Evaluator) Step(ctx context.Context, s State, a monitor.Assessment) Evaluation {
+type StepContext struct {
+	Plan     monitor.Plan
+	Whole    monitor.Assessment
+	Selected bool
+}
+
+func (e *Evaluator) Step(ctx context.Context, s State, a monitor.Assessment, frames ...StepContext) Evaluation {
 	now := a.At
 	if s.Status == "" {
 		s.Status = "normal"
@@ -117,21 +120,16 @@ func (e *Evaluator) Step(ctx context.Context, s State, a monitor.Assessment) Eva
 	s.RuleHash = e.Hash
 	s.Revision = a.Revision
 	s.LastEvaluatedAt = now
-	coverage := "sufficient"
-	evidence := 0
-	for _, z := range a.Zones {
-		evidence += len(z.Evidence)
-		if z.Coverage != "complete" {
-			coverage = "degraded"
-		}
+	frame := StepContext{Whole: a, Selected: true}
+	if len(frames) > 0 {
+		frame = frames[0]
 	}
-	if evidence == 0 {
-		coverage = "unknown"
-	}
+	activation := Activation(frame.Plan, frame.Whole, a, e.Rule.Scope)
+
 	c, done := context.WithTimeout(ctx, 25*time.Millisecond)
 	defer done()
 	eval := func(p cel.Program) *bool {
-		v, _, err := p.ContextEval(c, map[string]any{"monitor": MonitorView{a.Monitor, a.State, coverage}})
+		v, _, err := p.ContextEval(c, activation)
 		if err != nil {
 			return nil
 		}
@@ -153,7 +151,7 @@ func (e *Evaluator) Step(ctx context.Context, s State, a monitor.Assessment) Eva
 		if s.Status == "resolved" && when != nil && !*when {
 			s.Armed = true
 		}
-		allowed := e.Rule.Enabled && (s.Status != "resolved" || s.Armed)
+		allowed := e.Rule.Enabled && frame.Selected && (s.Status != "resolved" || s.Armed)
 		if !allowed || !yes(when) {
 			if s.Status == "pending" {
 				s.Status = "normal"

@@ -271,9 +271,18 @@ func (s *Store) DeleteResourceKind(ctx context.Context, actor auth.AdminCredenti
 			return resources.ErrConflict
 		}
 	}
+	if kind == "Monitor" {
+		var active bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE split_part(logical_key,'/',2)=$1 AND payload->>'status' IN ('pending','firing'))`, name).Scan(&active); err != nil {
+			return err
+		}
+		if active {
+			return resources.ErrConflict
+		}
+	}
 	if kind == "AlertRule" {
 		var active bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE logical_key=$1 AND payload->>'status' IN ('pending','firing'))`, name+"/"+stringMonitorRef(v.Manifest)+"/monitor").Scan(&active); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE logical_key LIKE $1 AND payload->>'status' IN ('pending','firing'))`, name+"/%").Scan(&active); err != nil {
 			return err
 		}
 		if active {
@@ -369,6 +378,11 @@ func (s *Store) ReadLiveAssessment(ctx context.Context, name, revision string) (
 }
 
 func saveResourceTx(ctx context.Context, tx pgx.Tx, m resources.Manifest, revision string, current resources.View, found bool, username string) (resources.View, error) {
+	if found && m.Kind == "AlertRule" {
+		if err := protectAlertBinding(ctx, tx, current.Manifest, m); err != nil {
+			return current, err
+		}
+	}
 	data, err := json.Marshal(m)
 	if err != nil {
 		return resources.View{}, err

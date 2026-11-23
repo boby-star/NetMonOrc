@@ -177,3 +177,5 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 
 [Replicas та діагностичний context](replica-context.md): 1–10 фізичних
 виконавців дії, per-Agent values/provenance, inheritance й зональні CEL views.
+
+Зональні AlertRule, Monitor selectors і типізовані CEL refs: [контракт](zone-alerts.md).

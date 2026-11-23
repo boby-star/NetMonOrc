@@ -1,0 +1,33 @@
+{
+  "baseCommit": "fe5ac7caea342c2196d5e6ca1fb48fabf9414d0d",
+  "project": "nmo-zone-alerts-proof-20261123",
+  "image": "sha256:ef1fd021709ab4fe2fcee896965ff3d62986c39a3050557859f31353004cb9b8",
+  "singleDockerHost": true,
+  "browserInteractionTested": false,
+  "sourceFilesSHA256": {
+    "cmd/netmonorc-admin/main.go": "63314833d3407d4cb71e66d38a1b560a79e7872280c1f78e605bc3ed6071cba3",
+    "cmd/netmonorc-controller/main.go": "45245c5d88e477aa64f707b90f33b14db7b946e59b02bf04b3e4f563bc9cb41a",
+    "examples/zone-alerts.yaml": "5a560d84cbcba2e495b2dc6775082a2440dbe6c0c8d80d257f6881cbc6acc5c0",
+    "internal/alerting/context.go": "aba5270158070a1123290d224fadf5caf95a75970cb793c8df6e4261361144f9",
+    "internal/alerting/rule.go": "6b882bcc2b69d69833ef01632b7dafbf3fdeca08bfaa5e47f01e7919a940c785",
+    "internal/alerting/zone_test.go": "2bdf93849108a293d32dd6d9f472f420646a62920792ed2839b30e3cffd50ac9",
+    "internal/celrefs/keys.go": "da922aa14b06dcb42bf97624267667701ef01a96f06e85991df4420067df7aaf",
+    "internal/config/alerts.go": "ee3fbc4baf2cab0798119a98a6ca24ae63146df112b7d05e308fbc94e7f7e1bd",
+    "internal/config/alerts_test.go": "24e26e1938e0d747d7f339d2d8a671872e8ea004f311c451d305a0d61bc0749e",
+    "internal/config/zone_alert_test.go": "1810729fb5ff47492a7f0dbd0850092aa5905e15be0c8ea9c807a31db7457795",
+    "internal/notify/service.go": "d049f26bd8083921d3946350fd30cbf6b19fb9c839c314331261181ee35bf335",
+    "internal/resources/alert_selector_test.go": "f6c45d210f22965af6bf009e3b263959a7ba06905a0bd6a9875b2f326b84dbe9",
+    "internal/resources/catalog.go": "40ae4078374edd5c97ea031f04fa0968ca638a333f96fd55ae348404ae61cb4b",
+    "internal/storage/alert_binding.go": "469608b06e1815b982440a3ad477755a9a8ad4723564b23800c38537c0a3cc5f",
+    "internal/storage/alert_resources.go": "ccad0e7e01b25e4090672a6e4b7a7db2b5430e0ee165c7c1fa3f3cea6867d016",
+    "internal/storage/alert_views.go": "e4c7d91c6555d3e57c7beda6981153e3156ee21c4217093e3c1b6f4bcce4c0fc",
+    "internal/storage/alerts.go": "6f3dfe08baac7a44e11d0ca023998ffa714d8e92c6087e6f01775b007c907ab1",
+    "internal/storage/postgres.go": "9684a010f73f1ec2c61332a4c9399e16242419bfde0f76cf45263631cc24d804",
+    "internal/storage/reconcile_operations.go": "167a7768e3461e40eea8f64c047230aa2b9b48473c2230251039401b5f434565",
+    "internal/storage/resources.go": "7c106b397a1d3747f9a56bd07c5ba26a1470a8783cf51033d4184ae6f62251fe",
+    "scripts/lab_zone_alerts.py": "b5e0a9a3cfed89342fd9f4e9703a75075bda50fd54494e6941504038e30706b3",
+    "web/src/Alerts.tsx": "7e9adfd67abfad371e787531e0adeeb4fad1c98c7bef72937eae48516bfdcc90",
+    "web/src/api.ts": "d6a7977b7851e55cbacd458d4f8d11e8509c826f77529e73a332d13ba5607b42"
+  },
+  "thesisSHA256": "910615e8281e4978ffd1b1fe30cafb163b05b14057009e4cc7b41522bd0fd308"
+}

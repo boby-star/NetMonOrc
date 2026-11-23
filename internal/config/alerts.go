@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/boby-star/NetMonOrc/internal/alerting"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/boby-star/NetMonOrc/internal/webhook"
 	"gopkg.in/yaml.v3"
 	"io"
@@ -58,36 +59,54 @@ func CompileAlert(b []byte) (alerting.Rule, error) {
 			Name string `yaml:"name"`
 		} `yaml:"metadata"`
 		Spec struct {
-			Monitor     string   `yaml:"monitorRef"`
-			Scope       string   `yaml:"scope"`
-			When        string   `yaml:"when"`
-			Resolve     string   `yaml:"resolveWhen"`
-			Severity    string   `yaml:"severity"`
-			For         *string  `yaml:"for"`
-			Cooldown    *string  `yaml:"cooldown"`
-			Channel     string   `yaml:"channelRef"`
-			Events      []string `yaml:"notifyEvents"`
-			Enabled     *bool    `yaml:"enabled"`
-			Description string   `yaml:"description"`
+			Monitor     string                  `yaml:"monitorRef"`
+			Selector    *resourcegroup.Selector `yaml:"selector"`
+			Scope       string                  `yaml:"scope"`
+			When        string                  `yaml:"when"`
+			Resolve     string                  `yaml:"resolveWhen"`
+			Severity    string                  `yaml:"severity"`
+			For         *string                 `yaml:"for"`
+			Cooldown    *string                 `yaml:"cooldown"`
+			Channel     string                  `yaml:"channelRef"`
+			Events      []string                `yaml:"notifyEvents"`
+			Enabled     *bool                   `yaml:"enabled"`
+			Description string                  `yaml:"description"`
 		} `yaml:"spec"`
 	}
 	r := alerting.Rule{}
 	if e := decodeResource(b, &m); e != nil {
 		return r, e
 	}
-	if m.APIVersion != "netmonorc.io/v1alpha1" || m.Kind != "AlertRule" || !namePattern.MatchString(m.Metadata.Name) || !namePattern.MatchString(m.Spec.Monitor) {
+	if m.APIVersion != "netmonorc.io/v1alpha1" || m.Kind != "AlertRule" || !namePattern.MatchString(m.Metadata.Name) || (m.Spec.Monitor != "" && !namePattern.MatchString(m.Spec.Monitor)) {
 		return r, fmt.Errorf("invalid AlertRule envelope/monitorRef")
 	}
 	s := m.Spec
-	r = alerting.Rule{Name: m.Metadata.Name, Monitor: s.Monitor, Scope: s.Scope, When: s.When, ResolveWhen: s.Resolve, Severity: s.Severity, Channel: s.Channel, NotifyEvents: s.Events, Enabled: true, Description: s.Description}
+	if (s.Monitor == "") == (s.Selector == nil) {
+		return r, fmt.Errorf("AlertRule requires exactly one of monitorRef/selector")
+	}
+	var selector *resourcegroup.Selector
+	if s.Selector != nil {
+		var err error
+		selector, err = resourcegroup.NormalizeAgentSelector(s.Selector)
+		if err != nil {
+			return r, err
+		}
+		if selector == nil {
+			selector = &resourcegroup.Selector{}
+		}
+	}
+	r = alerting.Rule{Selector: selector, Name: m.Metadata.Name, Monitor: s.Monitor, Scope: s.Scope, When: s.When, ResolveWhen: s.Resolve, Severity: s.Severity, Channel: s.Channel, NotifyEvents: s.Events, Enabled: true, Description: s.Description}
 	if r.Scope == "" {
 		r.Scope = "monitor"
 	}
-	if r.Scope != "monitor" {
-		return r, fmt.Errorf("research alerting supports monitor scope only")
+	if r.Scope != "monitor" && r.Scope != "zone" {
+		return r, fmt.Errorf("invalid alert scope")
 	}
 	if r.ResolveWhen == "" {
 		r.ResolveWhen = `monitor.state == "healthy"`
+		if r.Scope == "zone" {
+			r.ResolveWhen = `zone.state == "healthy"`
+		}
 	}
 	if r.Severity == "" {
 		r.Severity = "warning"

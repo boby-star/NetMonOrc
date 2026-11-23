@@ -30,6 +30,11 @@ func projectAlert(previous []byte, id string, old alerting.State, next alerting.
 	v.RuleRef = rule.Name
 	v.Severity = rule.Severity
 	v.State = next.State.Status
+	v.Zone = nil
+	if rule.Scope == "zone" && len(a.Zones) == 1 {
+		name := a.Zones[0].Zone
+		v.Zone = &name
+	}
 	if old.Status == "" {
 		at := a.At
 		v.StartedAt = &at

@@ -6,10 +6,12 @@ validate/plan/apply. Контракт DSL не змінено: використ�
 monitorRef, channelRef, when/resolveWhen, for/cooldown, severity,
 notifyEvents, enabled та description.
 
-Каталог перевіряє весь запропонований граф до commit. Monitor повинен існувати,
+Актуальне доповнення: [zone scope, selectors і повний CEL context](zone-alerts.md).
+
+Каталог перевіряє весь запропонований граф до commit. Явний monitorRef повинен існувати,
 а channelRef — відповідати наявному WebhookEndpoint. Невідомі поля,
-некоректний CEL, інший scope та відсутні посилання відхиляються. Зараз підтримано
-monitor scope; у R20 endpoint керується також через каталог ресурсів. Для активації
+некоректний CEL, scope поза monitor/zone та відсутні посилання відхиляються. Підтримано
+monitor/zone scope та selector; у R20 endpoint керується також через каталог ресурсів. Для активації
 каналу залишаються потрібні парні startup flags --alert-rule та --webhook-config.
 Файл AlertRule імпортується один раз; збережені зміни не перезаписуються ним
 після restart, а видалений ресурс не відновлюється з bootstrap.

@@ -139,3 +139,12 @@ Controller–Agent або браузерного запуску в цьому а
 Наступна ітерація реалізувала [типізацію trigger, Fixed values/reasonCode та
 diagnostic placementRef/selectors](../deployment/declarative-diagnostics.md).
 Наведені вище контрприклади й матриця лишаються знімком reviewed commit.
+
+## Доповнення 2026-11-23: AlertRule zone scope та selector
+
+Закрито попередню прогалину zone scope, selector Monitor та багатого CEL context.
+Додано статичні checks/zone refs, незалежні FSM/ACK/outbox, resolve-only після
+вилучення зі selector та зональну apply readiness.
+[Контракт і межі](../deployment/zone-alerts.md),
+[фактичні результати](../experiments/zone-alerts-2026-11-23/README.md).
+Історичні результати вище залишено як стан на дату аудиту.

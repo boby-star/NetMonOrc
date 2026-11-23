@@ -24,9 +24,9 @@ type Service struct {
 	Sender   *webhook.Sender
 }
 
-func (s *Service) Evaluate(ctx context.Context, a monitor.Assessment) (alerting.State, error) {
+func (s *Service) Evaluate(ctx context.Context, a monitor.Assessment, plans ...monitor.Plan) (alerting.State, error) {
 	if !s.Managed {
-		return s.Store.EvaluateAlert(ctx, s.Rule, s.Endpoint, a)
+		return s.Store.EvaluateAlert(ctx, s.Rule, s.Endpoint, a, plans...)
 	}
 	rows, err := s.Store.AlertRuleResources(ctx, a.Monitor)
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *Service) Evaluate(ctx context.Context, a monitor.Assessment) (alerting.
 	var primary alerting.State
 	s.Rule = nil
 	for _, v := range rows {
-		key := v.UID + "/" + v.Revision
+		key := v.UID + "/" + v.Revision + "/" + a.Monitor
 		evaluator := s.cache[key]
 		if evaluator == nil {
 			data, err := jsonManifest(v.Manifest)
@@ -61,14 +61,18 @@ func (s *Service) Evaluate(ctx context.Context, a monitor.Assessment) (alerting.
 				continue
 			}
 		}
-		state, err := s.Store.EvaluateAlertResource(ctx, evaluator, channel, a, v)
+		state, err := s.Store.EvaluateAlertResource(ctx, evaluator, channel, a, v, plans...)
 		if errors.Is(err, resources.ErrVersion) {
 			continue
 		}
 		if err != nil {
 			return primary, err
 		}
-		if s.Rule == nil {
+		labels := map[string]string{}
+		if len(plans) > 0 {
+			labels = plans[0].Labels
+		}
+		if s.Rule == nil && (evaluator.Rule.Matches(a.Monitor, labels) || state.Status == "firing" || state.Status == "pending" || state.Status == "resolved") {
 			s.Rule = evaluator
 			primary = state
 		}

@@ -23,6 +23,10 @@ func StaticMapKeys(root *exprpb.Expr, variable string) []string {
 			if shadowed {
 				return false
 			}
+			if variable == "zone.checks" {
+				field := x.GetSelectExpr()
+				return field != nil && field.Field == "checks" && field.Operand.GetIdentExpr().GetName() == "zone"
+			}
 			if variable != "zones.*.checks" {
 				return x.GetIdentExpr().GetName() == variable
 			}

@@ -26,17 +26,43 @@ func eventID() (string, error) {
 	s := hex.EncodeToString(b[:])
 	return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:], nil
 }
-func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment) (alerting.State, error) {
-	return s.evaluateAlert(ctx, rule, endpoint, a, nil)
+func (s *Store) EvaluateAlert(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, plans ...monitor.Plan) (alerting.State, error) {
+	return s.evaluateAlertScopes(ctx, rule, endpoint, a, nil, plans...)
 }
 
 // EvaluateAlertResource fences configuration replacement/deletion in the same
 // transaction as FSM changes and notification enqueueing.
-func (s *Store) EvaluateAlertResource(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource resources.View) (alerting.State, error) {
-	return s.evaluateAlert(ctx, rule, endpoint, a, &resource)
+func (s *Store) EvaluateAlertResource(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource resources.View, plans ...monitor.Plan) (alerting.State, error) {
+	return s.evaluateAlertScopes(ctx, rule, endpoint, a, &resource, plans...)
 }
-func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource *resources.View) (alerting.State, error) {
-	if rule.Rule.Monitor != a.Monitor || rule.Rule.Channel != endpoint.Name {
+func (s *Store) evaluateAlertScopes(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource *resources.View, plans ...monitor.Plan) (alerting.State, error) {
+	plan := monitor.Plan{}
+	if len(plans) > 0 {
+		plan = plans[0]
+	}
+	if rule.Rule.Scope != "zone" {
+		return s.evaluateAlert(ctx, rule, endpoint, a, resource, plan, a, "")
+	}
+	zones := append([]monitor.ZoneAssessment(nil), a.Zones...)
+	sort.Slice(zones, func(i, j int) bool { return zones[i].Zone < zones[j].Zone })
+	var first alerting.State
+	for i, zone := range zones {
+		scoped := a
+		scoped.State = zone.State
+		scoped.Zones = []monitor.ZoneAssessment{zone}
+		state, err := s.evaluateAlert(ctx, rule, endpoint, scoped, resource, plan, a, zone.Zone)
+		if err != nil {
+			return first, err
+		}
+		if i == 0 || alertRank(state.Status) > alertRank(first.Status) {
+			first = state
+		}
+	}
+	return first, nil
+}
+
+func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, endpoint webhook.Endpoint, a monitor.Assessment, resource *resources.View, plan monitor.Plan, whole monitor.Assessment, zone string) (alerting.State, error) {
+	if (rule.Rule.Selector == nil && rule.Rule.Monitor != a.Monitor) || rule.Rule.Channel != endpoint.Name {
 		return alerting.State{}, fmt.Errorf("alert monitor/channel mismatch")
 	}
 	tx, e := s.pool.Begin(ctx)
@@ -44,18 +70,25 @@ func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 		return alerting.State{}, e
 	}
 	defer tx.Rollback(ctx)
+	matched := rule.Rule.Matches(a.Monitor, plan.Labels)
 	if resource != nil {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock_shared(781305)`); err != nil {
 			return alerting.State{}, err
 		}
 		var monitorRevision string
-		err := tx.QueryRow(ctx, `SELECT effective_revision FROM nmo_resources WHERE kind='Monitor' AND name=$1 FOR SHARE`, a.Monitor).Scan(&monitorRevision)
+		var rawLabels []byte
+		err := tx.QueryRow(ctx, `SELECT effective_revision,COALESCE(manifest->'metadata'->'labels','{}'::jsonb) FROM nmo_resources WHERE kind='Monitor' AND name=$1 FOR SHARE`, a.Monitor).Scan(&monitorRevision, &rawLabels)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return alerting.State{}, resources.ErrVersion
 		}
 		if err != nil {
 			return alerting.State{}, err
 		}
+		labels := map[string]string{}
+		if err := json.Unmarshal(rawLabels, &labels); err != nil {
+			return alerting.State{}, err
+		}
+		matched = rule.Rule.Matches(a.Monitor, labels)
 		if monitorRevision != a.Revision {
 			return alerting.State{}, resources.ErrVersion
 		}
@@ -77,6 +110,18 @@ func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 		return alerting.State{}, resources.ErrVersion
 	}
 	key := rule.Rule.Name + "/" + a.Monitor + "/monitor"
+	if rule.Rule.Scope == "zone" {
+		key = rule.Rule.Name + "/" + a.Monitor + "/zone/" + zone
+	}
+	if !matched {
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE logical_key=$1)`, key).Scan(&exists); err != nil {
+			return alerting.State{}, err
+		}
+		if !exists {
+			return alerting.State{Status: "normal"}, tx.Commit(ctx)
+		}
+	}
 	_, e = tx.Exec(ctx, `INSERT INTO nmo_alerts(logical_key,payload) VALUES($1,'{}') ON CONFLICT DO NOTHING`, key)
 	if e != nil {
 		return alerting.State{}, e
@@ -97,7 +142,7 @@ func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 		}
 		id = &value
 	}
-	next := rule.Step(ctx, old, a)
+	next := rule.Step(ctx, old, a, alerting.StepContext{Plan: plan, Whole: whole, Selected: matched})
 	view, err := projectAlert(previous, *id, old, next, rule.Rule, a)
 	if err != nil {
 		return old, err
@@ -131,6 +176,9 @@ func (s *Store) evaluateAlert(ctx context.Context, rule *alerting.Evaluator, end
 				}
 			}
 			event := alerting.Event{ID: id, Type: "alert." + next.Notify, Rule: rule.Rule.Name, Monitor: a.Monitor, State: a.State, Severity: rule.Rule.Severity, Reasons: []string{}, Evidence: []string{}, At: a.At, Schema: "1"}
+			if zone != "" {
+				event.Zone = &zone
+			}
 			for r := range reasons {
 				event.Reasons = append(event.Reasons, r)
 			}
@@ -288,4 +336,16 @@ func (s *Store) FinishWebhook(ctx context.Context, job Delivery, endpoint webhoo
 		return e
 	}
 	return tx.Commit(ctx)
+}
+
+func alertRank(state string) int {
+	switch state {
+	case "firing":
+		return 3
+	case "pending":
+		return 2
+	case "resolved":
+		return 1
+	}
+	return 0
 }

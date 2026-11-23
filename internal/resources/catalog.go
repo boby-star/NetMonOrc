@@ -238,8 +238,22 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		if err != nil {
 			return base, nil, fmt.Errorf("%s: %w", key, err)
 		}
-		if _, found := compiled["Monitor/"+result.Rule.Monitor]; !found {
-			return base, nil, fmt.Errorf("%s: monitorRef is unavailable", key)
+		if result.Rule.Selector == nil {
+			if _, found := compiled["Monitor/"+result.Rule.Monitor]; !found {
+				return base, nil, fmt.Errorf("%s: monitorRef is unavailable", key)
+			}
+		}
+		for _, monitorKey := range keys {
+			entry := compiled[monitorKey]
+			if entry.Monitor == nil {
+				continue
+			}
+			source := all[monitorKey]
+			if result.Rule.Matches(source.Metadata.Name, source.Metadata.Labels) {
+				if err := alerting.ValidateMonitor(*result.Rule, *entry.Monitor); err != nil {
+					return base, nil, fmt.Errorf("%s: %w", key, err)
+				}
+			}
 		}
 		if registry.ManagedWebhooks {
 			if _, found := registry.Webhooks[result.Rule.Channel]; !found && result.Rule.Enabled {

@@ -838,8 +838,8 @@ async function alertRead<T>(path: string, label = "Історія алертів
   if (!response.ok) throw new Error(`${label} недоступна (${response.status}). Оновіть запит.`);
   return response.json() as Promise<T>;
 }
-export function alerts(monitor: string, state: string, cursor: string | null): Promise<AlertPage> {
-  const q = new URLSearchParams({ monitor, limit: "20" }); if (state) q.set("state", state); if (cursor) q.set("cursor", cursor);
+export function alerts(monitor: string, state: string, cursor: string | null, zone = ""): Promise<AlertPage> {
+  const q = new URLSearchParams({ monitor, limit: "20" }); if (state) q.set("state", state); if (zone) q.set("zone", zone); if (cursor) q.set("cursor", cursor);
   return alertRead(`/api/v1/alerts?${q}`);
 }
 export interface VersionedAlert { alert: AlertView; etag: string }

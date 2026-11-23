@@ -161,7 +161,7 @@ func run() error {
 				if err != nil {
 					return err
 				}
-				if rule.Monitor != p.Name || rule.Channel != endpoint.Name {
+				if (rule.Selector == nil && rule.Monitor != p.Name) || rule.Channel != endpoint.Name {
 					return fmt.Errorf("AlertRule monitor/channel reference mismatch")
 				}
 				alertRule, err = alerting.New(rule)
@@ -453,7 +453,7 @@ func run() error {
 							errors <- e
 							return
 						}
-						proofs[plan.Name] = storage.RuntimeProof{Revision: plan.Revision, Slots: runtime.assigned, Proofs: agentServer.AppliedFor(plan.Revision, time.Now())}
+						proofs[plan.Name] = storage.RuntimeProof{Revision: plan.Revision, Zones: plan.Zones, Slots: runtime.assigned, Proofs: agentServer.AppliedFor(plan.Revision, time.Now())}
 					}
 					opctx, opdone := context.WithTimeout(ctx, 3*time.Second)
 					opErr := store.ReconcileRuntimeOperations(opctx, proofs, webhookProofs)
@@ -569,7 +569,7 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 				return e
 			}
 		}
-		state, err := notifications.Evaluate(c, a)
+		state, err := notifications.Evaluate(c, a, p)
 		if err != nil {
 			return err
 		}

@@ -14,6 +14,7 @@ import (
 // requires current stream proof AND its persisted, fenced session generation.
 type RuntimeProof struct {
 	Revision string
+	Zones    []string
 	Slots    []monitor.Slot
 	Proofs   []monitor.AppliedAssignment
 }
@@ -153,13 +154,16 @@ func (s *Store) ReconcileRuntimeOperations(ctx context.Context, runtimes map[str
 			}
 			if target.Kind == "AlertRule" {
 				target.Reason = "awaiting_alert_evaluation"
-				var applied bool
-				if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nmo_alerts WHERE logical_key=$1 AND payload->>'ruleHash'=$2 AND (payload->>'lastEvaluatedAt')::timestamptz >= $3 AND payload->>'revision'=$4)`, target.Name+"/"+stringMonitorRef(current.Manifest)+"/monitor", target.EffectiveRevision, op.StartedAt, runtimes[stringMonitorRef(current.Manifest)].Revision).Scan(&applied); e != nil {
-					return e
+				applied, empty, err := alertRuleReady(ctx, tx, current, runtimes, op.StartedAt)
+				if err != nil {
+					return err
 				}
 				target.Ready = applied
 				if applied {
 					target.Reason = "alert_rule_evaluated"
+					if empty {
+						target.Reason = "alert_selector_empty"
+					}
 					loaded = true
 				}
 			}
