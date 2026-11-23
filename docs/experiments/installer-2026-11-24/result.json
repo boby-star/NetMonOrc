@@ -1,0 +1,145 @@
+{
+  "status": "passed",
+  "singleDockerHost": true,
+  "rootDriverContainer": true,
+  "credentialsOmitted": true,
+  "cases": {
+    "masterInstallAndAdmin": true,
+    "masterRerunPreservesCredentialsAndContainer": true,
+    "twoAgentsMTLSHealthy": true,
+    "standaloneCopiedScriptRerun": true,
+    "offlinePreparationNoServices": true,
+    "invalidOverridePreservesState": true,
+    "invalidCIDRPreservesState": true,
+    "identityChangeRejected": true,
+    "unrequestedRotationRejected": true,
+    "explicitRotationRecreatesContainerPreservesIdentity": true,
+    "unmanagedDirectoryRejected": true,
+    "overrideSurvivesUpdate": true,
+    "imageUpdatePreservesDBAndSession": true,
+    "stopAndRestartPreserveSpoolIdentity": true,
+    "maximumAgentIDGetsBoundedProjectName": true
+  },
+  "assessment": {
+    "monitorId": "server-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "de79b5fd413fd6adb1b6b9f90ff76b42"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "b442f900f726cd9a36eec926ab746189"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success",
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "de79b5fd413fd6adb1b6b9f90ff76b42",
+      "b442f900f726cd9a36eec926ab746189"
+    ],
+    "evaluatedAt": "2026-11-23T23:40:09.81416051Z",
+    "revision": "42572004422e790148f153b0d9be33cc4ce074acfd86526604f56b85c68b0ebe"
+  },
+  "agents": {
+    "items": [
+      {
+        "regularMonitoringAssigned": true,
+        "agentId": "branch",
+        "name": "branch",
+        "onlineState": "online",
+        "networkZone": "office",
+        "labels": {},
+        "capabilities": [
+          "assessment:replicas",
+          "assessment:zone-any",
+          "blackbox",
+          "components:external-v1",
+          "components:readiness-v1",
+          "context:dependencies",
+          "diagnostics:cancel",
+          "diagnostics:serial",
+          "diagnostics:static-comparison",
+          "dns",
+          "extraction:regex",
+          "fallback:v1",
+          "http",
+          "http:policy-v2",
+          "icmp",
+          "native-http",
+          "placement:domains",
+          "placement:dynamic",
+          "placement:fixed",
+          "placement:per-check",
+          "plans:multiple",
+          "target-cidr:172.17.0.1/32",
+          "tcp",
+          "yaml:controls-v1"
+        ],
+        "appliedRevision": "42572004422e790148f153b0d9be33cc4ce074acfd86526604f56b85c68b0ebe",
+        "lastHeartbeat": "2026-11-23T23:41:03.593926222Z",
+        "certExpiresAt": "2027-02-21T23:40:32Z",
+        "maxConcurrentProbes": 2,
+        "activeProbes": 0
+      },
+      {
+        "regularMonitoringAssigned": true,
+        "agentId": "dc",
+        "name": "dc",
+        "onlineState": "online",
+        "networkZone": "server",
+        "labels": {},
+        "capabilities": [
+          "assessment:replicas",
+          "assessment:zone-any",
+          "blackbox",
+          "components:external-v1",
+          "components:readiness-v1",
+          "context:dependencies",
+          "diagnostics:cancel",
+          "diagnostics:serial",
+          "diagnostics:static-comparison",
+          "dns",
+          "extraction:regex",
+          "fallback:v1",
+          "http",
+          "http:policy-v2",
+          "icmp",
+          "native-http",
+          "placement:domains",
+          "placement:dynamic",
+          "placement:fixed",
+          "placement:per-check",
+          "plans:multiple",
+          "target-cidr:172.17.0.1/32",
+          "tcp",
+          "yaml:controls-v1"
+        ],
+        "appliedRevision": "42572004422e790148f153b0d9be33cc4ce074acfd86526604f56b85c68b0ebe",
+        "lastHeartbeat": "2026-11-23T23:41:01.390326658Z",
+        "certExpiresAt": "2027-02-21T23:03:16Z",
+        "maxConcurrentProbes": 2,
+        "activeProbes": 0
+      }
+    ],
+    "nextCursor": null
+  }
+}

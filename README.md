@@ -9,7 +9,7 @@ Static/Fixed/Adaptive диагностика, зональные alerts, webhook
 
 ## Варианты запуска
 
-- **Сервер и отдельные Agents:** инструкция ниже, файлы
+- **Сервер и отдельные Agents:** единый [install.sh](install.sh), инструкция ниже; внутри используются
   [server.compose.yaml](deployment/server.compose.yaml) и
   [agent.compose.yaml](deployment/agent.compose.yaml). Они не создают тестовые
   цели, лабораторные маршруты или второй Agent на мастер-узле.
@@ -42,7 +42,7 @@ Go и Node на узлах запуска **не нужны**: Dockerfile соб
 Для сборки без Docker нужны Go ≥1.25, Node 24/npm и `npm ci` в `web/`;
 для работы UI Controller дополнительно нужен результат `npm run build` (`web/dist`).
 `protoc` не нужен: generated Go-файлы находятся в репозитории.
-Python ≥3.10 и OpenSSL нужны для приведённой подготовки файлов; Git — для checkout.
+Установщику нужны Bash, Python ≥3.10 (только стандартная библиотека), OpenSSL и Docker/Compose. Git нужен только для checkout/сборки, на Agents он не обязателен.
 Сборочной машине дополнительно нужен **Docker Buildx/BuildKit**: Dockerfile
 использует cache/secret mounts. Проверьте `docker buildx version` до сборки.
 Инструкция предполагает обычный rootful Docker; rootless UID mapping и
@@ -70,70 +70,263 @@ Agent как дочерний процесс на loopback. Root/NET_ADMIN дл�
 HTTP/TCP/ICMP targets сейчас задаются IP-адресами; DNS `queryName` может быть
 доменом. `127.0.0.1` в YAML Agent означает сам контейнер Agent, а не мастер или host.
 
-## Установка на сервер и Agents
+## Быстрая установка одним bash-скриптом
 
-Далее пример двух Agents: `branch=office`, `dc=server`. Замените адрес мастера
-`10.20.0.10`, его DNS `netmonorc.example.com` и адрес целевого сервиса своими.
-Не устанавливайте этот пример поверх существующих PKI, БД и spool.
-Команды выполняются из корня checkout; `sudo` нужен для Docker и `/srv`.
+Один самостоятельный `install.sh` обслуживает роли **master** и **agent**.
+Он проверяет параметры и cert/key, создаёт private config/data, Compose/env,
+случайный пароль БД и DSN, запускает сервисы. Повторный запуск использует
+сохранённые параметры; БД, credentials, spool и bootstrap YAML не сбрасываются.
+В установленном каталоге остаётся копия скрипта — checkout для управления не нужен.
 
-### 1. Подготовить Linux и получить код
+Пример: Controller `10.20.0.10`, TLS DNS `netmonorc.example.com`, Agents
+`branch=office`, `dc=server`, HTTP-цель `10.20.0.20:8080`.
+Замените эти значения на реальные. Сертификаты должны быть уже выданы:
+[рецепт PKI ниже](#подготовка-сертификатов-если-нет-своей-pki).
+CA private key не передаётся в приложение или на Agents.
 
-Пример пакетов для **Ubuntu 24.04 LTS**; для другой ОС используйте её пакеты
-или [официальную установку Docker Engine](https://docs.docker.com/engine/install/).
-На каждом узле:
+### 1. Получить скрипт и image
+
+На сборочной машине/мастере:
 
 ```sh
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl git openssl python3 docker.io docker-buildx docker-compose-v2
-sudo systemctl enable --now docker
-sudo docker version
-sudo docker compose version
-sudo docker buildx version
-timedatectl status
-
 git clone --branch prototype/minimal-research --single-branch https://github.com/boby-star/NetMonOrc.git
 cd NetMonOrc
-git rev-parse HEAD
+bash install.sh --help
 ```
 
-Время должно быть синхронизировано **до запуска**. Запишите commit: Controller
-и Agents устанавливайте из одной сборки. Проверенные версии инструментов в среде
-проверки: Docker **28.4.0**, Compose **2.40.3**, OpenSSL 3.
-Для стандартного Ubuntu timesyncd включение NTP: `sudo timedatectl set-ntp true`;
-если используется chrony, проверьте его существующую конфигурацию.
+Для первой сборки используйте `--build` из checkout. Готовый image можно
+разместить в своём registry с versioned tag/digest и передавать через `--image`:
+тогда на Agents нужны только скрипт и собственные TLS-файлы.
+Никакой публичный официальный image NetMonOrc здесь не предполагается.
 
-### 2. Собрать один image и доставить его на Agents
+Если Docker/Python/OpenSSL ещё не установлены, на **Ubuntu 24.04** добавьте к
+первой команде установки `--install-deps`. Этот явный флаг устанавливает
+`ca-certificates openssl python3` через apt; если Docker отсутствует — также
+`docker.io docker-buildx docker-compose-v2`. Существующий Docker CE/vendor Engine
+не заменяется; недостающие плагины для него установите из соответствующего
+репозитория. Флаг включает Docker через systemd. На других ОС установите зависимости
+самостоятельно. Сам установщик не меняет firewall или службу синхронизации времени.
+Перед запуском проверьте NTP: `timedatectl status`.
 
-На мастере или отдельной сборочной машине:
+### 2. Установить master
+
+Подготовьте каталог [examples/server-http.yaml](examples/server-http.yaml):
+замените оба `192.0.2.20` адресом HTTP-цели, доступной из всех нужных зон.
+Пример использует `native-http`; loopback в YAML относится к контейнеру Agent.
+Затем **одной командой** на мастере:
 
 ```sh
-sudo docker build -t netmonorc:research .
-sudo docker run --rm netmonorc:research -help
-sudo docker run --rm --entrypoint /usr/local/bin/netmonorc-agent netmonorc:research -help
-sudo docker save -o /tmp/netmonorc-image.tar netmonorc:research
+sudo bash install.sh master \
+  --build \
+  --catalog examples/server-http.yaml \
+  --slots branch=office,dc=server \
+  --grpc-bind 10.20.0.10 \
+  --server-name netmonorc.example.com \
+  --ca /path/to/ca.crt \
+  --cert /path/to/controller.crt \
+  --key /path/to/controller.key \
+  --bootstrap-admin
 ```
 
-Передайте archive на **каждый** Agent и загрузите его там:
+`--bootstrap-admin` запрашивает первый пароль скрыто в терминале (16–256 UTF-8
+байтов). Для автоматизации — `--bootstrap-admin --password-stdin` и защищённый
+pipe, без пароля в аргументах/env. Повторный bootstrap не меняет существующий пароль.
+Можно создать администратора позже через тот же скрипт:
 
 ```sh
-scp /tmp/netmonorc-image.tar operator@AGENT_HOST:/tmp/netmonorc-image.tar
-ssh operator@AGENT_HOST 'sudo docker load -i /tmp/netmonorc-image.tar'
+sudo bash /srv/netmonorc/master/install.sh master --action admin
 ```
 
-В production удобнее свой registry и неизменяемый tag/digest. При корпоративном
-TLS proxy передавайте доверенный build CA через BuildKit secret, как описано в
-[инструкции сборки](docs/deployment/research-compose.md); не отключайте TLS checks.
-Например, если нужный CA уже установлен в системный bundle:
+Вместо сборки можно передать `--image registry.example.com/netmonorc:VERSION`.
+Для корпоративного build CA: `--build --build-ca /path/to/trusted-ca-bundle.crt`.
+`--install-deps` при необходимости добавляется к той же команде master.
+Установщик не выпускает сертификаты и не меняет CA самовольно.
+
+По умолчанию используются `/srv/netmonorc/master`, Compose project
+`netmonorc-master`, gRPC 9443 и UI 8443. `--grpc-bind` должен быть IP этого хоста;
+без него gRPC доступен только на 127.0.0.1. UI остаётся на loopback, если
+не задан `--ui-bind`. PostgreSQL не публикуется на host, его volume постоянный.
+DSN/пароль лежат в private config, файлы приложения принадлежат UID 10001;
+данные Agent имеют mode 0700. `installation.json` хранит параметры без секретов.
+
+Master считается запущенным после ответа HTTPS API с проверкой CA/hostname.
+Это **не** утверждение о healthy целей: до подключения Agents ожидается unknown.
+
+### 3. Установить Agents
+
+Если registry не используется, один раз экспортируйте image и доставьте его
+на узлы вместе со скриптом. Пример для branch:
 
 ```sh
-sudo docker build --secret id=build_ca,src=/etc/ssl/certs/ca-certificates.crt -t netmonorc:research .
+(umask 077; sudo docker save netmonorc:research > /tmp/netmonorc-image.tar)
+scp install.sh /tmp/netmonorc-image.tar operator@BRANCH_HOST:~/
 ```
 
-Готовый image содержит Controller, Agent, CLI, admin, Blackbox и React assets;
-в нём нет shell, поэтому `docker exec controller sh` не работает.
+Передайте этому узлу только `ca.crt`, `branch.crt`, `branch.key`. На branch:
 
-### 3. Выпустить сертификаты вне узлов приложения
+```sh
+sudo bash install.sh agent \
+  --image netmonorc:research \
+  --image-archive /home/operator/netmonorc-image.tar \
+  --instance branch \
+  --controller 10.20.0.10:9443 \
+  --server-name netmonorc.example.com \
+  --allow-cidrs 10.20.0.20/32 \
+  --ca /home/operator/netmonorc-tls/ca.crt \
+  --cert /home/operator/netmonorc-tls/branch.crt \
+  --key /home/operator/netmonorc-tls/branch.key
+```
+
+Если используется registry, замените image на свой и уберите `--image-archive`.
+Если image уже загружен через `docker load`, архив тоже не нужен. `--build`
+доступен и для Agent, но для большого числа узлов лучше переиспользовать один image.
+На Ubuntu 24.04 можно добавить `--install-deps`.
+
+На dc повторите команду с `--instance dc` и `dc.crt/dc.key`. Identity берётся из
+URI SAN, а не из имени контейнера. `--instance` можно не задавать при первой
+установке: скрипт получит его из cert. Зону задаёт master (`dc=server`).
+
+Allowlist — это CIDR **целей**, а не Controller; несколько сетей задаются через
+запятую. Для DNS check включите IP resolver. Установщик проверяет TLS endpoint
+Controller до запуска Agent. Сообщение «Agent started» означает успешный запуск
+процесса; регистрацию, assignment и coverage проверьте на master.
+
+По умолчанию каждый Agent получает собственные пути/project:
+`/srv/netmonorc/agent-branch`, `netmonorc-agent-branch`;
+`/srv/netmonorc/agent-dc`, `netmonorc-agent-dc`. Несколько Agents на одном хосте
+не делят spool. Их можно устанавливать одним и тем же скриптом с разными cert/id.
+
+### 4. Открыть UI и проверить установку
+
+Добавьте публичный CA в доверенные сертификаты браузера и с рабочего компьютера
+откройте туннель (сертификат из примера включает localhost):
+
+```sh
+ssh -N -L 8443:127.0.0.1:8443 operator@10.20.0.10
+```
+
+Откройте **https://localhost:8443**. В UI проверьте Agents online, правильные
+identity/зоны, свежие результаты, достаточное coverage и healthy при ответе цели
+200. При прямом доступе используйте DNS из server SAN и нужный `--ui-bind`.
+TLS verification не отключается. Отдельный Node/nginx для UI не требуется.
+
+```sh
+sudo bash /srv/netmonorc/master/install.sh master --action status
+sudo bash /srv/netmonorc/master/install.sh master --action logs
+sudo bash /srv/netmonorc/agent-branch/install.sh agent --instance branch --action status
+sudo bash /srv/netmonorc/agent-branch/install.sh agent --instance branch --action logs
+```
+
+При custom `--install-dir` передавайте его и при дальнейшем управлении.
+
+| Симптом | Проверка |
+|---|---|
+| Нет Docker/Compose | Зависимости и доступ к локальному rootful daemon; Ubuntu 24.04: `--install-deps` |
+| Ошибка TLS | CA, cert/key, срок, время, server DNS SAN и `--server-name`; Agent URI SAN |
+| Agent не online | TCP 9443, его id в `--slots`, одинаковый image, журналы обоих узлов |
+| Unknown/coverage degraded | Все required zones, NTP ≤5 секунд, lease, allowlist, доступность цели из каждой зоны |
+| Identity mismatch | Чужой cert не должен использовать существующий spool; выдайте правильную пару |
+| Existing unmanaged directory/project | Не перезаписывается; используйте прежний механизм управления или отдельную согласованную миграцию |
+
+### 5. Массовая установка и добавление Agents
+
+Один versioned image и `install.sh` можно доставлять Ansible/SSH/системой
+управления конфигурацией; каждому узлу передаются только его cert/key,
+Controller address и allowlist. Пароли БД или пользовательские PAT Agent не нужны.
+Для подготовки конфигурации без запуска/доступного Controller есть `--no-start`;
+повторите команду без этого флага после подготовки сети. Registry credentials
+настраиваются для root через `sudo docker login REGISTRY`, не через параметры установщика.
+
+Чтобы добавить branch2 в office, выдайте ему cert с URI
+`spiffe://netmonorc/agent/branch2`, затем обновите roster master:
+
+```sh
+sudo bash /srv/netmonorc/master/install.sh master --action update \
+  --slots branch=office,branch2=office,dc=server
+```
+
+После этого выполните обычную команду Agent с `--instance branch2` и его cert/key.
+Планируемое покрытие/PlacementPolicy настройте через API/CLI/React; новая зона
+не становится автоматически required. Текущий Controller поддерживает **до 100
+Agent identities** в roster. Автоматический discovery/enrollment этим скриптом
+не добавляется. Масштабирование Agents не означает HA Controller: один master
+обслуживает свою БД. Независимые master-инсталляции должны иметь разные
+`--install-dir`, `--project` и порты при размещении на одном хосте.
+
+### 6. Повторный запуск, обновление и смена сертификатов
+
+Повторная установка с теми же параметрами не пересоздаёт credentials/БД/spool.
+Сохранённые значения используются, если флаги опущены:
+
+```sh
+sudo bash /srv/netmonorc/master/install.sh master
+sudo bash /srv/netmonorc/agent-branch/install.sh agent --instance branch
+```
+
+Для обновления используйте новую версию `install.sh` и versioned image:
+
+```sh
+sudo bash install.sh master --action update --image registry.example.com/netmonorc:NEW_VERSION
+sudo bash install.sh agent --instance branch --action update --image registry.example.com/netmonorc:NEW_VERSION
+```
+
+Для custom каталога укажите `--install-dir`. Отсутствующий image загружается;
+`--pull` явно обновляет уже локально существующий tag. Для offline-обновления
+доступен `--image-archive`. Обновляйте Controller и Agents согласованно.
+Изменения private configuration сохраняются в private `history/` до применения;
+автоматического rollback схемы PostgreSQL нет. При ошибке readiness конфигурация
+и данные остаются на месте, смотрите `--action logs`.
+
+Сертификаты обновляются только явно (Agent identity остаётся прежней):
+
+```sh
+sudo bash install.sh agent --instance branch \
+  --ca /path/to/ca.crt --cert /path/to/new-branch.crt --key /path/to/new-branch.key \
+  --rotate-tls
+```
+
+Смена cert/key вызывает пересоздание соответствующего контейнера. Для master
+доступен тот же `--rotate-tls`; миграцию CA планируйте с учётом всех Agents.
+Автоматического certificate renewal нет. Bootstrap `--catalog` не перезаписывается:
+для изменения работающих ресурсов используйте API/CLI/React.
+
+Остановка сохраняет контейнеры, сети, БД и очередь:
+
+```sh
+sudo bash /srv/netmonorc/agent-branch/install.sh agent --instance branch --action stop
+sudo bash /srv/netmonorc/master/install.sh master --action stop
+```
+
+Установщик не выполняет `down -v`, prune или очистку PKI/data. Чужие unmanaged
+каталоги и Compose projects/volumes не присваиваются. Существующие ручные установки
+из предыдущего README не мигрируются автоматически; их
+[Compose-шаблоны](deployment/server.compose.yaml) остаются доступными.
+До переноса существующей БД в новый project сделайте backup и план восстановления.
+
+### 7. Backup
+
+Для установленного master (root, приватный dump, отказ при существующем имени):
+
+```sh
+sudo bash -c '
+set -eu
+umask 077
+mkdir -p /srv/netmonorc/backups
+set -C
+docker compose -p netmonorc-master --env-file /srv/netmonorc/master/compose.env \
+  -f /srv/netmonorc/master/compose.yaml exec -T postgres \
+  pg_dump -U netmonorc -d netmonorc -Fc \
+  > "/srv/netmonorc/backups/netmonorc-$(date -u +%Y%m%dT%H%M%SZ).dump"
+'
+```
+
+Для custom project/path подставьте сохранённые значения. Отдельно сохраняйте
+private installation directory с config, `installation.json`, `compose.env`,
+history и PKI; spool копируйте после остановки Agent. JSON snapshots не являются
+backup БД. Данные должны храниться на постоянном диске. Spool ограничен 1000
+ожидающих записей; автоматическая retention БД и backup scheduler не реализованы.
+
+## Подготовка сертификатов, если нет своей PKI
 
 Используйте свою PKI либо следующий OpenSSL-пример на доверенной машине
 администратора. `scripts/dev_pki.py` для удалённых серверов не подходит:
@@ -191,238 +384,36 @@ PKI-хранилище администратора. Имя Agent берётся
 `spiffe://netmonorc/agent/<id>` и должно точно совпадать со `slots` Controller;
 изменить identity одним параметром CLI нельзя.
 
-Пример передачи файлов с PKI-машины (checkout на узлах — `~/NetMonOrc`):
+Пример передачи файлов с PKI-машины (каталог назначения на узлах — `~/netmonorc-tls`):
 
 ```sh
-ssh operator@MASTER_HOST 'umask 077; mkdir -p ~/NetMonOrc/.local/server-pki'
-scp .local/server-pki/ca.crt .local/server-pki/controller.crt .local/server-pki/controller.key operator@MASTER_HOST:~/NetMonOrc/.local/server-pki/
-ssh operator@BRANCH_HOST 'umask 077; mkdir -p ~/NetMonOrc/.local/server-pki'
-scp .local/server-pki/ca.crt .local/server-pki/branch.crt .local/server-pki/branch.key operator@BRANCH_HOST:~/NetMonOrc/.local/server-pki/
+ssh operator@MASTER_HOST 'umask 077; mkdir -p ~/netmonorc-tls'
+scp .local/server-pki/ca.crt .local/server-pki/controller.crt .local/server-pki/controller.key operator@MASTER_HOST:~/netmonorc-tls/
+ssh operator@BRANCH_HOST 'umask 077; mkdir -p ~/netmonorc-tls'
+scp .local/server-pki/ca.crt .local/server-pki/branch.crt .local/server-pki/branch.key operator@BRANCH_HOST:~/netmonorc-tls/
 ```
 
 Для dc выполните аналогичную передачу только `ca.crt`, `dc.crt`, `dc.key`.
 
-### 4. Подготовить мастер и PostgreSQL
+## Дополнительные возможности
 
-На мастере, после получения его трёх TLS-файлов в `.local/server-pki`:
-
-```sh
-sudo install -d -m 0700 -o 10001 -g 10001 /srv/netmonorc/controller/config /srv/netmonorc/controller/data
-sudo install -m 0600 -o 10001 -g 10001 .local/server-pki/ca.crt .local/server-pki/controller.crt .local/server-pki/controller.key /srv/netmonorc/controller/config/
-sudo install -m 0600 -o 10001 -g 10001 examples/server-http.yaml /srv/netmonorc/controller/config/catalog.yaml
-sudoedit /srv/netmonorc/controller/config/catalog.yaml
-```
-
-В `catalog.yaml` замените **оба** `192.0.2.20` на адрес настоящей HTTP-цели,
-доступной из обеих зон; измените порт/URL при необходимости. Этот адрес из диапазона
-документации сам по себе не является работающим сервисом.
-
-Создайте случайный пароль БД и DSN без вывода пароля в терминал/аргументы.
-Команда откажется перезаписывать существующие файлы:
-
-```sh
-sudo python3 - <<'PY'
-import os, secrets
-from pathlib import Path
-root = Path('/srv/netmonorc/controller/config')
-password = secrets.token_urlsafe(32)
-files = {
-    'postgres-password': password + '\n',
-    'database.dsn': f'postgresql://netmonorc:{password}@postgres:5432/netmonorc?sslmode=disable\n',
-}
-if any((root / name).exists() for name in files):
-    raise SystemExit('Existing database credentials preserved; stop and inspect the installation')
-for name, value in files.items():
-    fd = os.open(root / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, 'w') as out:
-        out.write(value)
-    os.chown(root / name, 10001, 10001)
-PY
-sudo tee /srv/netmonorc/controller.env >/dev/null <<'ENV'
-NMO_IMAGE=netmonorc:research
-NMO_CONFIG_DIR=/srv/netmonorc/controller/config
-NMO_DATA_DIR=/srv/netmonorc/controller/data
-NMO_SLOTS=branch=office,dc=server
-NMO_GRPC_BIND=10.20.0.10
-NMO_UI_BIND=127.0.0.1
-ENV
-sudo chmod 0600 /srv/netmonorc/controller.env
-```
-
-`NMO_GRPC_BIND` должен быть IP, **назначенным этому серверу**. В примере БД
-доступна только Controller через internal Docker bridge; `sslmode=disable`
-относится только к этой локальной сети. Для внешней БД нужны отдельные защищённый
-endpoint, учётная запись с правами создания/изменения схемы `nmo_*` и DSN с
-`sslmode=verify-full`/доверенным CA. Agent не получает DSN и не подключается к БД.
-
-Проверить YAML и поднять сначала БД, затем Controller:
-
-```sh
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml config --quiet
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml run --rm --no-deps -T --entrypoint /usr/local/bin/netmonorc controller validate --config /etc/netmonorc/catalog.yaml --slots branch=office,dc=server
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml up -d --wait postgres
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml up -d controller
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml logs --tail=50 controller
-```
-
-Controller сам создаёт/обновляет схему БД при старте. До подключения обоих Agents
-`unknown` — ожидаемый результат, а не ошибка установки. Bootstrap YAML импортируется
-однократно: дальнейшие изменения ресурсов выполняйте через API/React/CLI,
-а не редактированием уже импортированного файла. Подробности:
-[bootstrap catalog](docs/deployment/bootstrap-catalog.md).
-
-### 5. Создать первого администратора и открыть UI
-
-На мастере в интерактивном терминале:
-
-```sh
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml exec controller /usr/local/bin/netmonorc-admin -database-file /etc/netmonorc/database.dsn -username admin
-```
-
-Введите пароль 16–256 байтов UTF-8; символы не отображаются. Повторный вызов
-не сбрасывает пароль существующего администратора. Публичный `ca.crt` добавьте
-в доверенные сертификаты браузера. С рабочего компьютера откройте туннель:
-
-```sh
-ssh -N -L 8443:127.0.0.1:8443 operator@10.20.0.10
-```
-
-Откройте **https://localhost:8443** и войдите. SAN localhost в приведённом
-сертификате предусмотрен именно для этого адреса. Для прямого доступа задайте
-`NMO_UI_BIND` равным private IP сервера и открывайте DNS-имя из сертификата.
-Не используйте HTTP или отключение проверки сертификата. REST и React обслуживает
-сам Controller; отдельные nginx, Node runtime и frontend-сервер не обязательны.
-
-### 6. Установить Agent в каждой зоне
-
-На branch-узле должны быть image из шага 2 и только его CA/cert/key.
-Пример предполагает, что файлы получены в `.local/server-pki`:
-
-```sh
-sudo install -d -m 0700 -o 10001 -g 10001 /srv/netmonorc/agent/config /srv/netmonorc/agent/data
-sudo install -m 0600 -o 10001 -g 10001 .local/server-pki/ca.crt /srv/netmonorc/agent/config/ca.crt
-sudo install -m 0600 -o 10001 -g 10001 .local/server-pki/branch.crt /srv/netmonorc/agent/config/agent.crt
-sudo install -m 0600 -o 10001 -g 10001 .local/server-pki/branch.key /srv/netmonorc/agent/config/agent.key
-sudo tee /srv/netmonorc/agent.env >/dev/null <<'ENV'
-NMO_IMAGE=netmonorc:research
-NMO_CONFIG_DIR=/srv/netmonorc/agent/config
-NMO_DATA_DIR=/srv/netmonorc/agent/data
-NMO_CONTROLLER=10.20.0.10:9443
-NMO_SERVER_NAME=netmonorc.example.com
-NMO_ALLOW_CIDRS=10.20.0.20/32
-ENV
-sudo chmod 0600 /srv/netmonorc/agent.env
-sudo docker compose --env-file /srv/netmonorc/agent.env -f deployment/agent.compose.yaml config --quiet
-sudo docker compose --env-file /srv/netmonorc/agent.env -f deployment/agent.compose.yaml up -d
-sudo docker compose --env-file /srv/netmonorc/agent.env -f deployment/agent.compose.yaml logs --tail=50 agent
-```
-
-Укажите **реальный** CIDR целевого сервиса из шага 4; для нескольких сетей —
-список через запятую. Это allowlist целей, а не список IP Controller. Для DNS check
-в него должен входить IP resolver. `NMO_SERVER_NAME` проверяется по SAN сертификата
-Controller даже при соединении по IP; не подставляйте туда имя Agent.
-
-На dc-узле повторите шаг 6 с `dc.crt`/`dc.key` и **собственным** data-dir.
-Зону определяет Controller (`dc=server`). Два процесса Agent не могут использовать
-один spool; identity каталога нельзя менять с branch на dc. При одном Agent
-согласованно измените и `NMO_SLOTS`, и `assessment.requiredZones`.
-
-### 7. Проверить результат и диагностировать запуск
-
-На мастере:
-
-```sh
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml ps
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml exec -T postgres pg_isready -U netmonorc -d netmonorc
-sudo curl --cacert /srv/netmonorc/controller/config/ca.crt -sS -o /dev/null -w '%{http_code}\n' https://localhost:8443/api/v1/auth/me
-```
-
-Последняя команда без session/PAT должна вернуть **401**: это подтверждает TLS
-и доступность защищённого API, а не готовность probes. В UI проверьте «Agents»:
-оба online, ожидаемые identity/зоны; затем Monitor `server-web`, свежие результаты
-HTTP, достаточное coverage и `healthy`, если настоящая цель отвечает 200.
-Одного `docker compose ps` недостаточно для подтверждения работоспособности.
-
-| Симптом | Что проверить |
-|---|---|
-| Controller не стартует | Доступность PostgreSQL, DSN, ownership 10001, SAN/key pair, YAML и занятость портов |
-| `x509` / hostname mismatch | CA, срок cert, системное время, `NMO_SERVER_NAME` и server SAN |
-| Agent не виден | TCP 9443, URI SAN, `branch/dc` в slots, одинаковая версия image, журналы Agent/Controller |
-| `Agent data directory must be a private directory` | mode 0700 и UID/GID 10001 каталога data |
-| `already locked` / different Agent identity | Отдельный spool для каждого Agent; не удалять lock/identity для обхода проверки |
-| `unknown` / неполное coverage | Оба Agents online, свежесть, время, lease, CIDR и доступность цели из каждой зоны |
-| Probe execution failure | Выбранный runner, Blackbox 0.27.0, разрешения ICMP, доступность target/resolver и локальные ограничения |
-
-Agent при разрыве связи повторяет подключение; новые probes прекращаются по
-истечении lease. Spool сохраняет до 1000 ожидающих записей; при заполнении новые
-проверки приостанавливаются. Сохранённая очередь не заменяет восстановление связи.
-
-### 8. Перезапуск, обновление и резервные копии
-
-```sh
-# На мастере:
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml restart controller
-# На соответствующем Agent:
-sudo docker compose --env-file /srv/netmonorc/agent.env -f deployment/agent.compose.yaml restart agent
-```
-
-При обновлении сохраните backup БД и конфигурации, соберите новый versioned image,
-доставьте его на все узлы, измените `NMO_IMAGE`, выполните `up -d` для Controller
-и Agents и повторите шаг 7. Обычный `restart` не подхватывает новый image/env.
-Один Controller обслуживает БД; HA этим шаблоном не реализуется.
-
-Пример логического backup с мастера; файл содержит приватные данные:
-
-```sh
-(
-set -eu
-umask 077
-mkdir -p .local/backups
-backup_file=".local/backups/netmonorc-$(date -u +%Y%m%dT%H%M%SZ).dump"
-set -C
-sudo docker compose --env-file /srv/netmonorc/controller.env -f deployment/server.compose.yaml exec -T postgres pg_dump -U netmonorc -d netmonorc -Fc > "$backup_file"
-)
-```
-
-Отдельно сохраняйте `/srv/netmonorc/controller/config`, env-файлы, PKI-хранилище
-и data-dir Agents с правами доступа. Для snapshot spool сначала остановите Agent.
-JSON/HTML snapshots не являются backup БД. [Восстановление лабораторного профиля](docs/deployment/backup-recovery.md)
-использует другие имена projects/volumes — не запускайте его поверх серверной БД.
-
-`docker compose ... down` без `-v` сохраняет named volume PostgreSQL и bind-каталоги.
-Не удаляйте volumes, `/srv/netmonorc`, `.local` или PKI для устранения ошибок запуска.
-До истечения сертификатов выпустите замену, установите её на соответствующий узел
-и перезапустите процесс. Автоматический certificate renewal этим примером не обеспечивается.
-
-## Дополнительные возможности и документация
-
-Базовый серверный пример включает мониторинг, PostgreSQL и UI. Для диагностики
-добавьте DiagnosticProfile и binding в каталог:
+Базовый пример включает мониторинг, PostgreSQL и React. Диагностику добавляйте
+через DiagnosticProfile/binding в bootstrap или API:
 [декларативная диагностика](docs/deployment/declarative-diagnostics.md),
-[replicas и CEL context](docs/deployment/replica-context.md).
-Для alerts/webhook задайте `NMO_WEBHOOK_ALLOW_CIDRS` в controller.env и добавьте
-WebhookEndpoint/AlertRule в каталог или через UI. Внешний receiver должен реально
-существовать; для bearer нужны `-webhook-secret-dir` и соответствующий secretRef,
-для собственного CA — `-webhook-ca` в command Controller. После изменения command/env
-примените `up -d`. См. [webhook](docs/deployment/webhook-resources.md),
-[зональные правила](docs/deployment/zone-alerts.md),
-[персональные токены и CLI](docs/deployment/personal-api-tokens.md).
+[replicas/CEL](docs/deployment/replica-context.md).
+Для webhook используйте `--webhook-allow-cidrs`, ресурсы WebhookEndpoint/AlertRule
+и реально доступный HTTPS receiver. Для custom command (bearer secret-dir, receiver
+CA, trusted inventory/failure domains) передайте `--compose-override /path/to/override.yaml`.
+Установщик сохраняет его как `compose.override.yaml` и использует при всех действиях
+и обновлениях. Compose заменяет command-массив целиком: укажите полный command с
+дополнительными flags и нужные mounts. Host-пути в override задавайте абсолютными. Base `compose.yaml`/`compose.env` генерируются
+установщиком; custom изменения размещайте в override, а не в base-файлах.
+[Webhook](docs/deployment/webhook-resources.md), [зональные alerts](docs/deployment/zone-alerts.md).
 
-Если используются selectors Agents и подтверждения по failure domains,
-дополните command Controller параметрами `-agent-labels-file` и
-`-failure-domains`: [доверенный inventory](docs/deployment/check-placement.md).
-Физические зоны и домены отказа задаёт администратор; установка двух контейнеров
-на одном хосте не создаёт независимые failure domains.
-
-[YAML controls](docs/deployment/yaml-controls.md),
-[редактор YAML](docs/deployment/yaml-editor.md),
-[batch apply](docs/deployment/yaml-web.md),
-[CheckProfile](docs/deployment/check-profiles.md),
-[PlacementPolicy](docs/deployment/placement-policies.md),
-[assessment](docs/deployment/assessment-policies.md),
-[Components / внешний exporter](docs/deployment/components.md),
-[история и evidence](docs/deployment/observation-detail.md),
-[экспорт диагностики](docs/deployment/diagnostic-export.md).
+[YAML controls](docs/deployment/yaml-controls.md), [редактор](docs/deployment/yaml-editor.md),
+[batch apply](docs/deployment/yaml-web.md), [PAT/CLI](docs/deployment/personal-api-tokens.md),
+[Agent inventory/placement](docs/deployment/check-placement.md).
+Доверенные Agent labels и failure domains задаются master, а не самими Agents.
 
 ## Лабораторный запуск и разработка
 
@@ -465,11 +456,11 @@ private PostgreSQL/DSN, cert/key и приватные persistent directories. C
 `-data-dir` относится к Agent; server-side state хранится в БД и явно заданных
 snapshot-файлах. Native systemd installer в репозитории пока отсутствует.
 
-## Что проверено в инструкции
+## Проверка установщика
 
-[Проверка серверного развёртывания](docs/experiments/server-install-2026-11-24/README.md):
-новые Compose-шаблоны, команды PKI/CLI, настоящий PostgreSQL, два mTLS Agents,
-переход unknown → healthy, HTTPS/React assets, bootstrap и restart persistence.
-Проверка выполнена на одном Docker-хосте. Установка пакетов на чистой Ubuntu,
-связь физических серверов, внешний firewall и browser interactions отдельно
-не подтверждены. PKI, spool и volume тестовой БД сохранены.
+[Результаты](docs/experiments/installer-2026-11-24/README.md): реальный PostgreSQL,
+master и два Agents, mTLS/HTTP до healthy, повторная установка, update image,
+сохранение сессии/spool, отказ при неверных CIDR/identity/unmanaged directory.
+Проверка выполняется на одном Docker-хосте через root driver; это не испытание
+между физическими серверами. Установка apt-пакетов на чистой Ubuntu, browser
+interactions, HA, автоматическая выдача сертификатов отдельно не подтверждены.

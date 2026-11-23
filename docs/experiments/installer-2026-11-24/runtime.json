@@ -1,0 +1,22 @@
+{
+  "baseCommit": "f669dda622b02bb0791d6e775e32c2ac659adbbd",
+  "applicationImage": "sha256:ef1fd021709ab4fe2fcee896965ff3d62986c39a3050557859f31353004cb9b8",
+  "docker": "28.4.0",
+  "compose": "2.40.3",
+  "bashSyntaxPassed": true,
+  "embeddedPythonSyntaxPassed": true,
+  "embeddedTemplatesMatchStandalone": true,
+  "readmeShellBlocksSyntaxChecked": 17,
+  "sourceSHA256": {
+    "install.sh": "32b09bc1b7ed763baad26d9e041f2192d62b13989676ef976921f0fe17c2aa25",
+    "README.md": "2549e3689ab86401e69078dfdcefa77c60642c39a898696437bff5799c94954c",
+    "deployment/server.compose.yaml": "cfd411784a07246858087547f2b8ee4bda92b504b4554d440f4f49e9a0986ca3",
+    "deployment/agent.compose.yaml": "8c8334ea93fb29bf1b2494af3db6c1d6956876b66934e9aca510904643a73df0"
+  },
+  "ubuntuPackageInstallTested": false,
+  "buildPullArchivePathsExercised": false,
+  "separatePhysicalHostsTested": false,
+  "browserInteractionsTested": false,
+  "rootDriver": "Existing Python Alpine fixture with host Bash/OpenSSL/Docker CLI mounts, local Docker socket and host network; operations confined to owned test projects/directories",
+  "finalStatusOnStoppedServicesTested": true
+}
