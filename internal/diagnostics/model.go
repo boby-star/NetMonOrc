@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/boby-star/NetMonOrc/internal/monitor"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 )
 
 type Budget struct {
@@ -16,9 +17,13 @@ type Budget struct {
 	MaxEstimatedBytes int64
 }
 type Placement struct {
-	AgentRefs []string
-	Zones     []string
-	Strategy  string
+	Selector   *resourcegroup.Selector `json:",omitempty"`
+	DistinctBy string                  `json:",omitempty"`
+	Ref        string                  `json:",omitempty"`
+	Hash       string                  `json:",omitempty"`
+	AgentRefs  []string
+	Zones      []string
+	Strategy   string
 }
 type Action struct {
 	Retry *Retry `json:",omitempty"`
@@ -38,7 +43,17 @@ type Outcome struct {
 	Execution string
 	Outcome   string
 }
+type TaskEvidence struct {
+	Outcome    Outcome
+	Values     map[string]monitor.Scalar
+	ReasonCode string
+	ValidUntil time.Time
+}
+type EvidenceCondition func(context.Context, map[string]TaskEvidence, string) (bool, error)
+
 type Step struct {
+	WhenEvidence EvidenceCondition `json:"-"`
+
 	ID         string
 	ActionID   string
 	DependsOn  []string
@@ -63,6 +78,7 @@ type Profile struct {
 	Steps               []Step
 }
 type Executor struct {
+	Labels map[string]string
 	// Evidence before this trusted topology epoch cannot establish independence.
 	EvidenceNotBefore time.Time
 	ID                string
@@ -106,19 +122,20 @@ type BaselineEvidence struct {
 	ProbeOutcome          string    `json:"probeOutcome"`
 }
 type Decision struct {
-	StepID           string     `json:"stepId,omitempty"`
-	ObservationID    string     `json:"observationId,omitempty"`
-	FinishedAt       *time.Time `json:"finishedAt,omitempty"`
-	ValidUntil       *time.Time `json:"validUntil,omitempty"`
-	FailureDomain    string     `json:"failureDomain,omitempty"`
-	AttemptNo        int        `json:"attemptNo,omitempty"`
-	Phase            string     `json:"phase,omitempty"`
-	ActionID         string     `json:"actionId"`
-	AgentID          string     `json:"agentId"`
-	HypothesesBefore []string   `json:"hypothesesBefore"`
-	Gain             int        `json:"gain"`
-	Score            float64    `json:"score"`
-	Outcome          Outcome    `json:"result"`
+	TaskEvidence     TaskEvidence `json:"-"`
+	StepID           string       `json:"stepId,omitempty"`
+	ObservationID    string       `json:"observationId,omitempty"`
+	FinishedAt       *time.Time   `json:"finishedAt,omitempty"`
+	ValidUntil       *time.Time   `json:"validUntil,omitempty"`
+	FailureDomain    string       `json:"failureDomain,omitempty"`
+	AttemptNo        int          `json:"attemptNo,omitempty"`
+	Phase            string       `json:"phase,omitempty"`
+	ActionID         string       `json:"actionId"`
+	AgentID          string       `json:"agentId"`
+	HypothesesBefore []string     `json:"hypothesesBefore"`
+	Gain             int          `json:"gain"`
+	Score            float64      `json:"score"`
+	Outcome          Outcome      `json:"result"`
 }
 type EvidencePolicy struct {
 	MaxAgeMS  int64 `json:"maxAgeMs"`
@@ -165,6 +182,8 @@ type AdmissionRunner interface {
 
 // ObservedOutcome carries the committed Observation's time, not delivery time.
 type ObservedOutcome struct {
+	Values        map[string]monitor.Scalar
+	ReasonCode    string
 	Outcome       Outcome
 	ObservationID string
 	FinishedAt    time.Time

@@ -135,3 +135,7 @@ Controller–Agent або браузерного запуску в цьому а
 Це звірка основних сутностей і ключових розбіжностей, не сертифікація кожного
 поля кожного driver чи 100% відповідності всьому старому ТЗ. Runtime код у
 межах цього аудиту не змінювався.
+
+Наступна ітерація реалізувала [типізацію trigger, Fixed values/reasonCode та
+diagnostic placementRef/selectors](../deployment/declarative-diagnostics.md).
+Наведені вище контрприклади й матриця лишаються знімком reviewed commit.

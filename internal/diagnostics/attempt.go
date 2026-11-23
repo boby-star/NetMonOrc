@@ -32,5 +32,15 @@ func (e Engine) executeAttempt(ctx context.Context, a Action, executor Executor,
 		}
 		validUntil = &expires
 	}
-	return Decision{StepID: a.StepID, ObservationID: evidence.ObservationID, FinishedAt: finished, ValidUntil: validUntil, FailureDomain: executor.FailureDomain, ActionID: a.ID, AgentID: executor.ID, HypothesesBefore: append([]string(nil), before...), Gain: gain, Score: float64(gain) / a.Cost, Outcome: observed, Phase: phase, AttemptNo: a.AttemptNo}
+	data := TaskEvidence{Outcome: observed}
+	if err == nil && attempt.Err() == nil && valid && evidence.ObservationID != "" && finished != nil {
+		data.ReasonCode = evidence.ReasonCode
+		if observed.Execution == "completed" {
+			data.Values = evidence.Values
+		}
+		if validUntil != nil {
+			data.ValidUntil = *validUntil
+		}
+	}
+	return Decision{TaskEvidence: data, StepID: a.StepID, ObservationID: evidence.ObservationID, FinishedAt: finished, ValidUntil: validUntil, FailureDomain: executor.FailureDomain, ActionID: a.ID, AgentID: executor.ID, HypothesesBefore: append([]string(nil), before...), Gain: gain, Score: float64(gain) / a.Cost, Outcome: observed, Phase: phase, AttemptNo: a.AttemptNo}
 }

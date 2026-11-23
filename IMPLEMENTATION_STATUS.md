@@ -1,3 +1,20 @@
+# Типізований trigger, Fixed values та diagnostic placement
+
+DiagnosticBinding CEL має закритий monitor context name/state/coverageState:
+помилкові поля відхиляються до запису. Fixed guard отримує typed values і
+reasonCode committed Observation лише від своїх попередників, із збереженням
+int64/zero/false та відсутності ключів. DiagnosticAction підтримує placementRef,
+selectors і distinctBy через спільний PlacementPolicy compiler та trusted
+Controller inventory. Manual start завантажує refs; DELETE політики з такими
+посиланнями захищений 409. [Контракт](docs/deployment/declarative-diagnostics.md).
+
+Натурно підтверджено API/CLI validation, branch read → parsed CEL guard → dc
+confirm у serial/parallel engines, відсутнє value → inconclusive без другого
+probe, healthy та блокування DELETE. Go/vet і production build пройшли.
+[Докази](docs/experiments/declarative-diagnostics-2026-11-23/README.md).
+Нових browser clicks немає. Replicas>1/partial, default Monitor inheritance і
+повний CEL context ще не реалізовані; 100% готовність ТЗ не заявлено.
+
 # Детерміновані умови Fixed DAG
 
 Типізовано tasks[id].outcome/executionStatus і monitor.state. Невідомі поля та

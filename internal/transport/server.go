@@ -409,7 +409,7 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 					if taskID == "" {
 						taskID = o.FallbackTaskID
 					}
-					s.taskEvidenceResult(taskID, id, diagnostics.ObservedOutcome{ObservationID: o.ID, FinishedAt: o.FinishedAt, Outcome: diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome}})
+					s.taskEvidenceResult(taskID, id, diagnostics.ObservedOutcome{Values: o.Values, ReasonCode: o.Reason, ObservationID: o.ID, FinishedAt: o.FinishedAt, Outcome: diagnostics.Outcome{Execution: o.Execution, Outcome: o.Outcome}})
 				}
 			}
 			ack := &pb.ObservationAck{}

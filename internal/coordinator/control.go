@@ -44,7 +44,26 @@ func (c *Coordinator) StartManual(runtime, requestContext context.Context, actor
 	if !found {
 		return "", resources.ErrNotFound
 	}
-	compiled, err := (resources.Registry{}).CompileResource(resource.Manifest)
+	registry := resources.Registry{Placements: map[string]resources.PlacementPolicy{}}
+	refs, err := resources.DiagnosticPlacementRefs(resource.Manifest)
+	if err != nil {
+		return "", resources.ErrInvalid
+	}
+	for _, ref := range refs {
+		policy, found, err := c.Store.ResourceKind(requestContext, "PlacementPolicy", ref)
+		if err != nil {
+			return "", err
+		}
+		if !found {
+			return "", resources.ErrConflict
+		}
+		compiled, err := registry.CompileResource(policy.Manifest)
+		if err != nil {
+			return "", resources.ErrInvalid
+		}
+		registry.Placements[ref] = *compiled.Placement
+	}
+	compiled, err := registry.CompileResource(resource.Manifest)
 	if err != nil {
 		return "", resources.ErrInvalid
 	}

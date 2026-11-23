@@ -11,13 +11,13 @@ import (
 )
 
 type Expression struct {
-	Key      string   `json:"key"`
-	Operator string   `json:"operator"`
-	Values   []string `json:"values,omitempty"`
+	Key      string   `json:"key" yaml:"key"`
+	Operator string   `json:"operator" yaml:"operator"`
+	Values   []string `json:"values,omitempty" yaml:"values"`
 }
 type Selector struct {
-	MatchLabels      map[string]string `json:"matchLabels,omitempty"`
-	MatchExpressions []Expression      `json:"matchExpressions,omitempty"`
+	MatchLabels      map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels"`
+	MatchExpressions []Expression      `json:"matchExpressions,omitempty" yaml:"matchExpressions"`
 }
 type Evaluation struct {
 	Strategy    string             `json:"strategy"`

@@ -1,0 +1,47 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: PlacementPolicy
+metadata: {name: parsed-office}
+spec:
+  selector: {matchLabels: {site: office}}
+  zones: [office]
+  strategy: leastLoaded
+  replicas: 1
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata: {name: parsed-fixed}
+spec:
+  mode: fixed
+  budget: {maxAdditionalChecks: 2, maxDuration: 60s, maxParallel: 2}
+  hypotheses: [{id: responding}, {id: broken}]
+  actions:
+    - id: read-body
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/parsed', expectedStatus: [200]}
+        extract:
+          - {name: depth, from: response.body, pattern: 'queue_depth=([0-9]+)', group: 1, as: integer}
+          - {name: ready, from: response.body, pattern: 'ready=(true|false)', group: 1, as: boolean}
+      placementRef: parsed-office
+      expectedOutcomes: {responding: success, broken: failure}
+    - id: confirm
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/confirm', expectedStatus: [200]}
+      placement:
+        selector: {matchLabels: {site: server}}
+        strategy: fixed
+        distinctBy: failureDomain
+        replicas: 1
+      expectedOutcomes: {responding: success, broken: failure}
+  fixed:
+    steps:
+      - {id: a-read, actionRef: read-body}
+      - id: b-confirm
+        actionRef: confirm
+        dependsOn: [a-read]
+        when: 'has(tasks["a-read"].values.depth) && tasks["a-read"].values.depth == 0 && tasks["a-read"].values.ready && tasks["a-read"].reasonCode == "expected_status"'

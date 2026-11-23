@@ -77,7 +77,7 @@ func Validate(p Profile) error {
 		if a.Placement.Strategy != "fixed" && a.Placement.Strategy != "leastLoaded" && a.Placement.Strategy != "roundRobin" {
 			return fmt.Errorf("unsupported placement strategy")
 		}
-		if a.Placement.Strategy == "fixed" && len(a.Placement.AgentRefs) == 0 {
+		if a.Placement.Strategy == "fixed" && len(a.Placement.AgentRefs) == 0 && a.Placement.Selector == nil {
 			return fmt.Errorf("fixed placement requires agentRefs")
 		}
 	}
@@ -124,6 +124,12 @@ func Validate(p Profile) error {
 	return nil
 }
 func placementMatch(p Placement, a Executor) bool {
+	if p.DistinctBy == "failureDomain" && a.FailureDomain == "" {
+		return false
+	}
+	if p.Selector != nil && !p.Selector.Match(a.Labels) {
+		return false
+	}
 	if len(p.Zones) > 0 {
 		found := false
 		for _, z := range p.Zones {
@@ -374,6 +380,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	}
 	terminal := map[string]bool{}
 	tasks := map[string]Outcome{}
+	taskEvidence := map[string]TaskEvidence{}
 	rounds := map[string]int{}
 	actions := append([]Action(nil), p.Actions...)
 	sort.Slice(actions, func(i, j int) bool { return actions[i].ID < actions[j].ID })
@@ -445,8 +452,8 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				}
 				ok := true
 				var err error
-				if step.When != nil {
-					ok, err = step.When(child, fixedTaskContext(predecessors[step.ID], tasks), monitorState)
+				if step.When != nil || step.WhenEvidence != nil {
+					ok, err = fixedCondition(child, step, predecessors[step.ID], tasks, taskEvidence, monitorState)
 				}
 				if err != nil {
 					fixedIncomplete = true
@@ -626,6 +633,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		if stepID != "" {
 			terminal[stepID] = true
 			tasks[stepID] = outcome
+			taskEvidence[stepID] = r.Decisions[len(r.Decisions)-1].TaskEvidence
 		}
 		if reason != "" {
 			r.Reason = reason

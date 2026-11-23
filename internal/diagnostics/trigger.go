@@ -5,16 +5,25 @@ import (
 	"fmt"
 	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/google/cel-go/cel"
+	"github.com/google/cel-go/ext"
+	"reflect"
 	"time"
 )
 
 type Trigger func(context.Context, monitor.Assessment) (bool, error)
 
+// TriggerMonitorView is the closed context actually supplied by Assessment.
+type TriggerMonitorView struct {
+	Name          string `cel:"name"`
+	State         string `cel:"state"`
+	CoverageState string `cel:"coverageState"`
+}
+
 func CompileTrigger(expression string) (Trigger, error) {
 	if len(expression) == 0 || len(expression) > 2048 {
 		return nil, fmt.Errorf("invalid diagnostic trigger length")
 	}
-	env, e := cel.NewEnv(cel.Variable("monitor", cel.MapType(cel.StringType, cel.StringType)))
+	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(TriggerMonitorView{}), ext.ParseStructTags(true)), cel.Variable("monitor", cel.ObjectType("diagnostics.TriggerMonitorView")))
 	if e != nil {
 		return nil, e
 	}
@@ -43,7 +52,7 @@ func CompileTrigger(expression string) (Trigger, error) {
 		}
 		c, done := context.WithTimeout(ctx, 25*time.Millisecond)
 		defer done()
-		v, _, e := p.ContextEval(c, map[string]any{"monitor": map[string]string{"name": a.Monitor, "state": a.State, "coverageState": coverage}})
+		v, _, e := p.ContextEval(c, map[string]any{"monitor": TriggerMonitorView{Name: a.Monitor, State: a.State, CoverageState: coverage}})
 		if e != nil {
 			return false, e
 		}

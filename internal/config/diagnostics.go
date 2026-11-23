@@ -12,8 +12,11 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/celrefs"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
+	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/ext"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"gopkg.in/yaml.v3"
 )
 
@@ -50,11 +53,13 @@ type diagnosticDocument struct {
 			Expected  map[string]string `yaml:"expectedOutcomes"`
 			Cost      *float64          `yaml:"costUnits"`
 			Placement *struct {
-				AgentRefs            []string `yaml:"agentRefs"`
-				Zones                []string `yaml:"zones"`
-				Strategy             string   `yaml:"strategy"`
-				Replicas             *int     `yaml:"replicas"`
-				OnInsufficientAgents string   `yaml:"onInsufficientAgents"`
+				AgentRefs            []string                `yaml:"agentRefs"`
+				Selector             *resourcegroup.Selector `yaml:"selector"`
+				DistinctBy           string                  `yaml:"distinctBy"`
+				Zones                []string                `yaml:"zones"`
+				Strategy             string                  `yaml:"strategy"`
+				Replicas             *int                    `yaml:"replicas"`
+				OnInsufficientAgents string                  `yaml:"onInsufficientAgents"`
 			} `yaml:"placement"`
 		} `yaml:"actions"`
 		Fixed *struct {
@@ -158,6 +163,17 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 			if v.OnInsufficientAgents != "" && v.OnInsufficientAgents != "pending" {
 				return p, fmt.Errorf("partial placement is disabled")
 			}
+			selector, err := resourcegroup.NormalizeAgentSelector(v.Selector)
+			if err != nil {
+				return p, err
+			}
+			x.Placement.Selector = selector
+			if v.DistinctBy != "" && v.DistinctBy != "none" {
+				if v.DistinctBy != "zone" && v.DistinctBy != "failureDomain" {
+					return p, fmt.Errorf("invalid diagnostic distinctBy")
+				}
+				x.Placement.DistinctBy = v.DistinctBy
+			}
 			x.Placement.AgentRefs = v.AgentRefs
 			x.Placement.Zones = v.Zones
 			if v.Strategy != "" {
@@ -228,7 +244,7 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 		predecessors := diagnostics.FixedPredecessors(p.Steps)
 		for i, v := range s.Fixed.Steps {
 			if v.When != nil {
-				p.Steps[i].When, e = diagnosticCondition(*v.When, predecessors[v.ID])
+				p.Steps[i].WhenEvidence, e = diagnosticEvidenceCondition(*v.When, predecessors[v.ID])
 				if e != nil {
 					return p, fmt.Errorf("fixed step %s: %w", v.ID, e)
 				}
@@ -240,14 +256,30 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 
 // Fixed CEL views expose only fields currently supplied by the engine.
 type FixedTaskView struct {
-	Outcome         string `cel:"outcome"`
-	ExecutionStatus string `cel:"executionStatus"`
+	Values          map[string]*anypb.Any `cel:"values"`
+	ReasonCode      string                `cel:"reasonCode"`
+	Outcome         string                `cel:"outcome"`
+	ExecutionStatus string                `cel:"executionStatus"`
 }
 type FixedMonitorView struct {
 	State string `cel:"state"`
 }
 
 func diagnosticCondition(expression string, predecessors ...map[string]bool) (func(context.Context, map[string]diagnostics.Outcome, string) (bool, error), error) {
+	condition, err := diagnosticEvidenceCondition(expression, predecessors...)
+	if err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context, tasks map[string]diagnostics.Outcome, state string) (bool, error) {
+		input := map[string]diagnostics.TaskEvidence{}
+		for id, outcome := range tasks {
+			input[id] = diagnostics.TaskEvidence{Outcome: outcome}
+		}
+		return condition(ctx, input, state)
+	}, nil
+}
+
+func diagnosticEvidenceCondition(expression string, predecessors ...map[string]bool) (diagnostics.EvidenceCondition, error) {
 	if len(expression) > 2048 || strings.TrimSpace(expression) == "" {
 		return nil, fmt.Errorf("invalid CEL expression size")
 	}
@@ -273,17 +305,35 @@ func diagnosticCondition(expression string, predecessors ...map[string]bool) (fu
 	if e != nil {
 		return nil, e
 	}
-	return func(ctx context.Context, tasks map[string]diagnostics.Outcome, state string) (bool, error) {
+	return func(ctx context.Context, tasks map[string]diagnostics.TaskEvidence, state string) (bool, error) {
 		input := map[string]FixedTaskView{}
 		for id, t := range tasks {
-			execution := t.Execution
+			execution := t.Outcome.Execution
 			if execution == "execution_failed" {
 				execution = "failed"
 			}
 			if execution == "skipped" {
 				execution = "not_executed"
 			}
-			input[id] = FixedTaskView{Outcome: t.Outcome, ExecutionStatus: execution}
+			values := map[string]*anypb.Any{}
+			for name, value := range t.Values {
+				var wrapped *anypb.Any
+				switch value.Kind {
+				case "integer":
+					wrapped, _ = anypb.New(wrapperspb.Int64(value.Integer))
+				case "float":
+					wrapped, _ = anypb.New(wrapperspb.Double(value.Number))
+				case "boolean":
+					wrapped, _ = anypb.New(wrapperspb.Bool(value.Boolean))
+				case "string":
+					wrapped, _ = anypb.New(wrapperspb.String(value.Text))
+				}
+				if wrapped != nil {
+					values[name] = wrapped
+				}
+			}
+
+			input[id] = FixedTaskView{Outcome: t.Outcome.Outcome, ExecutionStatus: execution, Values: values, ReasonCode: t.ReasonCode}
 		}
 		out, _, e := program.ContextEval(ctx, map[string]any{"tasks": input, "monitor": FixedMonitorView{State: state}})
 		if e != nil {

@@ -82,19 +82,11 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		m := all[key]
-		if err := validateMetadata(m); err != nil {
+		if err := validateMetadata(all[key]); err != nil {
 			return base, nil, fmt.Errorf("%s: %w", key, err)
 		}
-		if m.Kind == "DiagnosticProfile" {
-			result, err := registry.CompileResource(m)
-			if err != nil {
-				return base, nil, fmt.Errorf("%s: %w", key, err)
-			}
-			registry.Profiles[m.Metadata.Name] = *result.Profile
-			compiled[key] = result
-		}
 	}
+
 	for _, key := range keys {
 		m := all[key]
 		if m.Kind != "Target" {
@@ -143,6 +135,20 @@ func ResolveCatalog(base Registry, current, updates []Manifest) (Registry, map[s
 		}
 		registry.Placements[m.Metadata.Name] = *result.Placement
 		compiled[key] = result
+	}
+	for _, key := range keys {
+		m := all[key]
+		if err := validateMetadata(m); err != nil {
+			return base, nil, fmt.Errorf("%s: %w", key, err)
+		}
+		if m.Kind == "DiagnosticProfile" {
+			result, err := registry.CompileResource(m)
+			if err != nil {
+				return base, nil, fmt.Errorf("%s: %w", key, err)
+			}
+			registry.Profiles[m.Metadata.Name] = *result.Profile
+			compiled[key] = result
+		}
 	}
 	for _, key := range keys {
 		m := all[key]
@@ -323,6 +329,14 @@ func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 		}
 		return Compiled{Revision: p.Revision, Monitor: &p}, nil
 	}
+	bindings := map[string]diagnosticPlacementBinding{}
+	if m.Kind == "DiagnosticProfile" {
+		var err error
+		m, bindings, err = r.resolveDiagnosticPlacements(m)
+		if err != nil {
+			return Compiled{}, err
+		}
+	}
 	data, err := executionJSON(m)
 	if err != nil {
 		return Compiled{}, err
@@ -351,6 +365,12 @@ func (r Registry) CompileResource(m Manifest) (Compiled, error) {
 	profile, err := config.CompileDiagnostics(data)
 	if err != nil {
 		return Compiled{}, err
+	}
+	for i := range profile.Actions {
+		if binding, ok := bindings[profile.Actions[i].ID]; ok {
+			profile.Actions[i].Placement.Ref = binding.Ref
+			profile.Actions[i].Placement.Hash = binding.Policy.Hash()
+		}
 	}
 	if err = diagnostics.ValidateLiveProfile(profile); err != nil {
 		return Compiled{}, err

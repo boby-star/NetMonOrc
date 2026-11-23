@@ -9,13 +9,13 @@ DAG. Записка §2.3–2.4 вимагає відтворюваних fixed/
 включно з незалежними гілками. За іншої паралельності така гілка могла ще
 не завершитися, тому прихована залежність змінювала результат сценарію.
 
-Тепер tasks[id] є типізованим FixedTaskView з outcome та executionStatus;
+Тепер tasks[id] є типізованим FixedTaskView з outcome, executionStatus,
+values та reasonCode;
 monitor має лише state. Невідомі поля, зокрема outcomme/monitor.sttae,
 відхиляються до збереження профілю. Значення outcome/executionStatus лишаються
 рядками чинного контракту. Skipped → not_executed, execution_failed → failed,
-відсутній task → evaluation error. Values/reasonCode у Fixed conditions цим
-етапом не реалізовані: звернення до них явно відхиляється замість удаваної
-підтримки через довільні map keys.
+відсутній task → evaluation error. Values/reasonCode доповнені в наступній ітерації: вони надходять із committed
+Observation та зберігають scalar types. [Правила допуску й приклад](declarative-diagnostics.md).
 
 Статичні посилання tasks["id"], tasks.id, has і membership повинні вказувати
 на прямого або транзитивного попередника через dependsOn. Посилання на себе,

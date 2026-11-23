@@ -171,3 +171,6 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 
 [Умови Fixed DAG](fixed-context.md) типізують task/monitor fields, перевіряють
 статичні task refs за dependsOn та ізолюють predecessor context у runtime.
+
+[DiagnosticBinding/Fixed/diagnostic placement](declarative-diagnostics.md):
+типізований trigger, committed values/reasonCode та placementRef/selectors.

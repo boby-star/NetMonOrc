@@ -18,7 +18,6 @@ func TestFixedConditionsValidateFieldsAndPredecessors(t *testing.T) {
 		`tasks["s03-http"].outcome == "success"`,
 		`"missing" in tasks`,
 		`tasks["s01-dns"].outcomme == "success"`,
-		`tasks["s01-dns"].values.depth > 0`,
 		`monitor.sttae == "down"`,
 	} {
 		input := strings.Replace(string(source), original, expression, 1)
@@ -30,7 +29,7 @@ func TestFixedConditionsValidateFieldsAndPredecessors(t *testing.T) {
 		t.Fatal("undeclared predecessor admitted")
 	}
 	for _, expression := range []string{
-		original, `tasks["s01-dns"].executionStatus == "completed"`,
+		original, `tasks["s01-dns"].values.depth > 0`, `tasks["s01-dns"].reasonCode == "OK"`, `tasks["s01-dns"].executionStatus == "completed"`,
 		`["s01-dns"].exists(id, tasks[id].outcome == "success")`,
 		`[{"other": true}].exists(tasks, tasks.other)`,
 	} {

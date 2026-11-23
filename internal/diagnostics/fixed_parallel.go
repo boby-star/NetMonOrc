@@ -58,6 +58,7 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 		sort.Strings(r.BlockedSteps)
 	}()
 	tasks := map[string]Outcome{}
+	taskEvidence := map[string]TaskEvidence{}
 	activations := map[string]*fixedActivation{}
 	rounds := map[string]int{}
 	incomplete := false
@@ -90,8 +91,8 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 				continue
 			}
 			activation, started := activations[step.ID]
-			if !started && step.When != nil {
-				yes, err := step.When(ctx, fixedTaskContext(predecessors[step.ID], tasks), monitorState)
+			if !started && (step.When != nil || step.WhenEvidence != nil) {
+				yes, err := fixedCondition(ctx, step, predecessors[step.ID], tasks, taskEvidence, monitorState)
 				if err != nil {
 					incomplete = true
 					r.BlockedSteps = append(r.BlockedSteps, step.ID)
@@ -247,6 +248,7 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 			}
 			terminal[job.step] = true
 			tasks[job.step] = d.Outcome
+			taskEvidence[job.step] = d.TaskEvidence
 			if d.Outcome.Execution != "completed" || (d.Outcome.Outcome != "success" && d.Outcome.Outcome != "failure") {
 				incomplete = true
 			}

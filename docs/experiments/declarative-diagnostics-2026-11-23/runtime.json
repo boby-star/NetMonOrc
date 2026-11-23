@@ -1,0 +1,33 @@
+{
+  "baseCommit": "e21cefb9d7c3c8fcecaaaa82e2883cd0a310a59f",
+  "project": "nmo-declarative-final2-20261123",
+  "image": "sha256:4e309fa59855a90152ca7d5f687af1cb02b5b9876dee903689e2a04e7615fce5",
+  "singleDockerHost": true,
+  "browserInteractionTested": false,
+  "goTestAndVetExitCode": 0,
+  "sourceFilesSHA256": {
+    "internal/config/diagnostics.go": "16fccd9d26c59a0e806fde63a139f1c979b3de8260d08eb93bead4796bb4c71d",
+    "internal/config/fixed_context_test.go": "922994d5346d9295dda1d40372e4b775214f37418b8376686f6dba421baf48a4",
+    "internal/config/fixed_evidence_test.go": "28a8c72ec1cbbeb051ca8ba06d62a9999ab9b885e60a92ba69fad6b070c812b0",
+    "internal/coordinator/control.go": "d9af5f6659a5b19138e77af8238b756260bddcb7a6c4177846184ccf0c030267",
+    "internal/diagnostics/attempt.go": "898cc81d796e1902e9d4d45ed91d9638c53e617fef0411a121514acd8f5ae4f0",
+    "internal/diagnostics/engine.go": "96ae339d5d6e6ea614092cfdd118046eb41d9beddba293f2e0115f94f12a499c",
+    "internal/diagnostics/fixed_context.go": "1ea4e4f6e0add67f11512816adf0c4a3f31dfd8d0e3466d63e789547414ccfa1",
+    "internal/diagnostics/fixed_evidence_test.go": "3a63fb4f04e70b4e42b5bb02eda8d4a360d26bdf0f7f6d3fe9b34597cdfae61f",
+    "internal/diagnostics/fixed_parallel.go": "6f50dd89e4373bf359c4ec48ec66e2fa84bcd32affc7d09ff11844b2c4c771a8",
+    "internal/diagnostics/model.go": "d28161db477418440c5bc264fef3774cf68e515f37e0aee58e508c0cff795290",
+    "internal/diagnostics/placement_selector_test.go": "dc135f64b8dd9922bd31abcf3ec9c15c04c8e7b72e84e58ce7e2aea6e7529fb7",
+    "internal/diagnostics/trigger.go": "0b1bcb160dc5989323e2a4687712944fe0fa4f39e72ae35ec71da2b6a6370168",
+    "internal/diagnostics/trigger_context_test.go": "b871939d768f782a88c390a73937b11df05fb8b17f1788aef7081974c72b9ea9",
+    "internal/resourcegroup/agent_selector.go": "cf4daa506ab533d985578b3d597ef01bd287885e2821379096105a34bfee51e7",
+    "internal/resourcegroup/model.go": "cc543c33bb7ca226e80689f1f74306bdbb11150524536528c9efd031c256eaa6",
+    "internal/resources/agent_labels.go": "136e38532adb7d0267b6eda3777112dbdd62952c6b4c294bfe0c3a55b64e3689",
+    "internal/resources/catalog.go": "6073468bf27b548574b11e93aacddde4d4a38fcdd62dae909f45fb1f160bad9c",
+    "internal/resources/diagnostic_placement.go": "2096f5f8a715d8b3b570854d90bf77e27cd790e9bf317a1f454b3655acf65d3f",
+    "internal/resources/diagnostic_placement_test.go": "416918f35b2ce364d6143a9a9a802a784d00654f07a57a0f3cb827d9d3fd2d83",
+    "internal/storage/resources.go": "26ad861edcbd29240928970dbc7545b3652e40f08636cb421c0fb8e344a08691",
+    "internal/transport/diagnostics.go": "8a1f77975bb9d7157a66e3c3ca6be212eec8292b64e7b9fd9eb115a7fb8e84e0",
+    "internal/transport/server.go": "84f0b8ca95567b07b39e8554335366082b99ac9395ad007dfec4c86a6e758c64"
+  },
+  "thesisSHA256": "910615e8281e4978ffd1b1fe30cafb163b05b14057009e4cc7b41522bd0fd308"
+}

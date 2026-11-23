@@ -1,5 +1,10 @@
 package diagnostics
 
+import (
+	"context"
+	"time"
+)
+
 // FixedPredecessors returns transitive dependency closures. Callers validate the
 // DAG first; the visited set also bounds traversal for malformed input.
 func FixedPredecessors(steps []Step) map[string]map[string]bool {
@@ -36,4 +41,23 @@ func fixedTaskContext(predecessors map[string]bool, tasks map[string]Outcome) ma
 		}
 	}
 	return out
+}
+
+func fixedCondition(ctx context.Context, step Step, predecessors map[string]bool, tasks map[string]Outcome, evidence map[string]TaskEvidence, state string) (bool, error) {
+	if step.WhenEvidence != nil {
+		input := map[string]TaskEvidence{}
+		for id, outcome := range fixedTaskContext(predecessors, tasks) {
+			data := evidence[id]
+			data.Outcome = outcome
+			if !data.ValidUntil.IsZero() && !time.Now().Before(data.ValidUntil) {
+				data.Values = nil
+			}
+			input[id] = data
+		}
+		return step.WhenEvidence(ctx, input, state)
+	}
+	if step.When != nil {
+		return step.When(ctx, fixedTaskContext(predecessors, tasks), state)
+	}
+	return true, nil
 }
