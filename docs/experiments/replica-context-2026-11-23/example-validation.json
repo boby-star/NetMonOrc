@@ -1,0 +1,27 @@
+{
+  "abstractZoneContext": false,
+  "mode": "offline",
+  "planningRequired": true,
+  "resources": [
+    {
+      "resource": "DiagnosticProfile/replicated-context",
+      "validationRevision": "b1f1a20db5d3209f0e542ff4f140a9370e685223a5dc391fe84ae7d4fa19c8d9"
+    },
+    {
+      "resource": "Monitor/context-web",
+      "validationRevision": "4a2883048cb6970db36db013aaa664927dfe374610ac344c5a0bee94e9e93298"
+    },
+    {
+      "resource": "PlacementPolicy/two-domains",
+      "validationRevision": "e7a7ff49c5d5a6c6f2b896179fc8ba6b370b906d5e149f33bf43e3283cd7cd91"
+    },
+    {
+      "resource": "Target/context-target",
+      "validationRevision": "eda93a8fca1373f9f1d28b6441d08071576ebb1d1f88ff481f46224f901c1575"
+    }
+  ],
+  "valid": true,
+  "warnings": [
+    "Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."
+  ]
+}

@@ -43,8 +43,8 @@ func fixedTaskContext(predecessors map[string]bool, tasks map[string]Outcome) ma
 	return out
 }
 
-func fixedCondition(ctx context.Context, step Step, predecessors map[string]bool, tasks map[string]Outcome, evidence map[string]TaskEvidence, state string) (bool, error) {
-	if step.WhenEvidence != nil {
+func (e Engine) fixedCondition(ctx context.Context, step Step, predecessors map[string]bool, tasks map[string]Outcome, evidence map[string]TaskEvidence, state string, p Profile, ledger *Ledger) (bool, error) {
+	if step.WhenEvidence != nil || step.WhenContext != nil {
 		input := map[string]TaskEvidence{}
 		for id, outcome := range fixedTaskContext(predecessors, tasks) {
 			data := evidence[id]
@@ -53,6 +53,18 @@ func fixedCondition(ctx context.Context, step Step, predecessors map[string]bool
 				data.Values = nil
 			}
 			input[id] = data
+		}
+		if step.WhenContext != nil {
+			action := Action{}
+			for _, candidate := range p.Actions {
+				if candidate.ID == step.ActionID {
+					action = candidate
+					break
+				}
+			}
+			frame := e.CELContext.contextFor(action, state)
+			frame.Diagnostic = DiagnosticCounters{Attempts: int64(ledger.UsedChecks), RemainingChecks: int64(max(0, p.Budget.MaxChecks-ledger.UsedChecks)), ElapsedSeconds: time.Since(ledger.StartedAt).Seconds()}
+			return step.WhenContext(ctx, input, frame)
 		}
 		return step.WhenEvidence(ctx, input, state)
 	}

@@ -43,7 +43,7 @@ func New(p monitor.Plan, profile diagnostics.Profile, s *transport.Server, store
 	if err := diagnostics.ValidateLiveProfile(profile); err != nil {
 		return nil, err
 	}
-	t, e := diagnostics.CompileTrigger(p.Diagnostics.When)
+	t, e := diagnostics.CompileTrigger(p.Diagnostics.When, p)
 	if e != nil {
 		return nil, e
 	}
@@ -127,7 +127,7 @@ func (c *Coordinator) Tick(ctx context.Context, a monitor.Assessment, observatio
 // launch is called with mu held. Work belongs to the runtime, never the HTTP request.
 func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Plan, profile diagnostics.Profile, agents []diagnostics.Executor, a monitor.Assessment, observations []monitor.Observation, started time.Time) {
 	ctx, cancel := context.WithCancel(parent)
-	initial := diagnostics.MatchBaseline(plan, profile, observations, agents, time.Now())
+	initial := diagnostics.MatchBaseline(plan, diagnostics.InheritPlacements(plan, profile), observations, agents, time.Now())
 	c.running = true
 	c.runID = id
 	c.cancel = cancel
@@ -145,7 +145,7 @@ func (c *Coordinator) launch(parent context.Context, id string, plan monitor.Pla
 			c.mu.Unlock()
 		}()
 		runner := transport.DiagnosticRunner{Server: c.Server, RunID: id, Plan: plan}
-		engine := diagnostics.Engine{EstimateBytes: diagnostics.EstimateBytes, EvidenceMaxAge: plan.MaxAge, EvidenceMaxSkew: plan.MaxSkew, TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
+		engine := diagnostics.Engine{CELContext: &diagnostics.SessionContext{Plan: plan, Assessment: a, Observations: observations, Slots: c.Server.Slots, Executors: agents}, EstimateBytes: diagnostics.EstimateBytes, EvidenceMaxAge: plan.MaxAge, EvidenceMaxSkew: plan.MaxSkew, TaskOverhead: 20 * time.Second, Runner: runner, Eligible: func(action diagnostics.Action, agent diagnostics.Executor) bool {
 			binding, explicit := plan.Components[agent.ID]
 			if action.Check.Runner == "blackbox" && explicit && (!binding.Enabled || !c.Server.ComponentReady(plan, agent.ID, time.Now())) {
 				return false

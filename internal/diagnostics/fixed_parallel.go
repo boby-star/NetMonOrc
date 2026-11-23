@@ -14,6 +14,7 @@ type fixedHooks struct {
 	record     func(Action, Executor, Decision, int)
 }
 type fixedActivation struct {
+	done     bool
 	action   Action
 	executor Executor
 	next     int
@@ -59,7 +60,8 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 	}()
 	tasks := map[string]Outcome{}
 	taskEvidence := map[string]TaskEvidence{}
-	activations := map[string]*fixedActivation{}
+	activations := map[string][]*fixedActivation{}
+	replicaResults := map[string]map[string]TaskEvidence{}
 	rounds := map[string]int{}
 	incomplete := false
 	for {
@@ -76,6 +78,7 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 		var jobs []*fixedJob
 		var skipped []Step
 		reservedBytes := int64(0)
+		replicaBudgetBlocked := false
 		_, managed := e.Runner.(AdmissionRunner)
 		for _, step := range steps {
 			if terminal[step.ID] {
@@ -90,9 +93,9 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 			if !ready {
 				continue
 			}
-			activation, started := activations[step.ID]
-			if !started && (step.When != nil || step.WhenEvidence != nil) {
-				yes, err := fixedCondition(ctx, step, predecessors[step.ID], tasks, taskEvidence, monitorState)
+			members, started := activations[step.ID]
+			if !started && (step.When != nil || step.WhenEvidence != nil || step.WhenContext != nil) {
+				yes, err := e.fixedCondition(ctx, step, predecessors[step.ID], tasks, taskEvidence, monitorState, p, ledger)
 				if err != nil {
 					incomplete = true
 					r.BlockedSteps = append(r.BlockedSteps, step.ID)
@@ -106,16 +109,13 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 				continue
 			}
 			a := actions[step.ActionID]
-			if started {
-				a = activation.action
-			}
 			if time.Now().Add(a.Check.Timeout + e.TaskOverhead).After(deadline) {
 				continue
 			}
-			var eligible []Executor
 			estimates := map[string]int64{}
+			eligible := []Executor{}
 			for _, agent := range agents {
-				if usedAgents[agent.ID] || !agent.Online || agent.Capacity <= 0 || (!managed && agent.Active >= agent.Capacity) || !agent.Supported[a.Check.Runner] || !agent.Supported[a.Check.Type] || !placementMatch(a.Placement, agent) || !e.Eligible(a, agent) || (started && agent.ID != activation.executor.ID) {
+				if usedAgents[agent.ID] || !agent.Online || agent.Capacity <= 0 || (!managed && agent.Active >= agent.Capacity) || !agent.Supported[a.Check.Runner] || !agent.Supported[a.Check.Type] || !placementMatch(a.Placement, agent) || !e.Eligible(a, agent) {
 					continue
 				}
 				if p.Budget.MaxEstimatedBytes > 0 {
@@ -123,27 +123,60 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 						continue
 					}
 					n, known := e.EstimateBytes(a, agent)
-					if !known || n < 0 || n > p.Budget.MaxEstimatedBytes-ledger.EstimatedBytes-reservedBytes {
+					if !known || n < 0 {
 						continue
 					}
 					estimates[agent.ID] = n
 				}
 				eligible = append(eligible, agent)
 			}
-			if len(eligible) == 0 {
-				continue
-			}
-			executor := chooseExecutor(a.Placement, eligible, rounds[a.ID])
 			if !started {
+				selected := selectReplicas(a.Placement, eligible, rounds[a.ID])
+				if len(selected) != replicaCount(a.Placement) {
+					continue
+				}
+				if len(selected) > p.Budget.MaxChecks-ledger.UsedChecks-len(jobs) {
+					replicaBudgetBlocked = true
+					continue
+				}
+				total := int64(0)
+				for _, agent := range selected {
+					total += estimates[agent.ID]
+				}
+				if p.Budget.MaxEstimatedBytes > 0 && total > p.Budget.MaxEstimatedBytes-ledger.EstimatedBytes-reservedBytes {
+					continue
+				}
 				a.StepID = step.ID
-				activation = &fixedActivation{action: a, executor: executor, next: 1}
-				activations[step.ID] = activation
+				for _, agent := range selected {
+					members = append(members, &fixedActivation{action: a, executor: agent, next: 1})
+				}
+				activations[step.ID] = members
 				rounds[a.ID]++
+				replicaResults[step.ID] = map[string]TaskEvidence{}
 			}
-			usedAgents[executor.ID] = true
-			n := estimates[executor.ID]
-			reservedBytes += n
-			jobs = append(jobs, &fixedJob{step: step.ID, activation: activation, bytes: n, engine: e, release: func() {}})
+			for _, activation := range members {
+				if activation.done || usedAgents[activation.executor.ID] || len(jobs) >= p.Budget.MaxParallel || len(jobs) >= p.Budget.MaxChecks-ledger.UsedChecks {
+					continue
+				}
+				found := false
+				for _, agent := range eligible {
+					if agent.ID == activation.executor.ID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+				n := estimates[activation.executor.ID]
+				if p.Budget.MaxEstimatedBytes > 0 && n > p.Budget.MaxEstimatedBytes-ledger.EstimatedBytes-reservedBytes {
+					continue
+				}
+				usedAgents[activation.executor.ID] = true
+				reservedBytes += n
+				jobs = append(jobs, &fixedJob{step: step.ID, activation: activation, bytes: n, engine: e, release: func() {}})
+			}
+
 		}
 		for _, step := range skipped {
 			terminal[step.ID] = true
@@ -151,6 +184,9 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 			r.SkippedSteps = append(r.SkippedSteps, step.ID)
 		}
 		if len(jobs) == 0 {
+			if replicaBudgetBlocked {
+				return "check_budget_insufficient_for_replicas", false, incomplete
+			}
 			if len(skipped) > 0 {
 				continue
 			}
@@ -246,9 +282,21 @@ func (e Engine) runFixedParallel(ctx context.Context, p Profile, agents []Execut
 				job.activation.next++
 				continue
 			}
-			terminal[job.step] = true
-			tasks[job.step] = d.Outcome
-			taskEvidence[job.step] = d.TaskEvidence
+			job.activation.done = true
+			replicaResults[job.step][job.activation.executor.ID] = d.TaskEvidence
+			complete := true
+			for _, member := range activations[job.step] {
+				complete = complete && member.done
+			}
+			if complete {
+				terminal[job.step] = true
+				data := d.TaskEvidence
+				if len(activations[job.step]) > 1 {
+					data = aggregateTaskEvidence(replicaResults[job.step])
+				}
+				tasks[job.step] = data.Outcome
+				taskEvidence[job.step] = data
+			}
 			if d.Outcome.Execution != "completed" || (d.Outcome.Outcome != "success" && d.Outcome.Outcome != "failure") {
 				incomplete = true
 			}

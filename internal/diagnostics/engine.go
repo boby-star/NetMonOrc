@@ -74,10 +74,13 @@ func Validate(p Profile) error {
 		if p.Mode == "adaptive" && len(a.Expected) != len(h) {
 			return fmt.Errorf("adaptive action must cover every hypothesis")
 		}
+		if a.Placement.Replicas < 0 || a.Placement.Replicas > 10 {
+			return fmt.Errorf("invalid diagnostic replicas")
+		}
 		if a.Placement.Strategy != "fixed" && a.Placement.Strategy != "leastLoaded" && a.Placement.Strategy != "roundRobin" {
 			return fmt.Errorf("unsupported placement strategy")
 		}
-		if a.Placement.Strategy == "fixed" && len(a.Placement.AgentRefs) == 0 && a.Placement.Selector == nil {
+		if a.Placement.Strategy == "fixed" && len(a.Placement.AgentRefs) == 0 && a.Placement.Selector == nil && !a.Placement.Pending {
 			return fmt.Errorf("fixed placement requires agentRefs")
 		}
 	}
@@ -124,6 +127,9 @@ func Validate(p Profile) error {
 	return nil
 }
 func placementMatch(p Placement, a Executor) bool {
+	if p.Pending {
+		return false
+	}
 	if p.DistinctBy == "failureDomain" && a.FailureDomain == "" {
 		return false
 	}
@@ -187,6 +193,9 @@ func chooseExecutor(p Placement, agents []Executor, round int) Executor {
 // Static is an experiment mode, not a
 // new YAML enum. All modes share catalog, eligibility and the same budget rules.
 func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Executor, ledger *Ledger, initial []Evidence, monitorState string) (r Result, err error) {
+	if e.CELContext != nil {
+		p = InheritPlacements(e.CELContext.Plan, p)
+	}
 	started := time.Now()
 	defer func() { elapsed := time.Since(started).Milliseconds(); r.DurationMillis = &elapsed }()
 	r = Result{Mode: mode, Status: "inconclusive", Hypotheses: append([]string(nil), p.Hypotheses...), Decisions: []Decision{}}
@@ -387,7 +396,7 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 	steps := append([]Step(nil), p.Steps...)
 	predecessors := FixedPredecessors(steps)
 	sort.Slice(steps, func(i, j int) bool { return steps[i].ID < steps[j].ID })
-	if mode == "fixed" && p.Budget.MaxParallel > 1 {
+	if mode == "fixed" && (p.Budget.MaxParallel > 1 || replicated(p)) {
 		reason, complete, incomplete := e.runFixedParallel(child, p, agents, ledger, &r, deadline, monitorState, fixedHooks{
 			refresh:    rebuild,
 			hypotheses: func() []string { return append([]string(nil), r.Hypotheses...) },
@@ -452,8 +461,8 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 				}
 				ok := true
 				var err error
-				if step.When != nil || step.WhenEvidence != nil {
-					ok, err = fixedCondition(child, step, predecessors[step.ID], tasks, taskEvidence, monitorState)
+				if step.When != nil || step.WhenEvidence != nil || step.WhenContext != nil {
+					ok, err = e.fixedCondition(child, step, predecessors[step.ID], tasks, taskEvidence, monitorState, p, ledger)
 				}
 				if err != nil {
 					fixedIncomplete = true
@@ -506,7 +515,10 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 		var executor Executor
 		best := -1.0
 		selectedGain := 0
+		replicaBudgetBlocked := false
 		var selectedBytes int64
+		var selectedSet []Executor
+		var selectedEstimates map[string]int64
 		for i := range candidates {
 			a := &candidates[i]
 			if time.Now().Add(a.Check.Timeout + e.TaskOverhead).After(deadline) {
@@ -536,14 +548,39 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			if len(eligible) == 0 {
 				continue
 			}
+			planned := selectReplicas(a.Placement, eligible, rounds[a.ID])
+			if len(planned) != replicaCount(a.Placement) {
+				continue
+			}
+			if len(planned) > p.Budget.MaxChecks-ledger.UsedChecks {
+				replicaBudgetBlocked = true
+				continue
+			}
+			if p.Budget.MaxEstimatedBytes > 0 {
+				remaining := p.Budget.MaxEstimatedBytes - ledger.EstimatedBytes
+				fits := true
+				for _, agent := range planned {
+					n := estimates[agent.ID]
+					if n > remaining {
+						fits = false
+						break
+					}
+					remaining -= n
+				}
+				if !fits {
+					continue
+				}
+			}
 			gain := Gain(r.Hypotheses, a.Expected)
-			score := float64(gain) / a.Cost
+			score := float64(gain) / (a.Cost * float64(replicaCount(a.Placement)))
 			if mode != "adaptive" || confirming {
 				score = 0
 			}
 			if selected == nil || score > best {
 				selected = a
-				executor = chooseExecutor(a.Placement, eligible, rounds[a.ID])
+				executor = planned[0]
+				selectedSet = planned
+				selectedEstimates = estimates
 				best = score
 				selectedGain = gain
 				selectedBytes = estimates[executor.ID]
@@ -553,6 +590,10 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			}
 		}
 		if selected == nil {
+			if replicaBudgetBlocked {
+				r.Reason = "check_budget_insufficient_for_replicas"
+				return r, nil
+			}
 			r.Reason = "no_admissible_action"
 			if confirming {
 				r.Reason = "confirmation_unavailable"
@@ -583,6 +624,50 @@ func (e Engine) Run(ctx context.Context, p Profile, mode string, agents []Execut
 			if confirming {
 				phase = "confirmation"
 			}
+		}
+		if len(selectedSet) > 1 {
+			for _, actor := range selectedSet {
+				execution := e
+				release := func() {}
+				if admitter, ok := e.Runner.(AdmissionRunner); ok {
+					wait, stop := context.WithDeadline(child, deadline.Add(-selected.Check.Timeout-e.TaskOverhead))
+					bound, done, err := admitter.Admit(wait, *selected, actor)
+					stop()
+					if err != nil {
+						r.Reason = "executor_admission_unavailable"
+						return r, nil
+					}
+					release = done
+					execution.Runner = bound
+					if !sameWorkingProofs(workingProofs(proofs, evidenceAt, e.EvidenceMaxSkew), workingProofs(proofs, time.Now(), e.EvidenceMaxSkew)) {
+						release()
+						r.Reason = "replica_context_expired"
+						return r, nil
+					}
+				}
+				before := len(r.Decisions)
+				chain := attemptChain{engine: execution, profile: p, ledger: ledger, result: &r, deadline: deadline}
+				outcome, reason := func() (Outcome, string) {
+					defer release()
+					return chain.execute(child, *selected, actor, selectedEstimates[actor.ID], phase, selectedGain)
+				}()
+				if len(r.Decisions) > before {
+					recordProof(*selected, actor, r.Decisions[len(r.Decisions)-1], ledger.UsedChecks)
+				}
+				if outcome.Execution != "completed" || (outcome.Outcome != "success" && outcome.Outcome != "failure") {
+					unusablePairs[selected.ID+"/"+actor.ID] = true
+				}
+				if reason != "" {
+					r.Reason = reason
+					return r, nil
+				}
+			}
+			visited[selected.ID] = true
+			rounds[selected.ID]++
+			if mode == "adaptive" && !confirming && selectedGain == 0 {
+				ledger.noGainSteps++
+			}
+			continue
 		}
 		executionEngine := e
 		release := func() {}

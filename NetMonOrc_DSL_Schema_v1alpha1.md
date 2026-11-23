@@ -734,6 +734,15 @@ spec:
 
 **Для одного action з `placement.replicas > 1`:** кожен реально виконаний probe враховується в `maxAdditionalChecks` окремо. Для простоти v1alpha1 рекомендує `replicas: 1` у діагностиці; одночасні різнозональні перевірки описують окремими `DiagnosticAction`.
 
+**Уточнення реалізації replicas:** набір N різних Agent планується до dispatch,
+кожний task/повтор має окрему витрату бюджету. Fixed відкриває залежні кроки
+після terminal results усіх replicas; Adaptive завершує весь вибраний набір
+до наступного вибору. Немає неявної numeric aggregation: у Fixed доступний
+`tasks[step].replicaResults[agentId]` з фізичними values/reasonCode/provenance.
+Top-level outcome є одностайним результатом або unknown; top-level values
+для N>1 відсутні. При неявному action placement успадковується Monitor policy.
+
+
 ### 11.4.1. Погоджена явна політика technical retry
 
 Користувач погодив `DiagnosticAction.retry.maxAttempts` раніше. Об'єкт
@@ -1113,6 +1122,14 @@ CEL застосовується тільки там, де в таблиці п�
 | `diagnostic` | Fixed DAG | `attempts`, `remainingChecks`, `elapsedSeconds` | Лічильники бюджету й поточного епізоду. |
 
 `?` означає **можливу відсутність** поля. Умови перед компіляцією типізуються, а доступ до необов'язкових значень здійснюється через допустимі перевірки наявності, наприклад `has(checks["https"].values.queueDepth)`; для `unknown` підтримується окреме правилами оброблення, без примусового приведення до `false`. Приклад `httpStatus` — числова метрика, не рядок.
+
+**Уточнення зонального контексту діагностики:** Fixed надає bare checks/zone
+лише для однозначної зони action placement; інакше використовується явний
+`zones["office"].checks`. `diagnostic` містить attempts/remainingChecks/elapsedSeconds.
+Monitor weightedScore є optional: за однієї зони — її H, за кількох зон без
+визначених ваг відсутній; `zones[name].weightedScore` містить зональну H.
+Немає неявного середнього. Параметри labels та typed target.attributes
+надходять із revision-bound Controller context, а не Agent self-report.
 
 ### 18.2. Оператори, типи, безпека
 

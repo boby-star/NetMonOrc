@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/boby-star/NetMonOrc/internal/auth"
+	"github.com/boby-star/NetMonOrc/internal/config"
 	"github.com/boby-star/NetMonOrc/internal/diagnosticview"
 	"github.com/boby-star/NetMonOrc/internal/resources"
 )
@@ -65,6 +66,9 @@ func (c *Coordinator) StartManual(runtime, requestContext context.Context, actor
 	}
 	compiled, err := registry.CompileResource(resource.Manifest)
 	if err != nil {
+		return "", resources.ErrInvalid
+	}
+	if err := config.ValidateDiagnosticMonitor(c.Plan, *compiled.Profile); err != nil {
 		return "", resources.ErrInvalid
 	}
 	plan := c.Plan

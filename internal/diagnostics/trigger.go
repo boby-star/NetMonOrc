@@ -13,17 +13,13 @@ import (
 type Trigger func(context.Context, monitor.Assessment) (bool, error)
 
 // TriggerMonitorView is the closed context actually supplied by Assessment.
-type TriggerMonitorView struct {
-	Name          string `cel:"name"`
-	State         string `cel:"state"`
-	CoverageState string `cel:"coverageState"`
-}
+type TriggerMonitorView = monitor.RuntimeMonitorView
 
-func CompileTrigger(expression string) (Trigger, error) {
-	if len(expression) == 0 || len(expression) > 2048 {
+func CompileTrigger(expression string, plans ...monitor.Plan) (Trigger, error) {
+	if len(expression) == 0 || len(expression) > 4096 {
 		return nil, fmt.Errorf("invalid diagnostic trigger length")
 	}
-	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(TriggerMonitorView{}), ext.ParseStructTags(true)), cel.Variable("monitor", cel.ObjectType("diagnostics.TriggerMonitorView")))
+	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(monitor.RuntimeMonitorView{}), reflect.TypeOf(monitor.TargetView{}), ext.ParseStructTags(true)), cel.Variable("monitor", cel.ObjectType("monitor.RuntimeMonitorView")), cel.Variable("target", cel.ObjectType("monitor.TargetView")))
 	if e != nil {
 		return nil, e
 	}
@@ -39,20 +35,13 @@ func CompileTrigger(expression string) (Trigger, error) {
 		return nil, e
 	}
 	return func(ctx context.Context, a monitor.Assessment) (bool, error) {
-		coverage := "sufficient"
-		evidence := 0
-		for _, z := range a.Zones {
-			evidence += len(z.Evidence)
-			if z.Coverage != "complete" {
-				coverage = "degraded"
-			}
-		}
-		if len(a.Zones) == 0 || evidence == 0 {
-			coverage = "unknown"
+		plan := monitor.Plan{}
+		if len(plans) > 0 {
+			plan = plans[0]
 		}
 		c, done := context.WithTimeout(ctx, 25*time.Millisecond)
 		defer done()
-		v, _, e := p.ContextEval(c, map[string]any{"monitor": TriggerMonitorView{Name: a.Monitor, State: a.State, CoverageState: coverage}})
+		v, _, e := p.ContextEval(c, map[string]any{"monitor": monitor.MonitorContext(plan, a), "target": monitor.TargetCELContext(plan)})
 		if e != nil {
 			return false, e
 		}

@@ -174,3 +174,6 @@ retry/domain confirmation/Blackbox runner не оголошується замі
 
 [DiagnosticBinding/Fixed/diagnostic placement](declarative-diagnostics.md):
 типізований trigger, committed values/reasonCode та placementRef/selectors.
+
+[Replicas та діагностичний context](replica-context.md): 1–10 фізичних
+виконавців дії, per-Agent values/provenance, inheritance й зональні CEL views.

@@ -1,3 +1,26 @@
+# Завершення replicas та CEL-контексту діагностики
+
+Реалізовані DiagnosticAction replicas 1–10 для Fixed/Adaptive/Static: повний
+planned set, окремі durable tasks/витрати/retries, distinct zones/domains,
+очікування всіх результатів перед DAG-залежностями. За відсутності action
+placement успадковується policy Monitor; pending не дозволяє довільний Agent.
+Результати не змішуються: replicaResults[agentId] зберігає physical values
+і provenance. Нестача мінімального бюджету не запускає частину набору.
+
+Fixed і Trigger мають revision-bound Monitor labels, Target attributes,
+optional score; Fixed також counters, fresh checks/zone, explicit zones та
+replicaResults. Статичні refs перевіряються при binding/manual start. Для
+неоднозначної зони bare checks відсутні; без ваг multi-zone score не вигадується.
+[Контракт і приклад](docs/deployment/replica-context.md).
+
+Натурно пройшли serial/parallel Fixed з barrier, Adaptive N=2, бюджет без
+часткового старту, cancel без refund та автоматичний trigger на реальній
+несправності з відновленням healthy. CLI validate, Go/vet і production build
+пройшли. [Докази](docs/experiments/replica-context-2026-11-23/README.md).
+Нових browser clicks немає. Це завершення вибраних діагностичних функцій;
+partial placement, Alert zone scope, regular multi-replica values aggregation
+і повна відповідність усьому старому ТЗ цим не засвідчені.
+
 # Типізований trigger, Fixed values та diagnostic placement
 
 DiagnosticBinding CEL має закритий monitor context name/state/coverageState:

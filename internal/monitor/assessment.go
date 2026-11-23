@@ -193,6 +193,7 @@ func (assessor *Assessor) Evaluate(slots []Slot, history []Observation, now time
 				latest[check.ID] = view
 			}
 		}
+		z.Checks = latest
 		for id := range evidence {
 			z.Evidence = append(z.Evidence, id)
 		}

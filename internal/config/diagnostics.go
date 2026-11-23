@@ -12,11 +12,12 @@ import (
 
 	"github.com/boby-star/NetMonOrc/internal/celrefs"
 	"github.com/boby-star/NetMonOrc/internal/diagnostics"
+	"github.com/boby-star/NetMonOrc/internal/monitor"
 	"github.com/boby-star/NetMonOrc/internal/resourcegroup"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/ext"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -149,7 +150,7 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 		if e != nil || c.Timeout < 100*time.Millisecond || c.Timeout > 60*time.Second {
 			return p, fmt.Errorf("invalid diagnostic timeout")
 		}
-		x := diagnostics.Action{ID: a.ID, Check: c, Cost: 1, Expected: a.Expected, Placement: diagnostics.Placement{Strategy: "leastLoaded"}}
+		x := diagnostics.Action{ID: a.ID, Check: c, Cost: 1, Expected: a.Expected, Placement: diagnostics.Placement{Strategy: "leastLoaded", Inherit: a.Placement == nil}}
 		if a.Retry != nil {
 			x.Retry = &diagnostics.Retry{MaxAttempts: a.Retry.MaxAttempts}
 		}
@@ -157,8 +158,8 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 			x.Cost = *a.Cost
 		}
 		if v := a.Placement; v != nil {
-			if v.Replicas != nil && *v.Replicas != 1 {
-				return p, fmt.Errorf("diagnostic replicas>1 not yet supported")
+			if v.Replicas != nil && (*v.Replicas < 1 || *v.Replicas > 10) {
+				return p, fmt.Errorf("diagnostic replicas must be within 1..10")
 			}
 			if v.OnInsufficientAgents != "" && v.OnInsufficientAgents != "pending" {
 				return p, fmt.Errorf("partial placement is disabled")
@@ -168,6 +169,9 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 				return p, err
 			}
 			x.Placement.Selector = selector
+			if v.Replicas != nil && *v.Replicas > 1 {
+				x.Placement.Replicas = *v.Replicas
+			}
 			if v.DistinctBy != "" && v.DistinctBy != "none" {
 				if v.DistinctBy != "zone" && v.DistinctBy != "failureDomain" {
 					return p, fmt.Errorf("invalid diagnostic distinctBy")
@@ -244,7 +248,7 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 		predecessors := diagnostics.FixedPredecessors(p.Steps)
 		for i, v := range s.Fixed.Steps {
 			if v.When != nil {
-				p.Steps[i].WhenEvidence, e = diagnosticEvidenceCondition(*v.When, predecessors[v.ID])
+				p.Steps[i].WhenContext, e = diagnosticContextCondition(*v.When, predecessors[v.ID])
 				if e != nil {
 					return p, fmt.Errorf("fixed step %s: %w", v.ID, e)
 				}
@@ -255,15 +259,24 @@ func CompileDiagnostics(data []byte) (diagnostics.Profile, error) {
 }
 
 // Fixed CEL views expose only fields currently supplied by the engine.
-type FixedTaskView struct {
+type PhysicalTaskView struct {
 	Values          map[string]*anypb.Any `cel:"values"`
 	ReasonCode      string                `cel:"reasonCode"`
 	Outcome         string                `cel:"outcome"`
 	ExecutionStatus string                `cel:"executionStatus"`
+	AgentID         string                `cel:"agentId"`
+	Zone            string                `cel:"zone"`
+	FailureDomain   string                `cel:"failureDomain"`
+	ObservationID   string                `cel:"observationId"`
 }
-type FixedMonitorView struct {
-	State string `cel:"state"`
+type FixedTaskView struct {
+	Values          map[string]*anypb.Any       `cel:"values"`
+	ReasonCode      string                      `cel:"reasonCode"`
+	Outcome         string                      `cel:"outcome"`
+	ExecutionStatus string                      `cel:"executionStatus"`
+	ReplicaResults  map[string]PhysicalTaskView `cel:"replicaResults"`
 }
+type FixedMonitorView = monitor.RuntimeMonitorView
 
 func diagnosticCondition(expression string, predecessors ...map[string]bool) (func(context.Context, map[string]diagnostics.Outcome, string) (bool, error), error) {
 	condition, err := diagnosticEvidenceCondition(expression, predecessors...)
@@ -280,10 +293,29 @@ func diagnosticCondition(expression string, predecessors ...map[string]bool) (fu
 }
 
 func diagnosticEvidenceCondition(expression string, predecessors ...map[string]bool) (diagnostics.EvidenceCondition, error) {
-	if len(expression) > 2048 || strings.TrimSpace(expression) == "" {
+	condition, err := diagnosticContextCondition(expression, predecessors...)
+	if err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context, tasks map[string]diagnostics.TaskEvidence, state string) (bool, error) {
+		return condition(ctx, tasks, diagnostics.FixedContext{Monitor: monitor.RuntimeMonitorView{State: state}})
+	}, nil
+}
+
+func fixedEnvironment() (*cel.Env, error) {
+	return cel.NewEnv(ext.NativeTypes(reflect.TypeOf(FixedTaskView{}), reflect.TypeOf(PhysicalTaskView{}), reflect.TypeOf(monitor.RuntimeMonitorView{}), reflect.TypeOf(monitor.TargetView{}), reflect.TypeOf(monitor.EvaluatedZoneView{}), reflect.TypeOf(monitor.CheckView{}), reflect.TypeOf(diagnostics.DiagnosticCounters{}), ext.ParseStructTags(true)), cel.CrossTypeNumericComparisons(true),
+		cel.Variable("tasks", cel.MapType(cel.StringType, cel.ObjectType("config.FixedTaskView"))),
+		cel.Variable("monitor", cel.ObjectType("monitor.RuntimeMonitorView")), cel.Variable("target", cel.ObjectType("monitor.TargetView")),
+		cel.Variable("checks", cel.MapType(cel.StringType, cel.ObjectType("monitor.CheckView"))),
+		cel.Variable("zone", cel.ObjectType("monitor.EvaluatedZoneView")), cel.Variable("zones", cel.MapType(cel.StringType, cel.ObjectType("monitor.EvaluatedZoneView"))),
+		cel.Variable("diagnostic", cel.ObjectType("diagnostics.DiagnosticCounters")))
+}
+
+func diagnosticContextCondition(expression string, predecessors ...map[string]bool) (diagnostics.ContextCondition, error) {
+	if len(expression) > 4096 || strings.TrimSpace(expression) == "" {
 		return nil, fmt.Errorf("invalid CEL expression size")
 	}
-	env, e := cel.NewEnv(ext.NativeTypes(reflect.TypeOf(FixedTaskView{}), reflect.TypeOf(FixedMonitorView{}), ext.ParseStructTags(true)), cel.Variable("tasks", cel.MapType(cel.StringType, cel.ObjectType("config.FixedTaskView"))), cel.Variable("monitor", cel.ObjectType("config.FixedMonitorView")))
+	env, e := fixedEnvironment()
 	if e != nil {
 		return nil, e
 	}
@@ -305,37 +337,23 @@ func diagnosticEvidenceCondition(expression string, predecessors ...map[string]b
 	if e != nil {
 		return nil, e
 	}
-	return func(ctx context.Context, tasks map[string]diagnostics.TaskEvidence, state string) (bool, error) {
+	return func(ctx context.Context, tasks map[string]diagnostics.TaskEvidence, frame diagnostics.FixedContext) (bool, error) {
 		input := map[string]FixedTaskView{}
 		for id, t := range tasks {
-			execution := t.Outcome.Execution
-			if execution == "execution_failed" {
-				execution = "failed"
+			physical := physicalTaskView(t)
+			view := FixedTaskView{Values: physical.Values, ReasonCode: physical.ReasonCode, Outcome: physical.Outcome, ExecutionStatus: physical.ExecutionStatus, ReplicaResults: map[string]PhysicalTaskView{}}
+			for actor, result := range t.ReplicaResults {
+				view.ReplicaResults[actor] = physicalTaskView(result)
 			}
-			if execution == "skipped" {
-				execution = "not_executed"
-			}
-			values := map[string]*anypb.Any{}
-			for name, value := range t.Values {
-				var wrapped *anypb.Any
-				switch value.Kind {
-				case "integer":
-					wrapped, _ = anypb.New(wrapperspb.Int64(value.Integer))
-				case "float":
-					wrapped, _ = anypb.New(wrapperspb.Double(value.Number))
-				case "boolean":
-					wrapped, _ = anypb.New(wrapperspb.Bool(value.Boolean))
-				case "string":
-					wrapped, _ = anypb.New(wrapperspb.String(value.Text))
-				}
-				if wrapped != nil {
-					values[name] = wrapped
-				}
-			}
-
-			input[id] = FixedTaskView{Outcome: t.Outcome.Outcome, ExecutionStatus: execution, Values: values, ReasonCode: t.ReasonCode}
+			input[id] = view
 		}
-		out, _, e := program.ContextEval(ctx, map[string]any{"tasks": input, "monitor": FixedMonitorView{State: state}})
+		activation := map[string]any{"tasks": input, "monitor": frame.Monitor, "target": frame.Target, "diagnostic": frame.Diagnostic, "zones": frame.Zones}
+		if frame.Zone != nil {
+			activation["zone"] = *frame.Zone
+			activation["checks"] = frame.Checks
+		}
+
+		out, _, e := program.ContextEval(ctx, activation)
 		if e != nil {
 			return false, e
 		}
@@ -345,4 +363,19 @@ func diagnosticEvidenceCondition(expression string, predecessors ...map[string]b
 		}
 		return value, nil
 	}, nil
+}
+
+func physicalTaskView(t diagnostics.TaskEvidence) PhysicalTaskView {
+	execution := t.Outcome.Execution
+	if execution == "execution_failed" {
+		execution = "failed"
+	}
+	if execution == "skipped" {
+		execution = "not_executed"
+	}
+	values := t.Values
+	if !t.ValidUntil.IsZero() && !time.Now().Before(t.ValidUntil) {
+		values = nil
+	}
+	return PhysicalTaskView{Values: monitor.ScalarValues(values), ReasonCode: t.ReasonCode, Outcome: t.Outcome.Outcome, ExecutionStatus: execution, AgentID: t.AgentID, Zone: t.Zone, FailureDomain: t.FailureDomain, ObservationID: t.ObservationID}
 }

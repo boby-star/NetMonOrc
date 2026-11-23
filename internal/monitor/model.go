@@ -40,6 +40,7 @@ type CheckProfileBinding struct {
 }
 
 type TargetContext struct {
+	Attributes  map[string]Scalar `json:",omitempty"`
 	Type        string
 	NetworkZone string
 	Criticality int
@@ -47,6 +48,7 @@ type TargetContext struct {
 }
 
 type Plan struct {
+	Labels              map[string]string           `json:",omitempty"`
 	FallbackDomains     map[string]string           `json:",omitempty"`
 	FallbackRoster      []Slot                      `json:",omitempty"`
 	Components          map[string]ComponentBinding `json:",omitempty"`
@@ -117,14 +119,15 @@ type DiagnosticBinding struct {
 }
 
 type ZoneAssessment struct {
-	RuleErrors []string `json:"ruleErrors,omitempty"`
-	Zone       string   `json:"zone"`
-	State      string   `json:"state"`
-	Coverage   string   `json:"coverage"`
-	Q          float64  `json:"q"`
-	H          *float64 `json:"h"`
-	Evidence   []string `json:"evidence"`
-	Reason     string   `json:"reason"`
+	Checks     map[string]CheckView `json:"-"`
+	RuleErrors []string             `json:"ruleErrors,omitempty"`
+	Zone       string               `json:"zone"`
+	State      string               `json:"state"`
+	Coverage   string               `json:"coverage"`
+	Q          float64              `json:"q"`
+	H          *float64             `json:"h"`
+	Evidence   []string             `json:"evidence"`
+	Reason     string               `json:"reason"`
 }
 
 type Assessment struct {

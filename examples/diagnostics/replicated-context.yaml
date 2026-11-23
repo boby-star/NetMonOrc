@@ -1,0 +1,78 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: PlacementPolicy
+metadata: {name: two-domains}
+spec:
+  strategy: fixed
+  agentRefs: [branch, dc]
+  replicas: 2
+  distinctBy: failureDomain
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Target
+metadata: {name: context-target}
+spec:
+  type: endpoint
+  address: 198.18.0.80
+  attributes: {serial: 9007199254740993}
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata: {name: replicated-context}
+spec:
+  mode: fixed
+  budget: {maxAdditionalChecks: 3, maxDuration: 90s, maxParallel: 2}
+  hypotheses: [{id: responding}, {id: broken}]
+  actions:
+    - id: read
+      placementRef: two-domains
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/parsed', expectedStatus: [200]}
+        extract:
+          - {name: depth, from: response.body, pattern: 'queue_depth=([0-9]+)', group: 1, as: integer}
+      expectedOutcomes: {responding: success, broken: failure}
+    - id: confirm
+      placement: {strategy: fixed, agentRefs: [branch], zones: [office]}
+      check:
+        type: http
+        runner: native-http
+        timeout: 5s
+        config: {url: 'http://198.18.0.80:8080/confirm', expectedStatus: [200]}
+      expectedOutcomes: {responding: success, broken: failure}
+  fixed:
+    steps:
+      - {id: read, actionRef: read}
+      - id: confirm
+        actionRef: confirm
+        dependsOn: [read]
+        when: >-
+          monitor.labels.environment == "research" &&
+          target.attributes.serial == 9007199254740993 &&
+          zone.name == "office" && checks.http.executionStatus == "completed" &&
+          zones.server.checks.http.executionStatus == "completed" &&
+          diagnostic.attempts == 2 && diagnostic.remainingChecks == 1 &&
+          tasks.read.replicaResults.branch.values.depth == 0 &&
+          tasks.read.replicaResults.dc.values.depth == 0
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: context-web, labels: {environment: research}}
+spec:
+  targetRef: context-target
+  placement: {strategy: fixed, agentRefs: [branch, dc], replicas: 2, distinctBy: zone}
+  checks:
+    - id: http
+      type: http
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://198.18.0.80:8080/', expectedStatus: [200]}
+  assessment:
+    requiredZones: [office, server]
+    freshness: {maxAge: 20s, maxSkew: 15s}
+    checks: [{id: http, weight: 1, required: true}]
+  diagnostics:
+    enabled: true
+    profileRef: replicated-context
+    when: 'monitor.labels.environment == "research" && target.attributes.serial == 9007199254740993'

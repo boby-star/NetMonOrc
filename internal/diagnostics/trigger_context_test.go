@@ -21,3 +21,15 @@ func TestTriggerClosedMonitorContext(t *testing.T) {
 		t.Fatal(yes, err)
 	}
 }
+
+func TestTriggerLabelsAttributesAndOptionalScore(t *testing.T) {
+	p := monitor.Plan{Labels: map[string]string{"environment": "research"}, TargetContext: &monitor.TargetContext{Attributes: map[string]monitor.Scalar{"serial": {Kind: "integer", Integer: 9007199254740993}}}}
+	trigger, err := CompileTrigger(`monitor.labels.environment == "research" && target.attributes.serial == 9007199254740993 && !has(monitor.weightedScore)`, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	yes, err := trigger(context.Background(), monitor.Assessment{Monitor: "web", State: "down", Zones: []monitor.ZoneAssessment{{Zone: "office"}, {Zone: "server"}}})
+	if err != nil || !yes {
+		t.Fatal(yes, err)
+	}
+}

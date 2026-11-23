@@ -75,3 +75,10 @@ queue_depth/ready, за значеннями й reason запустити confir
 Решта залишку: повний monitor/target/checks/diagnostic context Fixed, monitor
 labels/score у trigger, multi-replica diagnostic execution та Alert zone scope
 не закриваються цією ітерацією. Нових HTTP routes чи browser-side обчислень немає.
+
+## Завершення залишку
+
+Наступна ітерація реалізувала [replicas 1–10, inheritance та повний
+діагностичний CEL-контекст](replica-context.md). Наведені вище обмеження
+replicas=1 і context описують межу попереднього приймання; чинні правила —
+за цим посиланням.

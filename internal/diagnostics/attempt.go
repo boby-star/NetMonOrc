@@ -32,7 +32,7 @@ func (e Engine) executeAttempt(ctx context.Context, a Action, executor Executor,
 		}
 		validUntil = &expires
 	}
-	data := TaskEvidence{Outcome: observed}
+	data := TaskEvidence{Outcome: observed, AgentID: executor.ID, Zone: executor.Zone, FailureDomain: executor.FailureDomain, ObservationID: evidence.ObservationID}
 	if err == nil && attempt.Err() == nil && valid && evidence.ObservationID != "" && finished != nil {
 		data.ReasonCode = evidence.ReasonCode
 		if observed.Execution == "completed" {

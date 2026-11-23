@@ -30,11 +30,12 @@ type ZoneView struct {
 	Labels   map[string]string `cel:"labels"`
 }
 type TargetView struct {
-	Address     string            `cel:"address"`
-	Type        string            `cel:"type"`
-	NetworkZone string            `cel:"networkZone"`
-	Criticality int               `cel:"criticality"`
-	Labels      map[string]string `cel:"labels"`
+	Attributes  map[string]*anypb.Any `cel:"attributes"`
+	Address     string                `cel:"address"`
+	Type        string                `cel:"type"`
+	NetworkZone string                `cel:"networkZone"`
+	Criticality int                   `cel:"criticality"`
+	Labels      map[string]string     `cel:"labels"`
 }
 type compiledRule struct {
 	rule    AssessmentRule
@@ -129,23 +130,7 @@ func NewAssessor(p Plan) (*Assessor, error) {
 func assessmentCheckView(o Observation, typ string, now time.Time) CheckView {
 	v := CheckView{Outcome: "unknown", ExecutionStatus: "failed", ReasonCode: o.Reason, AgeSeconds: now.Sub(o.FinishedAt).Seconds(), Metrics: map[string]int64{}, Values: map[string]*anypb.Any{}}
 	if o.Execution == "completed" && (o.Outcome == "success" || o.Outcome == "failure") {
-		for name, value := range o.Values {
-			var wrapped *anypb.Any
-			var err error
-			switch value.Kind {
-			case "integer":
-				wrapped, err = anypb.New(wrapperspb.Int64(value.Integer))
-			case "float":
-				wrapped, err = anypb.New(wrapperspb.Double(value.Number))
-			case "boolean":
-				wrapped, err = anypb.New(wrapperspb.Bool(value.Boolean))
-			case "string":
-				wrapped, err = anypb.New(wrapperspb.String(value.Text))
-			}
-			if err == nil && wrapped != nil {
-				v.Values[name] = wrapped
-			}
-		}
+		v.Values = ScalarValues(o.Values)
 		v.Outcome = o.Outcome
 		v.ExecutionStatus = "completed"
 		if typ == "http" && o.StatusCode != 0 {
@@ -169,15 +154,7 @@ func (a *Assessor) applyRules(z *ZoneAssessment, checks map[string]CheckView, no
 	if len(z.Evidence) == 0 {
 		coverage = "unknown"
 	}
-	target := TargetView{Address: a.plan.TargetAddress, Type: "endpoint", NetworkZone: "unspecified", Criticality: 3, Labels: map[string]string{}}
-	if context := a.plan.TargetContext; context != nil {
-		target.Type = context.Type
-		target.NetworkZone = context.NetworkZone
-		target.Criticality = context.Criticality
-		if context.Labels != nil {
-			target.Labels = context.Labels
-		}
-	}
+	target := TargetCELContext(a.plan)
 	activation := map[string]any{"checks": checks, "zone": ZoneView{Name: z.Zone, Coverage: coverage, Labels: map[string]string{}}, "target": target}
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
 	defer cancel()
@@ -205,4 +182,26 @@ func (a *Assessor) applyRules(z *ZoneAssessment, checks map[string]CheckView, no
 		z.State = "unknown"
 		z.Reason = "rule_evaluation_incomplete"
 	}
+}
+
+func ScalarValues(values map[string]Scalar) map[string]*anypb.Any {
+	out := map[string]*anypb.Any{}
+	for name, value := range values {
+		var wrapped *anypb.Any
+		var err error
+		switch value.Kind {
+		case "integer":
+			wrapped, err = anypb.New(wrapperspb.Int64(value.Integer))
+		case "float":
+			wrapped, err = anypb.New(wrapperspb.Double(value.Number))
+		case "boolean":
+			wrapped, err = anypb.New(wrapperspb.Bool(value.Boolean))
+		case "string":
+			wrapped, err = anypb.New(wrapperspb.String(value.Text))
+		}
+		if err == nil && wrapped != nil {
+			out[name] = wrapped
+		}
+	}
+	return out
 }

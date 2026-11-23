@@ -62,6 +62,9 @@ func ResolveDiagnostics(p monitor.Plan, profile diagnostics.Profile) (monitor.Pl
 // ResolveDiagnosticReference includes an explicit profile dependency in the
 // effective revision even when its execution binding is disabled.
 func ResolveDiagnosticReference(p monitor.Plan, profile diagnostics.Profile) (monitor.Plan, error) {
+	if err := ValidateDiagnosticMonitor(p, profile); err != nil {
+		return p, err
+	}
 	if p.Diagnostics == nil || p.Diagnostics.ProfileRef != profile.Name {
 		return p, fmt.Errorf("diagnostic binding/profile mismatch")
 	}

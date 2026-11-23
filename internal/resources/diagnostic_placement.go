@@ -54,9 +54,6 @@ func (r Registry) resolveDiagnosticPlacements(m Manifest) (Manifest, map[string]
 				return m, nil, err
 			}
 		}
-		if policy.Replicas != 1 {
-			return m, nil, fmt.Errorf("diagnostic placement requires replicas=1; use separate actions for multiple points")
-		}
 		// Preserve explicit Agent preference for existing inline fixed actions.
 		if inline {
 			var original struct {

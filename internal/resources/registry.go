@@ -176,10 +176,14 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 		for key, value := range r.TargetLabels[targetRef] {
 			labels[key] = value
 		}
-		p, err = config.ResolveTargetReference(p, targetRef, targetHash, monitor.TargetContext{Type: target.Type, NetworkZone: target.NetworkZone, Criticality: target.Criticality, Labels: labels})
+		p, err = config.ResolveTargetReference(p, targetRef, targetHash, monitor.TargetContext{Type: target.Type, NetworkZone: target.NetworkZone, Criticality: target.Criticality, Labels: labels, Attributes: target.Attributes})
 		if err != nil {
 			return p, err
 		}
+	}
+	p, err = config.ResolveMonitorLabels(p, m.Metadata.Labels)
+	if err != nil {
+		return p, err
 	}
 	roots := []dependency.Reference{{Kind: "Monitor", Name: p.Name}}
 	if p.TargetRef != "" {

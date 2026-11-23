@@ -17,6 +17,9 @@ type Budget struct {
 	MaxEstimatedBytes int64
 }
 type Placement struct {
+	Inherit    bool                    `json:",omitempty"`
+	Pending    bool                    `json:"-"`
+	Replicas   int                     `json:",omitempty"`
 	Selector   *resourcegroup.Selector `json:",omitempty"`
 	DistinctBy string                  `json:",omitempty"`
 	Ref        string                  `json:",omitempty"`
@@ -44,14 +47,22 @@ type Outcome struct {
 	Outcome   string
 }
 type TaskEvidence struct {
-	Outcome    Outcome
-	Values     map[string]monitor.Scalar
-	ReasonCode string
-	ValidUntil time.Time
+	ReplicaResults map[string]TaskEvidence
+	AgentID        string
+	Zone           string
+	FailureDomain  string
+	ObservationID  string
+	Outcome        Outcome
+	Values         map[string]monitor.Scalar
+	ReasonCode     string
+	ValidUntil     time.Time
 }
+type ContextCondition func(context.Context, map[string]TaskEvidence, FixedContext) (bool, error)
+
 type EvidenceCondition func(context.Context, map[string]TaskEvidence, string) (bool, error)
 
 type Step struct {
+	WhenContext  ContextCondition  `json:"-"`
 	WhenEvidence EvidenceCondition `json:"-"`
 
 	ID         string
@@ -192,6 +203,7 @@ type EvidenceRunner interface {
 	ExecuteEvidence(context.Context, Action, Executor) (ObservedOutcome, error)
 }
 type Engine struct {
+	CELContext      *SessionContext
 	EvidenceMaxAge  time.Duration
 	EvidenceMaxSkew time.Duration
 	// TaskOverhead reserves orchestration time inside the same global deadline;
