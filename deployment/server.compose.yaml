@@ -1,0 +1,55 @@
+# Independent Controller host. Paths in the env file must be absolute.
+name: netmonorc-server
+services:
+  postgres:
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    environment:
+      POSTGRES_USER: netmonorc
+      POSTGRES_DB: netmonorc
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ${NMO_CONFIG_DIR:?absolute config directory required}/postgres-password:/run/secrets/postgres-password:ro
+    networks: [database]
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, netmonorc, -d, netmonorc]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+  controller:
+    image: ${NMO_IMAGE:-netmonorc-research:local}
+    command:
+      - -config=/etc/netmonorc/catalog.yaml
+      - -database-file=/etc/netmonorc/database.dsn
+      - -slots=${NMO_SLOTS:?agent=zone roster required}
+      - -listen=0.0.0.0:9443
+      - -ca=/etc/netmonorc/ca.crt
+      - -cert=/etc/netmonorc/controller.crt
+      - -key=/etc/netmonorc/controller.key
+      - -assessment-file=/data/assessment.json
+      - -diagnostic-file=/data/diagnostic.json
+      - -alert-file=/data/alert.json
+      - -http-listen=0.0.0.0:8443
+      - -http-ui-dir=/usr/local/share/netmonorc/web
+      - -webhook-allow-cidrs=${NMO_WEBHOOK_ALLOW_CIDRS:-}
+    ports:
+      - ${NMO_GRPC_BIND:-127.0.0.1}:${NMO_GRPC_PORT:-9443}:9443
+      - ${NMO_UI_BIND:-127.0.0.1}:${NMO_UI_PORT:-8443}:8443
+    volumes:
+      - ${NMO_CONFIG_DIR:?absolute config directory required}:/etc/netmonorc:ro
+      - ${NMO_DATA_DIR:?absolute data directory required}:/data
+    networks: [database, control]
+    depends_on:
+      postgres: {condition: service_healthy}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=64m,mode=0700,uid=10001,gid=10001']
+    restart: unless-stopped
+    pids_limit: 128
+volumes:
+  postgres-data:
+networks:
+  database: {internal: true}
+  control:

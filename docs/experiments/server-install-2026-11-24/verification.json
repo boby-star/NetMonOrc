@@ -1,0 +1,164 @@
+{
+  "status": "passed",
+  "singleDockerHost": true,
+  "separatePhysicalHostsTested": false,
+  "browserInteractionTested": false,
+  "credentialsOmitted": true,
+  "offlineValidation": {
+    "abstractZoneContext": false,
+    "mode": "offline",
+    "planningRequired": true,
+    "resources": [
+      {
+        "resource": "Monitor/server-web",
+        "validationRevision": "c26c6fa84b9a94ccc0a6f68b7a538a74ae4d03dc74d7faf20687933e611b00eb"
+      }
+    ],
+    "valid": true,
+    "warnings": [
+      "Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."
+    ]
+  },
+  "unauthenticatedHTTPS": 401,
+  "adminBootstrapIdempotent": true,
+  "beforeAgents": "unknown",
+  "reactAssetsServed": true,
+  "image": "sha256:ef1fd021709ab4fe2fcee896965ff3d62986c39a3050557859f31353004cb9b8",
+  "assessment": {
+    "monitorId": "server-web",
+    "state": "healthy",
+    "coverageState": "sufficient",
+    "zoneStates": [
+      {
+        "zone": "office",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "3c0542d8cedbd8a527b28c17aa4fa8f4"
+        ],
+        "reason": "sufficient_success"
+      },
+      {
+        "zone": "server",
+        "state": "healthy",
+        "coverage": "complete",
+        "q": 1,
+        "h": 1,
+        "evidence": [
+          "40a7301c55ef484b25d368b69a03c99a"
+        ],
+        "reason": "sufficient_success"
+      }
+    ],
+    "reasonCodes": [
+      "sufficient_success",
+      "sufficient_success"
+    ],
+    "evidenceIds": [
+      "3c0542d8cedbd8a527b28c17aa4fa8f4",
+      "40a7301c55ef484b25d368b69a03c99a"
+    ],
+    "evaluatedAt": "2026-11-23T23:05:31.045715198Z",
+    "revision": "c26c6fa84b9a94ccc0a6f68b7a538a74ae4d03dc74d7faf20687933e611b00eb"
+  },
+  "agents": {
+    "items": [
+      {
+        "regularMonitoringAssigned": true,
+        "agentId": "branch",
+        "name": "branch",
+        "onlineState": "online",
+        "networkZone": "office",
+        "labels": {},
+        "capabilities": [
+          "assessment:replicas",
+          "assessment:zone-any",
+          "blackbox",
+          "components:external-v1",
+          "components:readiness-v1",
+          "context:dependencies",
+          "diagnostics:cancel",
+          "diagnostics:serial",
+          "diagnostics:static-comparison",
+          "dns",
+          "extraction:regex",
+          "fallback:v1",
+          "http",
+          "http:policy-v2",
+          "icmp",
+          "native-http",
+          "placement:domains",
+          "placement:dynamic",
+          "placement:fixed",
+          "placement:per-check",
+          "plans:multiple",
+          "target-cidr:10.254.244.10/32",
+          "tcp",
+          "yaml:controls-v1"
+        ],
+        "appliedRevision": "c26c6fa84b9a94ccc0a6f68b7a538a74ae4d03dc74d7faf20687933e611b00eb",
+        "lastHeartbeat": "2026-11-23T23:05:26.716880504Z",
+        "certExpiresAt": "2027-02-21T23:03:16Z",
+        "maxConcurrentProbes": 2,
+        "activeProbes": 0
+      },
+      {
+        "regularMonitoringAssigned": true,
+        "agentId": "dc",
+        "name": "dc",
+        "onlineState": "online",
+        "networkZone": "server",
+        "labels": {},
+        "capabilities": [
+          "assessment:replicas",
+          "assessment:zone-any",
+          "blackbox",
+          "components:external-v1",
+          "components:readiness-v1",
+          "context:dependencies",
+          "diagnostics:cancel",
+          "diagnostics:serial",
+          "diagnostics:static-comparison",
+          "dns",
+          "extraction:regex",
+          "fallback:v1",
+          "http",
+          "http:policy-v2",
+          "icmp",
+          "native-http",
+          "placement:domains",
+          "placement:dynamic",
+          "placement:fixed",
+          "placement:per-check",
+          "plans:multiple",
+          "target-cidr:10.254.244.10/32",
+          "tcp",
+          "yaml:controls-v1"
+        ],
+        "appliedRevision": "c26c6fa84b9a94ccc0a6f68b7a538a74ae4d03dc74d7faf20687933e611b00eb",
+        "lastHeartbeat": "2026-11-23T23:05:30.500994471Z",
+        "certExpiresAt": "2027-02-21T23:03:16Z",
+        "maxConcurrentProbes": 2,
+        "activeProbes": 0
+      }
+    ],
+    "nextCursor": null
+  },
+  "restartAndSessionPersistence": true,
+  "reactAssetsHTTP200": [
+    {
+      "path": "/assets/index-Bx-3c-1M.js",
+      "status": 200,
+      "contentType": "text/javascript; charset=utf-8",
+      "bytes": 327061
+    },
+    {
+      "path": "/assets/index-c0yhZ2JH.css",
+      "status": 200,
+      "contentType": "text/css; charset=utf-8",
+      "bytes": 2595
+    }
+  ]
+}

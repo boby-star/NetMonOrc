@@ -1,0 +1,19 @@
+{
+  "applicationSourceCommit": "8e2356f5d25710b86f46d8882634df46687d5eb8",
+  "image": "sha256:ef1fd021709ab4fe2fcee896965ff3d62986c39a3050557859f31353004cb9b8",
+  "docker": "28.4.0",
+  "compose": "2.40.3",
+  "openssl": "OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)",
+  "templatesSHA256": {
+    "deployment/server.compose.yaml": "cfd411784a07246858087547f2b8ee4bda92b504b4554d440f4f49e9a0986ca3",
+    "deployment/agent.compose.yaml": "8c8334ea93fb29bf1b2494af3db6c1d6956876b66934e9aca510904643a73df0",
+    "examples/server-http.yaml": "364a534b0215e8587a569068576f59bb577f32f06848e6a180bf836516f1151c"
+  },
+  "testConfigOwnership": "config UID 10001 / group 1000 / 0750 for non-root test operator; data UID/GID 10001 / 0700; README uses sudo and 0700 configs",
+  "separatePhysicalServersTested": false,
+  "cleanUbuntuPackageInstallTested": false,
+  "systemdInstallTested": false,
+  "browserInteractionTested": false,
+  "buildx": "github.com/docker/buildx v0.31.0 44945d71ff077ce7fc142fbdee6acec8d9acb630",
+  "readmeSHA256": "24b0e04bf488715cfeda6d716e270417631f2a84c215890f4e3bb987e6a7b44a"
+}

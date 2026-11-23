@@ -1,0 +1,17 @@
+# Replace this documentation IP with a real service reachable by BOTH Agents.
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata: {name: server-web}
+spec:
+  target: {type: endpoint, address: 192.0.2.20}
+  checks:
+    - id: http
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://192.0.2.20:8080/', expectedStatus: [200]}
+  assessment:
+    requiredZones: [office, server]
+    freshness: {maxAge: 30s, maxSkew: 15s}
+    checks: [{id: http, weight: 1, required: true}]

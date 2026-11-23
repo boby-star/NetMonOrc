@@ -1,0 +1,24 @@
+# Install on each Agent host; the Agent opens an outgoing mTLS connection.
+name: netmonorc-agent
+services:
+  agent:
+    image: ${NMO_IMAGE:-netmonorc-research:local}
+    entrypoint: [/usr/local/bin/netmonorc-agent]
+    command:
+      - -controller=${NMO_CONTROLLER:?Controller host:port required}
+      - -server-name=${NMO_SERVER_NAME:?Controller certificate DNS name required}
+      - -ca=/etc/netmonorc/ca.crt
+      - -cert=/etc/netmonorc/agent.crt
+      - -key=/etc/netmonorc/agent.key
+      - -data-dir=/data
+      - -allow-cidrs=${NMO_ALLOW_CIDRS:?explicit target CIDRs required}
+      - -blackbox-binary=/usr/local/bin/blackbox_exporter
+    volumes:
+      - ${NMO_CONFIG_DIR:?absolute config directory required}:/etc/netmonorc:ro
+      - ${NMO_DATA_DIR:?absolute data directory required}:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=64m,mode=0700,uid=10001,gid=10001']
+    restart: unless-stopped
+    pids_limit: 128
