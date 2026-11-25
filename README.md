@@ -7,6 +7,9 @@ Static/Fixed/Adaptive диагностика, зональные alerts, webhook
 Полный объём старого ТЗ ещё не реализован; актуальные ограничения находятся в
 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
+[Обновлённая админка](docs/deployment/admin-ui.md): боковая навигация, Manrope,
+desktop/mobile, защита черновиков и браузерная проверка действий.
+
 ## Варианты запуска
 
 - **Сервер и отдельные Agents:** единый [install.sh](install.sh), инструкция ниже; внутри используются

@@ -16,9 +16,11 @@ import {
 export function Configuration({
   session,
   monitor,
+  onDirtyChange,
 }: {
   session: Session;
   monitor: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [resourceKind, setResourceKind] = useState("Monitor");
   const [name, setName] = useState(monitor);
@@ -27,7 +29,10 @@ export function Configuration({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
-  const [page, setPage] = useState<{ items: MonitorResource[]; nextCursor: string | null } | null>(null);
+  const [page, setPage] = useState<{
+    items: MonitorResource[];
+    nextCursor: string | null;
+  } | null>(null);
   const canWrite =
     session.role === "admin" && session.scopes.includes("resources:write");
   useEffect(() => {
@@ -50,6 +55,17 @@ export function Configuration({
       active = false;
     };
   }, [monitor]);
+  const [batchDirty, setBatchDirty] = useState(false);
+  const dirty = text !== (current?.source ?? "");
+  useEffect(() => {
+    onDirtyChange?.(dirty || batchDirty);
+  }, [dirty, batchDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  function discardDraft() {
+    return (
+      !dirty || window.confirm("Є незбережений маніфест. Відкинути зміни?")
+    );
+  }
   async function list(cursor: string | null) {
     setBusy(true);
     setError("");
@@ -65,6 +81,14 @@ export function Configuration({
     kind: "load" | "validate" | "plan" | "save" | "create" | "delete",
     targetName = name,
   ) {
+    if (kind === "load" && !discardDraft()) return;
+    if (
+      kind === "delete" &&
+      !window.confirm(
+        `Видалити ${current?.resource.manifest.kind} «${current?.resource.manifest.metadata.name}»? Історія залишиться на сервері.`,
+      )
+    )
+      return;
     setBusy(true);
     setError("");
     setResult("");
@@ -80,12 +104,17 @@ export function Configuration({
         if (!current) return;
         await deleteMonitor(session, current);
         setCurrent(null);
+        setText("");
         setResult("Ресурс видалено. Історія змін збережена сервером.");
         return;
       }
       if (kind === "validate") {
         setResult(
-          JSON.stringify(await validateConfigurationSource(session, text), null, 2),
+          JSON.stringify(
+            await validateConfigurationSource(session, text),
+            null,
+            2,
+          ),
         );
         return;
       }
@@ -97,12 +126,25 @@ export function Configuration({
       }
       if (kind === "save" && !current)
         throw new Error("Спочатку завантажте ресурс для заміни.");
-      const prepared=await prepareConfigurationSource(session,text);
-      if(prepared.documents.length!==1)throw new Error("Для кількох документів використайте пакетне застосування нижче.");
-      const document=prepared.documents[0];
-      if(kind==="save"&&current&&(document.kind!==current.resource.manifest.kind||document.name!==current.resource.manifest.metadata.name))
+      const prepared = await prepareConfigurationSource(session, text);
+      if (prepared.documents.length !== 1)
+        throw new Error(
+          "Для кількох документів використайте пакетне застосування нижче.",
+        );
+      const document = prepared.documents[0];
+      if (
+        kind === "save" &&
+        current &&
+        (document.kind !== current.resource.manifest.kind ||
+          document.name !== current.resource.manifest.metadata.name)
+      )
         throw new Error("Тип і назву ресурсу не можна змінити під час заміни.");
-      const saved=await saveResourceSource(session,text,document,kind==="create"?null:current);
+      const saved = await saveResourceSource(
+        session,
+        text,
+        document,
+        kind === "create" ? null : current,
+      );
       setResourceKind(saved.resource.manifest.kind);
       setCurrent(saved);
       setName(saved.resource.manifest.metadata.name);
@@ -123,12 +165,22 @@ export function Configuration({
     }
   }
   return (
-    <section>
+    <section aria-busy={busy}>
       <h2>Конфігурація моніторингу</h2>
+      {!canWrite && (
+        <p className="notice">
+          Режим перегляду. Для зміни конфігурації потрібні права адміністратора.
+        </p>
+      )}
+      {(dirty || batchDirty) && (
+        <p className="notice" role="status">
+          Незбережені зміни. Перемикання розділів зберігає вашу чернетку.
+        </p>
+      )}
       <p>
-        Один декларативний маніфест у YAML або JSON. Перевірку та компіляцію виконує
-        сервер. Controller виконує Monitor із каталогу у фіксованих мережевих
-        зонах; вибір Monitor у панелі змінює перегляд.
+        Один декларативний маніфест у YAML або JSON. Перевірку та компіляцію
+        виконує сервер. Controller виконує Monitor із каталогу у фіксованих
+        мережевих зонах; вибір Monitor у панелі змінює перегляд.
       </p>
       <form
         onSubmit={(e) => {
@@ -138,15 +190,20 @@ export function Configuration({
       >
         <label>
           Тип ресурсу
-          <select value={resourceKind} disabled={busy} onChange={(e) => {
-            setResourceKind(e.target.value);
-            setCurrent(null);
-            setText("");
-            setResult("");
-            setPage(null);
-            setError("");
-            setName(e.target.value === "Monitor" ? monitor : "");
-          }}>
+          <select
+            value={resourceKind}
+            disabled={busy}
+            onChange={(e) => {
+              if (!discardDraft()) return;
+              setResourceKind(e.target.value);
+              setCurrent(null);
+              setText("");
+              setResult("");
+              setPage(null);
+              setError("");
+              setName(e.target.value === "Monitor" ? monitor : "");
+            }}
+          >
             <option value="Dependency">Dependency</option>
             <option value="ResourceGroup">ResourceGroup</option>
             <option value="Component">Component</option>
@@ -180,15 +237,26 @@ export function Configuration({
           <ul>
             {page.items.map((item) => (
               <li key={item.uid}>
-                <button type="button" disabled={busy}
-                  onClick={() => void action("load", item.manifest.metadata.name)}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void action("load", item.manifest.metadata.name)
+                  }
+                >
                   {item.manifest.metadata.name}
-                </button>{" "}· {item.status?.state ?? "невідомо"}
+                </button>{" "}
+                · {item.status?.state ?? "невідомо"}
               </li>
             ))}
           </ul>
-          <button type="button" disabled={busy || !page.nextCursor}
-            onClick={() => void list(page.nextCursor)}>Наступна сторінка</button>
+          <button
+            type="button"
+            disabled={busy || !page.nextCursor}
+            onClick={() => void list(page.nextCursor)}
+          >
+            Наступна сторінка
+          </button>
         </div>
       )}
       {current && (
@@ -216,6 +284,7 @@ export function Configuration({
           <button
             type="button"
             disabled={busy || !text}
+            className="secondary"
             onClick={() => void action("validate")}
           >
             Перевірити
@@ -223,6 +292,7 @@ export function Configuration({
           <button
             type="button"
             disabled={busy || !text}
+            className="secondary"
             onClick={() => void action("plan")}
           >
             Показати план
@@ -243,6 +313,7 @@ export function Configuration({
           </button>
           <button
             type="button"
+            className="danger"
             disabled={busy || !current}
             onClick={() => void action("delete")}
           >
@@ -252,19 +323,28 @@ export function Configuration({
       )}
       <small>
         Для нового ресурсу змініть metadata.name у маніфесті. Зміни профілю
-        оновлюють ревізії залежних Monitor. Профіль з увімкненими залежностями та активний Monitor
-        захищені від видалення. Збереження поточного використовує серверну
-        версію; після конфлікту завантажте актуальний запис. Статус плану не є
-        оцінкою доступності ресурсу.
+        оновлюють ревізії залежних Monitor. Профіль з увімкненими залежностями
+        та активний Monitor захищені від видалення. Збереження поточного
+        використовує серверну версію; після конфлікту завантажте актуальний
+        запис. Статус плану не є оцінкою доступності ресурсу.
       </small>
-      <BatchApply session={session} current={current} draft={text} />
+      <BatchApply
+        session={session}
+        current={current}
+        draft={text}
+        onDirtyChange={setBatchDirty}
+      />
       {busy && <p role="status">Виконання…</p>}
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
-      {result && <pre className="config-result">{result}</pre>}
+      {result && (
+        <pre role="status" className="config-result">
+          {result}
+        </pre>
+      )}
     </section>
   );
 }

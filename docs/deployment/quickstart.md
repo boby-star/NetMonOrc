@@ -68,23 +68,22 @@ Dynamic placement і same-zone replica voting реалізовані в R31/R32;
 Agent enrollment/cert lifecycle залишаються поза мінімальним профілем. Фактичний залишок —
 [матриця приймання](../planning/minimal-research-acceptance-2026-11-17.md).
 
-## Перевірка браузером проти справжнього Controller
+## Перевірка оновленої адмінки
 
-На окремому новому owned project увімкніть --ui-port, потім запустіть:
+Після prepare/up на новому owned project із --ui-port:
 
 ```sh
-python3 scripts/lab_browser.py --project YOUR_FRESH_PROJECT --prefix YOUR_PREFIX \
-  --output .local/new-browser-result.json --screenshot .local/new-browser-panel.png
+python3 scripts/lab_admin_ui.py --project YOUR_FRESH_PROJECT --prefix YOUR_PREFIX --output .local/new-admin-ui-result
 ```
 
-Потрібні Node 24+, Chromium та certutil. Script відмовляється працювати поверх
-наявних users/output files, створює початкового test admin через звичайну
-команду admin, перевіряє її idempotency та реальні browser flows.
-Пароль існує лише в пам'яті/stdin, не друкується. Тимчасовий browser home/profile
-має власний NSS trust store із публічним test CA; користувацький trust store
-не змінюється, TLS checks не вимикаються. Chromium без sandbox використовується
-лише як локальний headless acceptance client. Після успішного запуску test
-resources видаляються UI, сесія закривається logout; data volumes лишаються.
+Потрібні Node 24+, Chromium та certutil. Сертифікат перевіряється через окреме
+тимчасове NSS-сховище тестового браузера; credentials не потрапляють у звіт.
+Сценарій відмовляється bootstrap-ити сторонню БД з наявними users, створює свої
+ресурси та залишає приватні дані для продовження лише у .local.
+Перевіряються навігація, CRUD/YAML/apply, evidence, діагностика, users/PAT,
+password/session, mobile та viewer. Умовні сценарії й фактичне покриття:
+[контракт UI](admin-ui.md).
 
-Додайте `--multi-monitor` до lab_browser.py для перевірки двох одночасних
-Monitor, різних результатів та перемикання UI зі збереженням вибору після reload.
+DOM-сценарій scripts/live_browser_smoke.mjs та wrapper lab_browser.py залишені
+як історичне відтворення попереднього R29 layout; для поточної панелі використовуйте
+lab_admin_ui.py. Поточний browser driver містить інвентаризацію та результати дій.

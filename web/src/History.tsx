@@ -34,7 +34,7 @@ export function History({ monitor }: { monitor: string }) {
     };
   }, [monitor, filter, cursor, refresh]);
   return (
-    <section>
+    <section aria-busy={busy}>
       <h2>Історія перевірок</h2>
       <p>
         Збережені спостереження, включно з попередніми ревізіями. Поточний стан
@@ -43,6 +43,7 @@ export function History({ monitor }: { monitor: string }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          setBusy(true);
           setCursor(null);
           setFilter(zone.trim());
           setRefresh((x) => x + 1);
@@ -117,7 +118,7 @@ export function History({ monitor }: { monitor: string }) {
                         )}
                       </td>
                       <td>
-                        <button type="button" onClick={() => setSelected(o.observationId)}>Відкрити доказ</button>
+                        <button type="button" disabled={busy} onClick={() => setSelected(o.observationId)}>Відкрити доказ</button>
                         <br />
                         <code>{o.observationId}</code>
                         <br />
@@ -135,14 +136,14 @@ export function History({ monitor }: { monitor: string }) {
             <button
               type="button"
               disabled={busy || !cursor}
-              onClick={() => setCursor(null)}
+              onClick={() => { setBusy(true); setCursor(null); }}
             >
               До новіших
             </button>
             <button
               type="button"
               disabled={busy || !page.nextCursor}
-              onClick={() => setCursor(page.nextCursor)}
+              onClick={() => { setBusy(true); setCursor(page.nextCursor); }}
             >
               Старіші записи
             </button>

@@ -63,6 +63,12 @@ export function Tokens({ session }: { session: Session }) {
     }
   }
   async function revoke(id: string) {
+    if (
+      !window.confirm(
+        "Відкликати цей API-токен? Інтеграції, що використовують його, втратять доступ.",
+      )
+    )
+      return;
     setBusy(true);
     setError("");
     try {
@@ -76,7 +82,7 @@ export function Tokens({ session }: { session: Session }) {
     }
   }
   return (
-    <section>
+    <section aria-busy={busy || loading}>
       <h2>Особисті API-токени</h2>
       <p>
         Для CLI. Секрет доступний лише після створення; збережіть його у
@@ -92,6 +98,7 @@ export function Tokens({ session }: { session: Session }) {
           Назва
           <input
             value={name}
+            disabled={busy}
             required
             maxLength={128}
             onChange={(e) => setName(e.target.value)}
@@ -102,6 +109,7 @@ export function Tokens({ session }: { session: Session }) {
           <input
             type="datetime-local"
             value={expiry}
+            disabled={busy}
             onChange={(e) => setExpiry(e.target.value)}
           />
           <small>Порожнє поле — без строку дії.</small>
@@ -112,6 +120,7 @@ export function Tokens({ session }: { session: Session }) {
             <label className="scope-option" key={scope}>
               <input
                 type="checkbox"
+                disabled={busy}
                 checked={scopes.includes(scope)}
                 onChange={(e) =>
                   setScopes((prev) =>

@@ -1,0 +1,40 @@
+{
+  "baseCommit": "ce7635e60d3d6555708f0da30e7e8403f38acee7",
+  "project": "nmo-admin-design-20261125",
+  "applicationImage": "sha256:f1fc66a93c93cf7c8992593e931e6172f3685e3bbc575ac74f2e9d0c019246c1",
+  "sourceSHA256": {
+    "Dockerfile": "540cf4a1896b97d4e79b0aac137205fd6ad7e1cee9d5fc14a9c47c0db73a96bc",
+    "internal/httpapi/api.go": "5f360e37803dd104b37217f2b6076b63cfaf0974a9f3b053c1c8e60e5efbf636",
+    "internal/httpapi/static_font_test.go": "481814d72919d629e8e8a2880aa2220abcb25284a68eb688c0839c2ab556c853",
+    "scripts/admin_ui_browser.mjs": "f12c3ce8e80e71fc04960106d1e17bcd654035d00460ce625d8c6ff859587da8",
+    "scripts/lab_admin_ui.py": "893f44c696a13d70e565e14ea5b8930ac7b58903690516e76033a54697ae9b33",
+    "scripts/test_api_retry.mjs": "7c840f065bdbfa1855ddf4a60c5525c41d861623648c0bac88621a194e1b5fd2",
+    "web/public/assets/OFL.txt": "d6a309fcfb963d329a93baf9df66fa5f3c23a4be2b5f67edf24d6cafecde12ac",
+    "web/public/assets/manrope-variable.ttf": "3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6",
+    "web/src/Agents.tsx": "17df8323c6261ca4aba45dbedb1a2a1101f2f5b7a5dd5b79f29dba5144557a46",
+    "web/src/Alerts.tsx": "c40b5a2e8ae002edd79f4679e554b40156943af4bcd5ce6f372c01b012da9d89",
+    "web/src/BatchApply.tsx": "068c1f3b27b03577faaa71b07c275ae800369b4b1d6bd2a857b6088b9c0bb136",
+    "web/src/Configuration.tsx": "6965a52318f762ba340457b6a21388725a0fdcab967e32abc7ce416122e74857",
+    "web/src/Dependencies.tsx": "b5d27dd7d310a2e3a67aaf2c79dad1a99c9a239eca50573f403869355a914f0c",
+    "web/src/Diagnostics.tsx": "926b367394fafb241b21dee044d469084e83965a3cb98fdd0a991c11ee2a34fe",
+    "web/src/Fallbacks.tsx": "4d7f6d5254523aac8cac69b7309463116f66484f7f03c45e4d7a1c54130375f1",
+    "web/src/History.tsx": "fdd425fe50d46256fd930fffd8365b78a558ff38073411b5f698ff4e4ff246a7",
+    "web/src/Overview.tsx": "13d0863b1eee68e09d744272aa246ed14dcbb354543809048d5ed381ef51aa37",
+    "web/src/ResourceGroups.tsx": "b38a1c5102d1ca58dedde476778b2ca775b69cfb1675d635b50b78746af97485",
+    "web/src/Tokens.tsx": "c93f2c1d1267c34b24eb6dbd3e9bb5b273823490266480b8da5174b66bac23ff",
+    "web/src/Users.tsx": "313b4337f945830acf2d397e8d12c5d6cf392d776a8c5925892df274b4e77864",
+    "web/src/api.ts": "b421993db9980a93bd1221b32b3a4a5c5356953dba755276fde40fbc17d0f24f",
+    "web/src/main.tsx": "c2de769144ecf96682a2cc3c2aec622f89a8d45d7ee3057a3d94f2c57cdb6172",
+    "web/src/style.css": "40e332a1f23a625b40fc262d20dec18cc580fe5350c479e48c5ee8262405bf48"
+  },
+  "singleDockerHost": true,
+  "browserInteractionTested": true,
+  "browser": "Chromium via CDP with pointer events and isolated NSS CA trust",
+  "viewports": [
+    "1440x1050",
+    "390x844"
+  ],
+  "credentialsOmitted": true,
+  "goDatabaseTestsWithDSN": false,
+  "postVerificationNormalization": "Trailing whitespace removed from upstream OFL text and build log; font binary and runtime code unchanged."
+}

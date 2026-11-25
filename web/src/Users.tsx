@@ -87,6 +87,14 @@ export function Users({
   }
   async function save() {
     if (!selected) return;
+    if (
+      (disabled !== selected.user.disabled ||
+        editRole !== selected.user.role) &&
+      !window.confirm(
+        "Змінити права або стан користувача? Його попередні сесії й токени буде відкликано.",
+      )
+    )
+      return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -112,7 +120,7 @@ export function Users({
     }
   }
   return (
-    <section>
+    <section aria-busy={busy || loading}>
       <h2>Користувачі</h2>
       <p>
         Доступ адміністратора. Останнього активного адміністратора система

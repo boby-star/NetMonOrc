@@ -5,6 +5,7 @@ RUN --mount=type=secret,id=build_ca \
     if [ -s /run/secrets/build_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/build_ca npm ci --ignore-scripts; else npm ci --ignore-scripts; fi
 COPY web/index.html web/tsconfig.json ./
 COPY web/src ./src
+COPY web/public ./public
 RUN npm run build
 FROM golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb AS build
 WORKDIR /src

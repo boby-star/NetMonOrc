@@ -6,7 +6,7 @@ export function Fallbacks({monitor}:{monitor:string}) {
  const [page,setPage]=useState<{items:FallbackRun[];nextCursor:string|null}|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[selected,setSelected]=useState<string|null>(null);
  async function load(cursor:string|null){setBusy(true);setError("");try{setPage(await fallbackRuns(monitor,cursor));}catch(e){setError(e instanceof Error?e.message:"Історія недоступна");}finally{setBusy(false);}}
- return <section><h2>Резервні спроби виконання</h2><p>Лише технічні помилки виконавця. Результат іншої зони не відновлює покриття початкової; початкові докази збережено окремо.</p>
+ return <section aria-busy={busy}><h2>Резервні спроби виконання</h2><p>Лише технічні помилки виконавця. Результат іншої зони не відновлює покриття початкової; початкові докази збережено окремо.</p>
  <button disabled={busy} onClick={()=>void load(null)}>Оновити резервні спроби</button>{error&&<p role="alert">{error}</p>}
  {page&&<><div className="table-scroll"><table><thead><tr><th>Початкове джерело / причина</th><th>Стратегія / стан</th><th>Окремі спроби та докази</th></tr></thead><tbody>{page.items.map(r=><tr key={r.id}>
  <td>{r.check}: {r.originAgent} / {r.originZone}<br/>{r.cause}<br/><small>{r.id}</small>{r.originObservationId?<p><button onClick={()=>setSelected(r.originObservationId)}>Початковий доказ</button></p>:<p>Початкове фізичне виконання не підтверджено; Observation не вигадано.</p>}</td>

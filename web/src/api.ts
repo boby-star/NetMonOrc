@@ -36,19 +36,28 @@ async function readFetch(path: string, init: RequestInit): Promise<Response> {
   } finally { release(); }
 }
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  if ((init.method ?? "GET").toUpperCase() !== "GET") return fetch(path, init);
+  const method = (init.method ?? "GET").toUpperCase();
+  const safeRead = method === "GET" || (method === "POST" && /^\/api\/v1\/config\/(prepare|validate|plan)$/.test(path));
+  if (!safeRead) {
+    try { return await fetch(path, init); }
+    catch (error) {
+      if (error instanceof TypeError) throw new Error("З’єднання з Controller перервано. Відповідь не отримана; перевірте стан перед повторенням запиту.");
+      throw error;
+    }
+  }
   const timeout = AbortSignal.timeout(8000);
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   for (let attempt = 0; ; attempt++) {
     let delay = 250 * (attempt + 1);
     try {
       const response = await readFetch(path, { ...init, signal });
-      if (attempt >= 2 || (response.status !== 429 && response.status !== 503)) return response;
+      if (attempt >= 6 || (response.status !== 429 && response.status !== 503)) return response;
       const seconds = Number(response.headers.get("Retry-After"));
       if (Number.isFinite(seconds) && seconds > 0) delay = Math.min(1000, seconds * 1000);
       await response.body?.cancel();
     } catch (error) {
-      if (signal.aborted || attempt >= 2 || !(error instanceof TypeError)) throw error;
+      if (signal.aborted || !(error instanceof TypeError)) throw error;
+      if (attempt >= 6) throw new Error("Controller тимчасово недоступний. Перевірте з’єднання та повторіть запит.");
     }
     await new Promise<void>((resolve, reject) => {
       if (signal.aborted) { reject(signal.reason); return; }

@@ -53,7 +53,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
     finally { setBusy(false); }
   }
   async function cancel() {
-    if (!selected) return;
+    if (!selected || !window.confirm("Скасувати діагностичну сесію? Використаний бюджет не повертається.")) return;
     setBusy(true); setError("");
     try { setSelected(await cancelDiagnostic(session, selected.id)); }
     catch (e) { setError(e instanceof Error ? e.message : "Скасування не підтверджено."); }
@@ -82,7 +82,7 @@ export function Diagnostics({ monitor, session }: { monitor: string; session: Se
     } catch (e) { setExportNotice(""); setError(e instanceof Error ? e.message : "Експорт не завершено."); }
     finally { exportAbort.current = null; setBusy(false); }
   }
-  return <section>
+  return <section aria-busy={busy}>
     <h2>Діагностичні сесії</h2>
     <p>Збережені результати для {monitor}. Стан діагностики не замінює оцінку доступності ресурсу.</p>
     {canRun && <form onSubmit={e => { e.preventDefault(); void run(); }}>

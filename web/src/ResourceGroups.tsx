@@ -18,7 +18,7 @@ export function ResourceGroups() {
     catch(e) { setError(e instanceof Error ? e.message : "Оцінка групи недоступна"); }
     finally { setBusy(false); }
   }
-  return <section><h2>Групи ресурсів</h2>
+  return <section aria-busy={busy}><h2>Групи ресурсів</h2>
     <button disabled={busy} onClick={() => void list()}>Оновити групи</button>
     {error && <p role="alert" className="error">{error}</p>}
     <ul>{groups.map(name => <li key={name}><button disabled={busy} onClick={() => void open(name)}>{name}</button></li>)}</ul>

@@ -28,7 +28,7 @@ export function Alerts({ monitor, session }: { monitor: string; session: Session
     const events = await alertHistory(id, cursor);
     setSelected(detail.alert); setEtag(detail.etag); setNote(""); setHistory(events);
   }
-  return <section>
+  return <section aria-busy={busy}>
     <h2>Алерти та доставка сповіщень</h2>
     <p>Стан алерта, доступність сервісу й доставка webhook відображаються окремо.</p>
     <form onSubmit={e => { e.preventDefault(); void act(async () => setPage(await alerts(monitor, state, null, zone))); }}>

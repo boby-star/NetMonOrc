@@ -1,0 +1,1157 @@
+{
+  "status": "passed",
+  "cases": {
+    "localFont": true,
+    "historyPagination": true,
+    "navigationAndEvidence": true,
+    "draftRecoveryAndCRUD": true,
+    "monitorSwitch": true,
+    "batchApply": true,
+    "relatedResources": true,
+    "diagnosticEvidence": true,
+    "manualStartAndCancel": true,
+    "alertsAndWebhook": true,
+    "usersAndTokenLifecycle": true,
+    "passwordAndSessionRestore": true,
+    "mobileAndEscape": true,
+    "viewerPermissions": true
+  },
+  "clickedControls": [
+    "Увійти",
+    "Оновити огляд",
+    "Навігація: overview",
+    "Навігація: monitor",
+    "Навігація: agents",
+    "Навігація: history",
+    "Навігація: alerts",
+    "Навігація: diagnostics",
+    "Навігація: fallbacks",
+    "Навігація: dependencies",
+    "Навігація: groups",
+    "Навігація: configuration",
+    "Навігація: users",
+    "Навігація: tokens",
+    "Навігація: account",
+    "Навігація: monitor",
+    "Відкрити доказ",
+    "Закрити доказ",
+    "Навігація: agents",
+    "Оновити агентів",
+    "Навігація: history",
+    "Оновити історію",
+    "Відкрити доказ",
+    "Закрити доказ",
+    "Старіші записи",
+    "До новіших",
+    "Навігація: configuration",
+    "Навігація: agents",
+    "Навігація: configuration",
+    "Перевірити",
+    "Показати план",
+    "Зберегти поточний",
+    "Перевірити",
+    "Створити новий ресурс",
+    "Оновити каталог Target",
+    "design-target",
+    "Видалити ресурс",
+    "Видалити ресурс",
+    "Перевірити",
+    "Завантажити",
+    "Перевірити",
+    "Створити новий ресурс",
+    "Відкрити Monitor",
+    "Навігація: monitor",
+    "Відкрити Monitor",
+    "Навігація: configuration",
+    "Завантажити",
+    "Видалити ресурс",
+    "Завантажити",
+    "Підготувати пакет із відкритого маніфесту",
+    "Підготувати пакет",
+    "Перевірити пакет",
+    "Показати план пакета",
+    "Застосувати пакет",
+    "Оновити список операцій",
+    "Навігація: dependencies",
+    "Оновити граф",
+    "Контекст Monitor research-web",
+    "Скинути фільтри",
+    "Навігація: groups",
+    "Оновити групи",
+    "design-group",
+    "Оновити оцінку",
+    "Навігація: fallbacks",
+    "Оновити резервні спроби",
+    "Навігація: diagnostics",
+    "Оновити список",
+    "Відкрити",
+    "Оновити деталі",
+    "Завантажити сесію JSON",
+    "Завантажити пакет доказів",
+    "Відкрити доказ",
+    "Закрити доказ",
+    "Новий запит",
+    "Запустити / відновити запит",
+    "Скасувати сесію",
+    "Навігація: alerts",
+    "Оновити алерти",
+    "Оновити деталі",
+    "Підтвердити отримання алерта",
+    "Надіслати тест webhook",
+    "Оновити статус тесту",
+    "Оновити доставки",
+    "Навігація: users",
+    "Створити користувача",
+    "Зберегти зміни",
+    "Закрити",
+    "Оновити список",
+    "Навігація: tokens",
+    "Створити токен",
+    "Приховати секрет",
+    "Навігація: account",
+    "Зберегти пароль",
+    "Навігація: overview",
+    "Навігація: monitor",
+    "Увійти",
+    "Навігація: configuration"
+  ],
+  "initialButtonInventory": {
+    "overview": [
+      {
+        "label": "Оновити огляд",
+        "disabled": false
+      }
+    ],
+    "monitor": [
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      }
+    ],
+    "agents": [
+      {
+        "label": "Оновити агентів",
+        "disabled": false
+      }
+    ],
+    "history": [
+      {
+        "label": "Оновити історію",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "Відкрити доказ",
+        "disabled": false
+      },
+      {
+        "label": "До новіших",
+        "disabled": true
+      },
+      {
+        "label": "Старіші записи",
+        "disabled": false
+      }
+    ],
+    "alerts": [
+      {
+        "label": "Оновити алерти",
+        "disabled": false
+      },
+      {
+        "label": "Надіслати тест webhook",
+        "disabled": false
+      },
+      {
+        "label": "Оновити доставки",
+        "disabled": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "label": "Запустити / відновити запит",
+        "disabled": true
+      },
+      {
+        "label": "Новий запит",
+        "disabled": false
+      },
+      {
+        "label": "Оновити список",
+        "disabled": false
+      }
+    ],
+    "fallbacks": [
+      {
+        "label": "Оновити резервні спроби",
+        "disabled": false
+      }
+    ],
+    "dependencies": [
+      {
+        "label": "Оновити граф",
+        "disabled": false
+      },
+      {
+        "label": "Контекст Monitor research-web",
+        "disabled": false
+      },
+      {
+        "label": "Наступна сторінка зв’язків",
+        "disabled": true
+      },
+      {
+        "label": "Скинути фільтри",
+        "disabled": false
+      },
+      {
+        "label": "design-edge",
+        "disabled": false
+      }
+    ],
+    "groups": [
+      {
+        "label": "Оновити групи",
+        "disabled": false
+      }
+    ],
+    "configuration": [
+      {
+        "label": "Завантажити",
+        "disabled": false
+      },
+      {
+        "label": "Оновити каталог Monitor",
+        "disabled": false
+      },
+      {
+        "label": "Перевірити",
+        "disabled": false
+      },
+      {
+        "label": "Показати план",
+        "disabled": false
+      },
+      {
+        "label": "Зберегти поточний",
+        "disabled": false
+      },
+      {
+        "label": "Створити новий ресурс",
+        "disabled": false
+      },
+      {
+        "label": "Видалити ресурс",
+        "disabled": false
+      },
+      {
+        "label": "Підготувати пакет із відкритого маніфесту",
+        "disabled": false
+      },
+      {
+        "label": "Підготувати пакет",
+        "disabled": true
+      },
+      {
+        "label": "Перевірити пакет",
+        "disabled": true
+      },
+      {
+        "label": "Показати план пакета",
+        "disabled": true
+      },
+      {
+        "label": "Застосувати пакет",
+        "disabled": true
+      },
+      {
+        "label": "Оновити список операцій",
+        "disabled": false
+      }
+    ],
+    "users": [
+      {
+        "label": "Створити користувача",
+        "disabled": false
+      },
+      {
+        "label": "Редагувати",
+        "disabled": false
+      },
+      {
+        "label": "Редагувати",
+        "disabled": false
+      },
+      {
+        "label": "Оновити список",
+        "disabled": false
+      },
+      {
+        "label": "Наступна сторінка",
+        "disabled": true
+      }
+    ],
+    "tokens": [
+      {
+        "label": "Створити токен",
+        "disabled": false
+      },
+      {
+        "label": "Відкликати",
+        "disabled": true
+      },
+      {
+        "label": "Оновити список",
+        "disabled": false
+      },
+      {
+        "label": "Наступна сторінка",
+        "disabled": true
+      }
+    ],
+    "account": [
+      {
+        "label": "Зберегти пароль",
+        "disabled": false
+      }
+    ]
+  },
+  "dialogs": 8,
+  "downloads": 2,
+  "networkResponses": [
+    {
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/dashboard/summary",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/dashboard/summary",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/observations",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Dependency",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/tokens",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/5cfc3210d1789eac5834d003485c4941",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/agents",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/observations",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/5cfc3210d1789eac5834d003485c4941",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/observations",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/observations",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/plan",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/prepare",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web",
+      "method": "PUT",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/prepare",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Target",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/resources/Target",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Target/design-target",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Target/design-target",
+      "method": "DELETE",
+      "status": 204
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "status": 400
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/prepare",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/resources/Monitor/design-second",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/design-second/observations",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/api/v1/resources/Dependency",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/design-second/assessment",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/api/v1/monitors/design-second/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/design-second/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/observations",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Dependency",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/design-second",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/design-second",
+      "method": "DELETE",
+      "status": 204
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/prepare",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/prepare",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/plan",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/apply",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "/api/v1/operations",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Dependency",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web/dependencies",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/ResourceGroup",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resource-groups/design-group/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resource-groups/design-group/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/operations/314ca586-7555-40f1-a1b3-9cdf31f38a52",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/fallback-runs",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50/tasks",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50/tasks",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50/tasks",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/4ef53a3a6c65fdc3ae36283428de2054",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/b44c1e7f5a1487024036f530a999173d",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/c5ca675d37c2b7a90eeff737c23411c2",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/f00da88588c09563c3b2cc57f5177495",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/diagnostics/65c86ae738075193636de5f7adad3f50",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/observations/4ef53a3a6c65fdc3ae36283428de2054",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/diagnostics",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "/api/v1/diagnostics/77d457bd41405f7637456acd826d6120/cancel",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/alerts",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/alerts/af5bcc5c-cefe-4fcc-983e-3874e85b167d",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/alerts/af5bcc5c-cefe-4fcc-983e-3874e85b167d/history",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/alerts/af5bcc5c-cefe-4fcc-983e-3874e85b167d",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/alerts/af5bcc5c-cefe-4fcc-983e-3874e85b167d/history",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/alerts/af5bcc5c-cefe-4fcc-983e-3874e85b167d/acknowledge",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/webhook/test",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "/api/v1/operations/a7c1e1af-705f-4390-a80c-36ee65b7ce03",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/webhook/deliveries",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/users/5dc4b5d2-a07e-4bf6-9b52-9d89f66b8fd9",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/users/5dc4b5d2-a07e-4bf6-9b52-9d89f66b8fd9",
+      "method": "PATCH",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/tokens",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/auth/tokens",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/tokens/09a44f28-a916-44c1-8d9e-b2b8e8d852ae",
+      "method": "DELETE",
+      "status": 204
+    },
+    {
+      "path": "/api/v1/auth/tokens",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/change-password",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/dashboard/summary",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "status": 204
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/dashboard/summary",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/monitors/research-web/assessment",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/resources/Monitor/research-web",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "status": 204
+    }
+  ],
+  "failedRequests": [
+    {
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/resources/Target/design-target",
+      "method": "DELETE",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/monitors/design-second/observations",
+      "method": "GET",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/monitors/design-second/assessment",
+      "method": "GET",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/resources/Monitor/design-second",
+      "method": "DELETE",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "error": "net::ERR_CONNECTION_CLOSED"
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "error": "net::ERR_CONNECTION_CLOSED"
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "error": "net::ERR_CONNECTION_CLOSED"
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "error": "net::ERR_CONNECTION_RESET"
+    },
+    {
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "error": "net::ERR_CONNECTION_RESET"
+    },
+    {
+      "path": "/api/v1/auth/tokens/09a44f28-a916-44c1-8d9e-b2b8e8d852ae",
+      "method": "DELETE",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "runtimeExceptions": 0,
+  "browserInteractionTested": true,
+  "credentialsOmitted": true,
+  "limits": [
+    "No real multi-page dataset for every pagination cursor",
+    "Fallback evidence requires a separate executor-failure scenario"
+  ]
+}

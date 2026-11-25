@@ -1,0 +1,36 @@
+ok  	github.com/boby-star/NetMonOrc/cmd/netmonorc	0.038s
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-admin	[no test files]
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-agent	[no test files]
+ok  	github.com/boby-star/NetMonOrc/cmd/netmonorc-controller	0.039s
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-experiment	[no test files]
+?   	github.com/boby-star/NetMonOrc/cmd/netmonorc-report	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/agent	7.352s
+?   	github.com/boby-star/NetMonOrc/internal/agentstatus	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/alerting	0.098s
+?   	github.com/boby-star/NetMonOrc/internal/alertview	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/apiclient	0.582s
+ok  	github.com/boby-star/NetMonOrc/internal/auth	1.131s
+?   	github.com/boby-star/NetMonOrc/internal/celrefs	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/component	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/config	0.166s
+?   	github.com/boby-star/NetMonOrc/internal/coordinator	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/dashboard	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/dependency	0.006s
+ok  	github.com/boby-star/NetMonOrc/internal/diagnostics	0.608s
+?   	github.com/boby-star/NetMonOrc/internal/diagnosticview	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/durable	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/fallback	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/httpapi	(cached)
+ok  	github.com/boby-star/NetMonOrc/internal/monitor	0.044s
+?   	github.com/boby-star/NetMonOrc/internal/notify	[no test files]
+?   	github.com/boby-star/NetMonOrc/internal/operationview	[no test files]
+ok  	github.com/boby-star/NetMonOrc/internal/placement	0.008s
+ok  	github.com/boby-star/NetMonOrc/internal/probe	0.033s
+ok  	github.com/boby-star/NetMonOrc/internal/report	0.011s
+ok  	github.com/boby-star/NetMonOrc/internal/resourcegroup	0.003s
+ok  	github.com/boby-star/NetMonOrc/internal/resources	0.259s
+ok  	github.com/boby-star/NetMonOrc/internal/secure	0.004s
+ok  	github.com/boby-star/NetMonOrc/internal/storage	0.010s
+ok  	github.com/boby-star/NetMonOrc/internal/transport	0.101s
+ok  	github.com/boby-star/NetMonOrc/internal/webhook	0.024s
+?   	github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1	[no test files]

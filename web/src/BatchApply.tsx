@@ -20,7 +20,8 @@ const states = {
   failed: "Операція не завершила застосування",
 };
 const reasons: Record<string, string> = {
-  dependency_catalogued: "Зв’язок перевірено та збережено; стан ресурсів не успадковується",
+  dependency_catalogued:
+    "Зв’язок перевірено та збережено; стан ресурсів не успадковується",
   group_catalogued: "Групу перевірено та збережено; оцінка доступна окремо",
   profile_catalogued: "Профіль збережено в каталозі",
   awaiting_reconciliation: "Очікує узгодження",
@@ -28,7 +29,8 @@ const reasons: Record<string, string> = {
   awaiting_webhook_configuration: "Очікується завантаження webhook",
   alert_rule_evaluated: "Правило оброблено Controller",
   awaiting_alert_evaluation: "Очікується оцінювання правила",
-  insufficient_placement_agents: "Недостатньо допустимих агентів для повного призначення",
+  insufficient_placement_agents:
+    "Недостатньо допустимих агентів для повного призначення",
   placement_policy_catalogued: "Політику розміщення перевірено та збережено",
   assessment_policy_catalogued: "Політику оцінювання перевірено та збережено",
   component_catalogued: "Component перевірено та збережено",
@@ -44,12 +46,18 @@ export function BatchApply({
   session,
   current,
   draft,
+  onDirtyChange,
 }: {
   session: Session;
   current: VersionedResource | null;
   draft: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [text, setText] = useState("");
+  const [appliedText, setAppliedText] = useState("");
+  useEffect(() => {
+    onDirtyChange?.(!!text && text !== appliedText);
+  }, [text, appliedText, onDirtyChange]);
   const [busy, setBusy] = useState(false);
   const [prepared, setPrepared] = useState(false);
   const [error, setError] = useState("");
@@ -95,21 +103,38 @@ export function BatchApply({
     };
   }, [selected?.id, selected?.state]);
   async function fill() {
-    setPrepared(false);setError("");setNotice("");setPreview(null);setBusy(true);
+    setPrepared(false);
+    setError("");
+    setNotice("");
+    setPreview(null);
+    setBusy(true);
     try {
-      const normalized=await prepareConfigurationSource(session,draft);
-      if(normalized.documents.length!==1)throw new Error("Вставте кілька документів безпосередньо в пакетний редактор.");
-      const document=normalized.documents[0];
-      const key=document.kind+"/"+document.name;
-      const expected=current&&current.resource.manifest.kind===document.kind&&current.resource.manifest.metadata.name===document.name?current.resource.resourceVersion:null;
+      const normalized = await prepareConfigurationSource(session, draft);
+      if (normalized.documents.length !== 1)
+        throw new Error(
+          "Вставте кілька документів безпосередньо в пакетний редактор.",
+        );
+      const document = normalized.documents[0];
+      const key = document.kind + "/" + document.name;
+      const expected =
+        current &&
+        current.resource.manifest.kind === document.kind &&
+        current.resource.manifest.metadata.name === document.name
+          ? current.resource.resourceVersion
+          : null;
       setText(`{
   "manifests": [${document.source}],
-  "expectedVersions": ${JSON.stringify({[key]:expected})},
+  "expectedVersions": ${JSON.stringify({ [key]: expected })},
   "requestId": "${normalized.requestId}"
 }`);
       setPrepared(true);
-    } catch(e) {setError(e instanceof Error?e.message:"Не вдалося прочитати маніфест.");}
-    finally {setBusy(false);}
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не вдалося прочитати маніфест.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   async function submit(action: "validate" | "plan" | "apply") {
     setBusy(true);
@@ -118,7 +143,13 @@ export function BatchApply({
     setPreview(null);
     try {
       if (action === "validate") {
-        setNotice(JSON.stringify(await validateConfigurationSource(session, text), null, 2));
+        setNotice(
+          JSON.stringify(
+            await validateConfigurationSource(session, text),
+            null,
+            2,
+          ),
+        );
         return;
       }
       if (action === "plan") {
@@ -127,10 +158,14 @@ export function BatchApply({
         setNotice(JSON.stringify(plan, null, 2));
         return;
       }
-      if (!prepared) throw new Error("Спочатку підготуйте пакет і перевірте версії ресурсів.");
+      if (!prepared)
+        throw new Error(
+          "Спочатку підготуйте пакет і перевірте версії ресурсів.",
+        );
       setSelected(null);
       const accepted = await applyConfigurationSource(session, text);
       setSelected(accepted);
+      setAppliedText(text);
       setProgressError("");
       setNotice(
         "Пакет збережено атомарно. Відстежуйте підтвердження агентів нижче.",
@@ -148,13 +183,25 @@ export function BatchApply({
     }
   }
   async function prepare() {
-    setBusy(true); setError(""); setNotice(""); setPreview(null); setPrepared(false);
+    setBusy(true);
+    setError("");
+    setNotice("");
+    setPreview(null);
+    setPrepared(false);
     try {
-      const result=await prepareConfigurationSource(session,text);
-      setText(result.source); setPrepared(true);
-      setNotice(`Підготовлено ресурсів: ${result.resourceCount}. Перевірте версії та план перед застосуванням.`);
-    } catch(e) { setError(e instanceof Error?e.message:"Не вдалося підготувати пакет."); }
-    finally { setBusy(false); }
+      const result = await prepareConfigurationSource(session, text);
+      setText(result.source);
+      setPrepared(true);
+      setNotice(
+        `Підготовлено ресурсів: ${result.resourceCount}. Перевірте версії та план перед застосуванням.`,
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не вдалося підготувати пакет.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   async function list(cursor: string | null) {
     setBusy(true);
@@ -179,16 +226,24 @@ export function BatchApply({
     }
   }
   return (
-    <details>
+    <details aria-busy={busy}>
       <summary>Пакетне застосування й операції</summary>
       {canWrite && (
         <>
           <p>
-            До 20 ресурсів Component, Dependency, ResourceGroup, PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor, DiagnosticProfile, AlertRule і WebhookEndpoint в одному YAML або JSON-пакеті. YAML-документи розділяйте ---; посилання можуть вести на наступні документи. Для наявного ресурсу задайте
-            його resourceVersion, для нового — null. Збереження всіх ресурсів
+            До 20 ресурсів Component, Dependency, ResourceGroup,
+            PlacementPolicy, AssessmentPolicy, CheckProfile, Target, Monitor,
+            DiagnosticProfile, AlertRule і WebhookEndpoint в одному YAML або
+            JSON-пакеті. YAML-документи розділяйте ---; посилання можуть вести
+            на наступні документи. Для наявного ресурсу задайте його
+            resourceVersion, для нового — null. Збереження всіх ресурсів
             виконується однією транзакцією.
           </p>
-          <button type="button" disabled={busy || !draft} onClick={()=>void fill()}>
+          <button
+            type="button"
+            disabled={busy || !draft}
+            onClick={() => void fill()}
+          >
             Підготувати пакет із відкритого маніфесту
           </button>
           <label>
@@ -207,7 +262,13 @@ export function BatchApply({
             />
           </label>
           <div className="row">
-            <button type="button" disabled={busy || !text} onClick={()=>void prepare()}>Підготувати пакет</button>
+            <button
+              type="button"
+              disabled={busy || !text}
+              onClick={() => void prepare()}
+            >
+              Підготувати пакет
+            </button>
             <button
               type="button"
               disabled={busy || !text}
@@ -231,7 +292,8 @@ export function BatchApply({
             </button>
           </div>
           <small>
-            Підготовка заповнює відсутні версії, а явно задані умови зберігає. Якщо відповідь втрачена, повторіть незмінний пакет із тим самим
+            Підготовка заповнює відсутні версії, а явно задані умови зберігає.
+            Якщо відповідь втрачена, повторіть незмінний пакет із тим самим
             requestId. Для іншого пакета потрібний новий requestId. Поточний
             Controller виконує придатні Monitor із каталогу.
           </small>
@@ -248,13 +310,20 @@ export function BatchApply({
           <ul>
             {(preview.placements ?? []).map((placement) => (
               <li key={`${placement.monitorId}/${placement.checkId ?? ""}`}>
-                {placement.monitorId}{placement.checkId ? ` / ${placement.checkId}` : ""}{placement.distinctBy ? ` (${placement.distinctBy})` : ""}: {placement.pending
+                {placement.monitorId}
+                {placement.checkId ? ` / ${placement.checkId}` : ""}
+                {placement.distinctBy ? ` (${placement.distinctBy})` : ""}:{" "}
+                {placement.pending
                   ? `очікує ${placement.replicas} допустимих агентів; регулярні перевірки не запускаються`
-                  : placement.selectedAgents.map((agent) => `${agent.agentId} (${agent.networkZone})`).join(", ")}
+                  : placement.selectedAgents
+                      .map((agent) => `${agent.agentId} (${agent.networkZone})`)
+                      .join(", ")}
               </li>
             ))}
           </ul>
-          <small>Попередній план не підтверджує доступність агентів або стан сервісу.</small>
+          <small>
+            Попередній план не підтверджує доступність агентів або стан сервісу.
+          </small>
         </div>
       )}
       {notice && <pre className="config-result">{notice}</pre>}
@@ -272,7 +341,9 @@ export function BatchApply({
           <ul>
             {selected.result.targets.map((t) => (
               <li key={t.uid}>
-                {t.kind}/{t.name}{t.implicit ? " (залежний ресурс)" : ""}: {reasons[t.reason] ?? t.reason}
+                {t.kind}/{t.name}
+                {t.implicit ? " (залежний ресурс)" : ""}:{" "}
+                {reasons[t.reason] ?? t.reason}
                 <br />
                 <small>
                   Версія {t.resourceVersion} · {t.effectiveRevision}

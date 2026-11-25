@@ -33,7 +33,7 @@ export function Dependencies({monitor}:{monitor?:string}) {
     && [link.name, referenceKey(link.from), referenceKey(link.to), link.description, link.relation, link.strength].join(" ").toLocaleLowerCase("uk-UA").includes(query.toLocaleLowerCase("uk-UA")));
   const detail = visible.find(link => link.name === selected);
   function selectNode(key: string) { setNode(key); setSelected(""); }
-  return <section aria-labelledby="dependencies-heading">
+  return <section aria-labelledby="dependencies-heading" aria-busy={busy}>
     <h2 id="dependencies-heading">Залежності ресурсів</h2>
     <p>Стрілка <strong>from → to</strong> означає «from залежить від to». Колір позначає тип вузла, а не здоров’я сервісу. Зв’язок не доводить причину несправності.</p>
     <div className="row">

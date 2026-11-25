@@ -1,0 +1,1 @@
+PASS: transport/503 recovery for read-only config requests; mutations sent once

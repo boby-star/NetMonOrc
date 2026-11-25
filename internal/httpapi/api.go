@@ -244,13 +244,16 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/")
 	if name == "" {
 		name = "index.html"
-	} else if !strings.HasPrefix(name, "assets/") || (path.Ext(name) != ".js" && path.Ext(name) != ".css") {
+	} else if !strings.HasPrefix(name, "assets/") || (path.Ext(name) != ".js" && path.Ext(name) != ".css" && path.Ext(name) != ".ttf") {
 		http.NotFound(w, r)
 		return
 	}
 	if !fs.ValidPath(name) {
 		http.NotFound(w, r)
 		return
+	}
+	if path.Ext(name) == ".ttf" {
+		w.Header().Set("Content-Type", "font/ttf")
 	}
 	http.ServeFileFS(w, r, h.ui, name)
 }

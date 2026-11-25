@@ -27,7 +27,7 @@ export function Agents() {
     }
   }
   return (
-    <section>
+    <section aria-busy={busy}>
       <h2>Агенти</h2>
       <p>
         Знімок фіксованого roster та чинних mTLS-сесій. Стан агента й
