@@ -1,0 +1,90 @@
+# Dedicated demonstration target on Poland, not the NetMonOrc API.
+# Confirmed inventory: branch=office (Germany), dc=server (Netherlands).
+apiVersion: netmonorc.io/v1alpha1
+kind: Target
+metadata: {name: thesis-adaptive-target}
+spec:
+  type: endpoint
+  address: 188.137.244.239
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: DiagnosticProfile
+metadata: {name: thesis-adaptive-web}
+spec:
+  mode: adaptive
+  budget: {maxAdditionalChecks: 4, maxDuration: 120s, maxParallel: 1}
+  hypotheses:
+    - {id: application-error, description: 'HTTP application fails while its dependency and TCP listener work'}
+    - {id: backend-error, description: 'HTTP readiness fails because the dependency is unavailable'}
+    - {id: office-access-restriction, description: 'HTTP access is denied from office but allowed from server'}
+    - {id: listener-unavailable, description: 'The dedicated test TCP listener is closed'}
+  actions:
+    - id: a-office-tcp
+      costUnits: 0.5
+      placement: {strategy: fixed, agentRefs: [branch], zones: [office]}
+      check:
+        type: tcp
+        runner: blackbox
+        timeout: 3s
+        config: {port: 18088}
+      expectedOutcomes:
+        application-error: success
+        backend-error: success
+        office-access-restriction: success
+        listener-unavailable: failure
+    - id: b-office-backend
+      costUnits: 1
+      placement: {strategy: fixed, agentRefs: [branch], zones: [office]}
+      check:
+        type: http
+        runner: native-http
+        timeout: 3s
+        config: {url: 'http://188.137.244.239:18088/backend', expectedStatus: [200]}
+      expectedOutcomes:
+        application-error: success
+        backend-error: failure
+        office-access-restriction: failure
+        listener-unavailable: failure
+    - id: c-server-ready
+      costUnits: 1
+      placement: {strategy: fixed, agentRefs: [dc], zones: [server]}
+      check:
+        type: http
+        runner: native-http
+        timeout: 3s
+        config: {url: 'http://188.137.244.239:18088/ready', expectedStatus: [200]}
+      expectedOutcomes:
+        application-error: failure
+        backend-error: failure
+        office-access-restriction: success
+        listener-unavailable: failure
+  adaptive:
+    algorithm: distinguish-pairs-per-cost
+    tieBreak: actionIdAsc
+    stopWhenUnique: true
+---
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: thesis-adaptive-web
+  labels: {purpose: thesis-screenshot}
+spec:
+  targetRef: thesis-adaptive-target
+  placement: {strategy: fixed, agentRefs: [branch], zones: [office], replicas: 1}
+  checks:
+    - id: office-ready
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 3s
+      config: {url: 'http://188.137.244.239:18088/ready', expectedStatus: [200]}
+  assessment:
+    requiredZones: [office]
+    freshness: {maxAge: 120s, maxSkew: 60s}
+    checks: [{id: office-ready, weight: 1, required: true}]
+  diagnostics:
+    enabled: true
+    profileRef: thesis-adaptive-web
+    onStates: [down]
+    when: 'monitor.state == "down"'
+    cooldown: 5m

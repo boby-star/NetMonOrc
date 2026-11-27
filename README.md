@@ -10,6 +10,10 @@ Static/Fixed/Adaptive диагностика, зональные alerts, webhook
 [Обновлённая админка](docs/deployment/admin-ui.md): боковая навигация, Manrope,
 desktop/mobile, защита черновиков и браузерная проверка действий.
 
+[Пример Adaptive для магистерской записки](examples/diagnostics/screenshot-demo/README.md):
+отдельный YAML, привязка branch/dc, четыре управляемые неисправности и инструкция
+для скриншота реальной диагностической сессии.
+
 ## Варианты запуска
 
 - **Сервер и отдельные Agents:** единый [install.sh](install.sh), инструкция ниже; внутри используются
