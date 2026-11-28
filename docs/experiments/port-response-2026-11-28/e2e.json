@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "agentUID": 10001,
+  "transport": "real-mTLS",
+  "storage": "PostgreSQL",
+  "automaticResponseApplied": true,
+  "kernelTTLRestoredAccess": true,
+  "oneCommandPerIncident": true,
+  "healthyRecoveryRearmed": true,
+  "historyEndpoint": true
+}

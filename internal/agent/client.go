@@ -39,6 +39,7 @@ type assignment struct {
 	bootDeadline time.Duration
 }
 type state struct {
+	responseSocket string
 	agentID        string
 	components     map[string]component.Readiness
 	mu             sync.Mutex
@@ -88,7 +89,7 @@ func (s *state) forRevision(revision string) *assignment {
 	return nil
 }
 
-func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbox string, allowed []netip.Prefix) error {
+func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbox string, allowed []netip.Prefix, responseSocket ...string) error {
 	spool, e := OpenSpool(dir, id)
 	if e != nil {
 		return e
@@ -97,6 +98,9 @@ func Run(ctx context.Context, endpoint string, tls *tls.Config, id, dir, blackbo
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
 	st := &state{agentID: id, fatal: make(chan error, 1)}
+	if len(responseSocket) > 0 {
+		st.responseSocket = responseSocket[0]
+	}
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- schedule(child, st, spool, id, blackbox, allowed) }()
 	componentDone := make(chan struct{})
@@ -167,6 +171,10 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 	for _, cidr := range allowed {
 		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "target-cidr:"+cidr.Masked().String())
 	}
+	if st.responseSocket != "" {
+		f.GetHello().Capabilities = append(f.GetHello().Capabilities, "response:block-port-v1")
+	}
+	f.GetHello().Capabilities = append(f.GetHello().Capabilities, "response:policy-v1")
 	if e = stream.Send(f); e != nil {
 		return e
 	}
@@ -286,6 +294,18 @@ func connect(ctx context.Context, endpoint string, tls *tls.Config, id, dir stri
 				}
 				applied = true
 				appliedRevisions[a.Revision] = true
+				continue
+			}
+			if command := f.GetResponseCommand(); command != nil {
+				receipt := &pb.ResponseReceipt{Id: command.Id, Status: "rejected", Reason: "assignment_not_applied"}
+				if accepted && appliedRevisions[command.Revision] {
+					receipt = executeResponse(child, command, st, id)
+				}
+				reply := agentFrame(id)
+				reply.Payload = &pb.AgentFrame_ResponseReceipt{ResponseReceipt: receipt}
+				if e = stream.Send(reply); e != nil {
+					return e
+				}
 				continue
 			}
 			if message := f.GetTaskCancel(); message != nil {

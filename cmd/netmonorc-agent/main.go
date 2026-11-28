@@ -30,6 +30,7 @@ func run() error {
 	dir := flag.String("data-dir", "", "exclusive private persistent Agent directory")
 	allow := flag.String("allow-cidrs", "", "explicit target CIDR allowlist")
 	blackbox := flag.String("blackbox-binary", "blackbox_exporter", "prepared exporter executable")
+	responseSocket := flag.String("response-socket", os.Getenv("NETMONORC_RESPONSE_SOCKET"), "opt-in local bounded firewall helper Unix socket")
 	flag.Parse()
 	if *dir == "" || *allow == "" || *serverName == "" {
 		return fmt.Errorf("data-dir, allow-cidrs and server-name are required")
@@ -57,5 +58,5 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	log.Printf("Agent %s starting; identity derived from certificate", id)
-	return agent.Run(ctx, *endpoint, tls, id, *dir, *blackbox, networks)
+	return agent.Run(ctx, *endpoint, tls, id, *dir, *blackbox, networks, *responseSocket)
 }

@@ -124,6 +124,9 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "multiple plan capability required")
 	}
 	for _, plan := range s.plans() {
+		if len(plan.Responses) > 0 && !capabilities["response:policy-v1"] {
+			return status.Error(codes.FailedPrecondition, "response policy capability required")
+		}
 		if len(plan.FallbackRoster) > 0 && !capabilities["fallback:v1"] {
 			return status.Error(codes.FailedPrecondition, "fallback capability required")
 		}
@@ -253,6 +256,17 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		case <-ctx.Done():
 			return status.Error(codes.Aborted, "session ended or superseded")
 		case req := <-jobs:
+			if req.response != nil {
+				if req.ctx.Err() != nil || !applied[req.response.Revision] || time.Now().UnixMilli() > req.response.AcceptUntilUnixMilli {
+					continue
+				}
+				f := frame(id)
+				f.Payload = &pb.ControllerFrame_ResponseCommand{ResponseCommand: req.response}
+				if e = stream.Send(f); e != nil {
+					return e
+				}
+				continue
+			}
 			if req.cancel != nil {
 				f := frame(id)
 				f.Payload = &pb.ControllerFrame_TaskCancel{TaskCancel: req.cancel}
@@ -353,6 +367,18 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 				s.mu.Unlock()
 				if !valid {
 					return status.Error(codes.Aborted, "stale heartbeat generation or sequence")
+				}
+				continue
+			}
+			if receipt := r.f.GetResponseReceipt(); receipt != nil {
+				if len(receipt.Id) != 32 || len(receipt.Reason) > 128 {
+					return status.Error(codes.InvalidArgument, "invalid response receipt")
+				}
+				c, done := context.WithTimeout(ctx, 3*time.Second)
+				err := s.Store.ResponseReceipt(c, receipt.Id, id, generation, receipt.Status, receipt.Reason)
+				done()
+				if err != nil {
+					return status.Error(codes.Aborted, "response receipt fenced")
 				}
 				continue
 			}

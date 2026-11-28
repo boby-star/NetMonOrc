@@ -163,6 +163,18 @@ func (r Registry) Compile(m Manifest) (monitor.Plan, error) {
 	if err != nil {
 		return p, err
 	}
+	for _, rule := range p.Responses {
+		if len(r.Roster) == 0 {
+			continue
+		}
+		found := false
+		for _, slot := range r.Roster {
+			found = found || slot.Agent == rule.AgentRef
+		}
+		if !found {
+			return p, fmt.Errorf("response Agent %s is outside Controller roster", rule.AgentRef)
+		}
+	}
 	p.CheckPlacements = checkPlacements
 	if len(checkPlacements) > 0 {
 		p, err = config.ResolveFixedPlacement(p, placement)

@@ -1,0 +1,47 @@
+apiVersion: netmonorc.io/v1alpha1
+kind: Monitor
+metadata:
+  name: security-exposure-demo
+  labels: {purpose: security-response-demo}
+spec:
+  target: {type: endpoint, address: 188.137.224.35}
+  placement: {strategy: fixed, agentRefs: [branch, dc], replicas: 2, distinctBy: zone}
+  checks:
+    - id: exposure
+      type: http
+      runner: native-http
+      interval: 10s
+      timeout: 2s
+      config: {url: 'http://188.137.224.35:18088/', expectedStatus: [200]}
+      extract:
+        - {name: exposure, from: response.body, pattern: 'exposure=([a-z-]+)', group: 1, as: string, onMissing: unknown}
+  assessment:
+    requiredZones: [office, server]
+    freshness: {maxAge: 30s, maxSkew: 15s}
+    checks: [{id: exposure, weight: 1, required: true}]
+    rules:
+      - id: missing
+        priority: 300
+        when: '!has(checks["exposure"].values.exposure)'
+        then: {state: unknown, reason: EXPOSURE_EVIDENCE_MISSING}
+      - id: unsafe
+        priority: 200
+        when: 'checks["exposure"].values.exposure == "public-debug"'
+        then: {state: down, reason: UNEXPECTED_DEBUG_EXPOSURE}
+      - id: safe
+        priority: 100
+        when: 'checks["exposure"].values.exposure == "restricted"'
+        then: {state: healthy, reason: EXPOSURE_RESTRICTED}
+      - id: unrecognized
+        priority: 50
+        when: 'true'
+        then: {state: unknown, reason: EXPOSURE_VALUE_UNRECOGNIZED}
+  responses:
+    - id: isolate-debug
+      when: 'monitor.state == "down" && monitor.labels["purpose"] == "security-response-demo"'
+      blockPort:
+        agentRef: branch
+        protocol: tcp
+        port: 18088
+        sourceCIDR: 188.137.254.31/32
+        duration: 60s

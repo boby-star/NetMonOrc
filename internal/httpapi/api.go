@@ -40,6 +40,7 @@ type Assessment struct {
 }
 type Load func(context.Context, string) (monitor.Assessment, bool, error)
 type Handler struct {
+	responses        ResponseLoad
 	fallbacks        fallback.Reader
 	groups           GroupAssessmentLoad
 	dashboard        DashboardLoad
@@ -193,6 +194,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/v1/monitors/"+h.monitor+"/observations" {
 		h.observations(w, r)
+		return
+	}
+	if r.URL.Path == "/api/v1/monitors/"+h.monitor+"/responses" {
+		h.responseHistory(w, r)
 		return
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/observations/") {

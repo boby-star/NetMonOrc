@@ -1063,3 +1063,20 @@ export async function monitorDependencyContext(name:string,signal?:AbortSignal):
  if(!response.ok)throw resourceError(response.status);
  return response.json();
 }
+
+export interface ResponseEvent {
+  id: string; monitor: string; revision: string; ruleId: string; agent: string;
+  status: string; reason: string; createdAt: string; acceptUntil: string; blockUntil: string;
+  rule: { port: number; sourceCIDR: string; when: string };
+  assessment: { state: string; zones: unknown[] };
+}
+export async function loadResponses(monitor: string, signal: AbortSignal): Promise<ResponseEvent[]> {
+  const response = await apiFetch(`/api/v1/monitors/${encodeURIComponent(monitor)}/responses`, {
+    credentials: "same-origin", cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+  });
+  if (response.status === 401) throw new AccessError("Сесію завершено. Увійдіть повторно.");
+  if (!response.ok) throw new Error(`Історія реакцій недоступна (${response.status}).`);
+  const result = await response.json() as { items: ResponseEvent[] };
+  if (!Array.isArray(result.items)) throw new Error("Некоректна відповідь Controller.");
+  return result.items;
+}

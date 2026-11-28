@@ -1,0 +1,6 @@
+test_allowlist_durable_replay_and_expiry (test_helper.PolicyTest.test_allowlist_durable_replay_and_expiry) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK

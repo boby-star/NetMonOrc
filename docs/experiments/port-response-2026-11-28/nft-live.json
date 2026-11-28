@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "blockedOnlySelectedSourceAndPort": true,
+  "survivedHelperCrash": true,
+  "accessRestoredByKernelTTL": true
+}

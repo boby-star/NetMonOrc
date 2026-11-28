@@ -15,6 +15,9 @@ import (
 // VerifyPlan checks both the canonical revision and Agent-side resource bounds.
 // A valid checksum alone is not permission to execute an arbitrary plan.
 func VerifyPlan(p monitor.Plan, zone string, agent ...string) error {
+	if err := VerifyResponses(p.Responses); err != nil {
+		return err
+	}
 	if err := VerifyComponents(p.Components); err != nil {
 		return err
 	}

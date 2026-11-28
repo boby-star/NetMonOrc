@@ -339,6 +339,7 @@ func run() error {
 				handler.SetAlerts(store, endpointHash)
 				handler.SetAlertAcknowledge(store.AcknowledgeAlert)
 				handler.SetOperations(store)
+				handler.SetResponses(store.ResponseHistory)
 				handler.SetDashboard(func(c context.Context, reads dashboard.Reads) (dashboard.Source, error) {
 					return store.DashboardRuntime(c, revisions, reads)
 				})
@@ -449,7 +450,7 @@ func run() error {
 					proofs := map[string]storage.RuntimeProof{}
 					for _, plan := range plans {
 						runtime := runtimes[plan.Name]
-						if e := assess(ctx, store, plan, runtime.assessor, runtime.slots, runtimePath(*output, plan.Name, p.Name), runtime.diagnostic, runtimePath(*webReport, plan.Name, p.Name), runtime.notifications, runtimePath(*alertOutput, plan.Name, p.Name), runtimePath(*deliveryOutput, plan.Name, p.Name)); e != nil {
+						if e := assess(ctx, store, plan, runtime.assessor, runtime.slots, runtimePath(*output, plan.Name, p.Name), runtime.diagnostic, runtimePath(*webReport, plan.Name, p.Name), runtime.notifications, runtimePath(*alertOutput, plan.Name, p.Name), runtimePath(*deliveryOutput, plan.Name, p.Name), agentServer); e != nil {
 							errors <- e
 							return
 						}
@@ -531,7 +532,7 @@ func run() error {
 		log.Print("Reloading persisted runtime configuration; previous sessions and assessment revision fenced")
 	}
 }
-func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath, deliveryPath string) error {
+func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor *monitor.Assessor, slots []monitor.Slot, path string, diagnostic *coordinator.Coordinator, reportPath string, notifications *notify.Service, alertPath, deliveryPath string, responder *transport.Server) error {
 	var alertState *alerting.State
 	var delivery *webhook.Summary
 	c, done := context.WithTimeout(ctx, 5*time.Second)
@@ -554,6 +555,11 @@ func assess(ctx context.Context, store *storage.Store, p monitor.Plan, assessor 
 	}
 	if e = durable.AtomicWrite(path, b); e != nil {
 		return e
+	}
+	if responder != nil {
+		if e = responder.Respond(ctx, p, a); e != nil {
+			return e
+		}
 	}
 	if diagnostic != nil {
 		if e = store.ControllerAlive(c); e != nil {

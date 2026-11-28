@@ -48,6 +48,7 @@ type TargetContext struct {
 }
 
 type Plan struct {
+	Responses           []ResponseRule              `json:",omitempty"`
 	Labels              map[string]string           `json:",omitempty"`
 	FallbackDomains     map[string]string           `json:",omitempty"`
 	FallbackRoster      []Slot                      `json:",omitempty"`
@@ -78,6 +79,16 @@ type Plan struct {
 	MinCoverage         float64
 	HealthyMin          float64
 	DegradedMin         float64
+}
+
+// ResponseRule is declarative; Agent-side host policy remains authoritative.
+type ResponseRule struct {
+	ID         string        `json:"id"`
+	When       string        `json:"when"`
+	AgentRef   string        `json:"agentRef"`
+	Port       int           `json:"port"`
+	SourceCIDR string        `json:"sourceCIDR"`
+	Duration   time.Duration `json:"duration"`
 }
 
 // Slot is an expected observation source, never inferred from received data.

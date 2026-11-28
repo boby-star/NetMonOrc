@@ -1,0 +1,1 @@
+{"abstractZoneContext":false,"mode":"offline","planningRequired":true,"resources":[{"resource":"Monitor/security-exposure-demo","validationRevision":"b448bbaed46e34f06892ffd29f19bcbaa4f871ae485b5d50a9aabd5f267cbf00"}],"valid":true,"warnings":["Only the supplied catalog was validated. Remote plan/apply resolves the Controller catalog, permissions and current assignments."]}

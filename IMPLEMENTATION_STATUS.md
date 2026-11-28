@@ -1,3 +1,22 @@
+# Декларативне тимчасове блокування порту (2026-11-28)
+
+Додано Monitor.spec.responses: typed CEL when, agentRef, TCP port, host sourceCIDR
+та duration 5–300s. Controller допускає реакцію лише за поточною оцінкою з повним
+покриттям і зберігає команду/Assessment у PostgreSQL до mTLS dispatch. Agent
+перевіряє lease/revision і звертається до opt-in Unix helper; root nftables helper
+обмежений локальним allowlist та peer UID. Kernel TTL відновлює доступ після
+crash. Повтор ID не продовжує строк, одна спроба на rule/revision/епізод; новий
+допуск після свіжого healthy. Невідомий результат зберігається unacknowledged.
+
+Журнал доступний через REST, CLI get responses та React «Захисні реакції».
+[Контракт і встановлення](docs/deployment/port-response.md),
+[приклад](examples/response-block-port.yaml),
+[перевірка](docs/experiments/port-response-2026-11-28/README.md).
+Перевірено реальні PostgreSQL/mTLS/Agent UID 10001, nft блокування, TTL після
+SIGKILL helper та переозброєння після healthy. Зовнішні сервери користувача
+автоматично не оновлювались; остаточна браузерна перевірка нової сторінки не
+виконувалась. Це реакція за Assessment, не повна IDS/IPS і не довільний shell DSL.
+
 # Зональні AlertRule, YAML selectors та повний CEL context
 
 AlertRule підтримує monitorRef XOR selector і scope monitor/zone. Додано typed

@@ -1,0 +1,4 @@
+=== RUN   TestPostgresResponseAdmissionAndFencing
+--- PASS: TestPostgresResponseAdmissionAndFencing (0.08s)
+PASS
+ok  	github.com/boby-star/NetMonOrc/internal/storage	0.095s

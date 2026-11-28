@@ -15,9 +15,10 @@ import (
 )
 
 type taskRequest struct {
-	cancel *pb.TaskCancel
-	ctx    context.Context
-	task   *pb.DiagnosticTask
+	response *pb.ResponseCommand
+	cancel   *pb.TaskCancel
+	ctx      context.Context
+	task     *pb.DiagnosticTask
 }
 type taskWaiter struct {
 	agent  string

@@ -16,6 +16,7 @@ import { Dependencies } from "./Dependencies";
 import { ResourceGroups } from "./ResourceGroups";
 import { Overview } from "./Overview";
 import { History } from "./History";
+import { Responses } from "./Responses";
 import { EvidenceLinks } from "./EvidenceLinks";
 import { Alerts } from "./Alerts";
 import { Tokens } from "./Tokens";
@@ -79,6 +80,7 @@ const pages = [
     hint: "Сесії, фізичні завдання та пояснення результатів",
     scope: "diagnostics:read",
   },
+  { id: "responses", label: "Захисні реакції", icon: "bell", group: "Дослідження", hint: "Команди блокування та збережені докази", scope: "resources:read" },
   {
     id: "fallbacks",
     label: "Резервні спроби",
@@ -917,6 +919,7 @@ function App() {
                       />,
                     )}
                     {panel("groups", <ResourceGroups />)}
+                    {panel("responses", <Responses key={connection.monitor} monitor={connection.monitor} />)}
                     {panel(
                       "fallbacks",
                       <Fallbacks

@@ -87,6 +87,9 @@ CREATE TABLE IF NOT EXISTS nmo_browser_sessions(token_hash bytea PRIMARY KEY,use
 CREATE INDEX IF NOT EXISTS nmo_browser_session_expiry ON nmo_browser_sessions(expires_at);
 CREATE TABLE IF NOT EXISTS nmo_identity_audit(id bigserial PRIMARY KEY,username text NOT NULL,action text NOT NULL,succeeded boolean NOT NULL,occurred_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS nmo_sessions(agent_id text PRIMARY KEY,generation bigint NOT NULL,applied_revision text NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS nmo_response_episodes(monitor text NOT NULL,revision text NOT NULL,rule_id text NOT NULL,fired boolean NOT NULL DEFAULT false,PRIMARY KEY(monitor,revision,rule_id));
+CREATE TABLE IF NOT EXISTS nmo_responses(id text PRIMARY KEY,monitor text NOT NULL,revision text NOT NULL,rule_id text NOT NULL,agent text NOT NULL,generation bigint NOT NULL,status text NOT NULL,reason text NOT NULL DEFAULT '',created_at timestamptz NOT NULL,accept_until timestamptz NOT NULL,block_until timestamptz NOT NULL,assessment jsonb NOT NULL,rule jsonb NOT NULL);
+CREATE INDEX IF NOT EXISTS nmo_responses_monitor ON nmo_responses(monitor,created_at DESC);
 CREATE TABLE IF NOT EXISTS nmo_session_revisions(agent_id text NOT NULL REFERENCES nmo_sessions(agent_id) ON DELETE CASCADE,revision text NOT NULL,generation bigint NOT NULL,PRIMARY KEY(agent_id,revision));
 CREATE TABLE IF NOT EXISTS nmo_assignments(agent_id text NOT NULL,revision text NOT NULL,zone text NOT NULL,monitor text NOT NULL,PRIMARY KEY(agent_id,revision,zone,monitor));
 ALTER TABLE nmo_assignments ADD COLUMN IF NOT EXISTS regular_enabled boolean NOT NULL DEFAULT true;

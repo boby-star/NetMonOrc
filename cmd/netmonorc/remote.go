@@ -117,6 +117,11 @@ func remoteCommand(args []string) error {
 				return fmt.Errorf("dashboard takes no ID or filters")
 			}
 			route = "/api/v1/dashboard/summary"
+		case "responses":
+			if f.NArg() != 2 || *cursor != "" || *state != "" || *tasks || *history {
+				return fmt.Errorf("responses requires a Monitor name and no filters")
+			}
+			route = "/api/v1/monitors"
 		case "observations":
 			if f.NArg() != 2 || *cursor != "" || *state != "" || *tasks || *history {
 				return fmt.Errorf("observations requires one ID and no filters")
@@ -131,13 +136,16 @@ func remoteCommand(args []string) error {
 		case "agents":
 			route = "/api/v1/agents"
 		default:
-			return fmt.Errorf("this CLI supports remote get dependency-context|fallbacks|Component|Dependency|ResourceGroup|groups|PlacementPolicy|AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations")
+			return fmt.Errorf("this CLI supports remote get dependency-context|fallbacks|Component|Dependency|ResourceGroup|groups|PlacementPolicy|AssessmentPolicy|CheckProfile|Target|Monitor|DiagnosticProfile|AlertRule|WebhookEndpoint|operations|agents|diagnostics|alerts|deliveries|dashboard|observations|responses")
 		}
 		if f.NArg() == 2 {
 			route += "/" + url.PathEscape(f.Arg(1))
 		}
 		if f.Arg(0) == "dependency-context" {
 			route += "/dependencies"
+		}
+		if f.Arg(0) == "responses" {
+			route += "/responses"
 		}
 		if f.Arg(0) == "groups" {
 			route += "/assessment"

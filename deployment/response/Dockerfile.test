@@ -1,0 +1,7 @@
+FROM debian:bookworm-slim
+RUN --mount=type=secret,id=build_ca \
+    apt-get -o Acquire::https::CaInfo=/run/secrets/build_ca update && \
+    apt-get -o Acquire::https::CaInfo=/run/secrets/build_ca install -y --no-install-recommends python3 nftables iproute2 openssl && \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /test
+COPY deployment/response/helper.py ./helper.py

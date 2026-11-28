@@ -84,6 +84,7 @@ type AgentFrame struct {
 	//	*AgentFrame_Heartbeat
 	//	*AgentFrame_TaskReceipt
 	//	*AgentFrame_ConfigRejected
+	//	*AgentFrame_ResponseReceipt
 	Payload       isAgentFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -208,6 +209,15 @@ func (x *AgentFrame) GetConfigRejected() *ConfigRejected {
 	return nil
 }
 
+func (x *AgentFrame) GetResponseReceipt() *ResponseReceipt {
+	if x != nil {
+		if x, ok := x.Payload.(*AgentFrame_ResponseReceipt); ok {
+			return x.ResponseReceipt
+		}
+	}
+	return nil
+}
+
 type isAgentFrame_Payload interface {
 	isAgentFrame_Payload()
 }
@@ -236,6 +246,10 @@ type AgentFrame_ConfigRejected struct {
 	ConfigRejected *ConfigRejected `protobuf:"bytes,15,opt,name=config_rejected,json=configRejected,proto3,oneof"`
 }
 
+type AgentFrame_ResponseReceipt struct {
+	ResponseReceipt *ResponseReceipt `protobuf:"bytes,16,opt,name=response_receipt,json=responseReceipt,proto3,oneof"`
+}
+
 func (*AgentFrame_Hello) isAgentFrame_Payload() {}
 
 func (*AgentFrame_ConfigApplied) isAgentFrame_Payload() {}
@@ -247,6 +261,8 @@ func (*AgentFrame_Heartbeat) isAgentFrame_Payload() {}
 func (*AgentFrame_TaskReceipt) isAgentFrame_Payload() {}
 
 func (*AgentFrame_ConfigRejected) isAgentFrame_Payload() {}
+
+func (*AgentFrame_ResponseReceipt) isAgentFrame_Payload() {}
 
 type ControllerFrame struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -261,6 +277,7 @@ type ControllerFrame struct {
 	//	*ControllerFrame_ObservationAck
 	//	*ControllerFrame_DiagnosticTask
 	//	*ControllerFrame_TaskCancel
+	//	*ControllerFrame_ResponseCommand
 	Payload       isControllerFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -376,6 +393,15 @@ func (x *ControllerFrame) GetTaskCancel() *TaskCancel {
 	return nil
 }
 
+func (x *ControllerFrame) GetResponseCommand() *ResponseCommand {
+	if x != nil {
+		if x, ok := x.Payload.(*ControllerFrame_ResponseCommand); ok {
+			return x.ResponseCommand
+		}
+	}
+	return nil
+}
+
 type isControllerFrame_Payload interface {
 	isControllerFrame_Payload()
 }
@@ -400,6 +426,10 @@ type ControllerFrame_TaskCancel struct {
 	TaskCancel *TaskCancel `protobuf:"bytes,14,opt,name=task_cancel,json=taskCancel,proto3,oneof"`
 }
 
+type ControllerFrame_ResponseCommand struct {
+	ResponseCommand *ResponseCommand `protobuf:"bytes,15,opt,name=response_command,json=responseCommand,proto3,oneof"`
+}
+
 func (*ControllerFrame_HelloAccepted) isControllerFrame_Payload() {}
 
 func (*ControllerFrame_Assignment) isControllerFrame_Payload() {}
@@ -409,6 +439,8 @@ func (*ControllerFrame_ObservationAck) isControllerFrame_Payload() {}
 func (*ControllerFrame_DiagnosticTask) isControllerFrame_Payload() {}
 
 func (*ControllerFrame_TaskCancel) isControllerFrame_Payload() {}
+
+func (*ControllerFrame_ResponseCommand) isControllerFrame_Payload() {}
 
 type AgentHello struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1485,11 +1517,148 @@ func (x *TaskCancel) GetReason() string {
 	return ""
 }
 
+// Port/source/duration are read from the current authenticated compiled Plan.
+type ResponseCommand struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Revision             string                 `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	RuleId               string                 `protobuf:"bytes,3,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	AcceptUntilUnixMilli int64                  `protobuf:"varint,4,opt,name=accept_until_unix_milli,json=acceptUntilUnixMilli,proto3" json:"accept_until_unix_milli,omitempty"`
+	BlockUntilUnixMilli  int64                  `protobuf:"varint,5,opt,name=block_until_unix_milli,json=blockUntilUnixMilli,proto3" json:"block_until_unix_milli,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ResponseCommand) Reset() {
+	*x = ResponseCommand{}
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseCommand) ProtoMessage() {}
+
+func (x *ResponseCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseCommand.ProtoReflect.Descriptor instead.
+func (*ResponseCommand) Descriptor() ([]byte, []int) {
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ResponseCommand) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ResponseCommand) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *ResponseCommand) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *ResponseCommand) GetAcceptUntilUnixMilli() int64 {
+	if x != nil {
+		return x.AcceptUntilUnixMilli
+	}
+	return 0
+}
+
+func (x *ResponseCommand) GetBlockUntilUnixMilli() int64 {
+	if x != nil {
+		return x.BlockUntilUnixMilli
+	}
+	return 0
+}
+
+type ResponseReceipt struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResponseReceipt) Reset() {
+	*x = ResponseReceipt{}
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseReceipt) ProtoMessage() {}
+
+func (x *ResponseReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_netmonorc_agent_v1_agent_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseReceipt.ProtoReflect.Descriptor instead.
+func (*ResponseReceipt) Descriptor() ([]byte, []int) {
+	return file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ResponseReceipt) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ResponseReceipt) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ResponseReceipt) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_proto_netmonorc_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"$proto/netmonorc/agent/v1/agent.proto\x12\x12netmonorc.agent.v1\"\xd6\x04\n" +
+	"$proto/netmonorc/agent/v1/agent.proto\x12\x12netmonorc.agent.v1\"\xa8\x05\n" +
 	"\n" +
 	"AgentFrame\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
@@ -1503,8 +1672,9 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\x11observation_batch\x18\f \x01(\v2$.netmonorc.agent.v1.ObservationBatchH\x00R\x10observationBatch\x12=\n" +
 	"\theartbeat\x18\r \x01(\v2\x1d.netmonorc.agent.v1.HeartbeatH\x00R\theartbeat\x12D\n" +
 	"\ftask_receipt\x18\x0e \x01(\v2\x1f.netmonorc.agent.v1.TaskReceiptH\x00R\vtaskReceipt\x12M\n" +
-	"\x0fconfig_rejected\x18\x0f \x01(\v2\".netmonorc.agent.v1.ConfigRejectedH\x00R\x0econfigRejectedB\t\n" +
-	"\apayload\"\xa3\x04\n" +
+	"\x0fconfig_rejected\x18\x0f \x01(\v2\".netmonorc.agent.v1.ConfigRejectedH\x00R\x0econfigRejected\x12P\n" +
+	"\x10response_receipt\x18\x10 \x01(\v2#.netmonorc.agent.v1.ResponseReceiptH\x00R\x0fresponseReceiptB\t\n" +
+	"\apayload\"\xf5\x04\n" +
 	"\x0fControllerFrame\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x1d\n" +
@@ -1519,7 +1689,8 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fobservation_ack\x18\f \x01(\v2\".netmonorc.agent.v1.ObservationAckH\x00R\x0eobservationAck\x12M\n" +
 	"\x0fdiagnostic_task\x18\r \x01(\v2\".netmonorc.agent.v1.DiagnosticTaskH\x00R\x0ediagnosticTask\x12A\n" +
 	"\vtask_cancel\x18\x0e \x01(\v2\x1e.netmonorc.agent.v1.TaskCancelH\x00R\n" +
-	"taskCancelB\t\n" +
+	"taskCancel\x12P\n" +
+	"\x10response_command\x18\x0f \x01(\v2#.netmonorc.agent.v1.ResponseCommandH\x00R\x0fresponseCommandB\t\n" +
 	"\apayload\"U\n" +
 	"\n" +
 	"AgentHello\x12#\n" +
@@ -1618,7 +1789,17 @@ const file_proto_netmonorc_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"TaskCancel\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason2b\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xc2\x01\n" +
+	"\x0fResponseCommand\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\tR\brevision\x12\x17\n" +
+	"\arule_id\x18\x03 \x01(\tR\x06ruleId\x125\n" +
+	"\x17accept_until_unix_milli\x18\x04 \x01(\x03R\x14acceptUntilUnixMilli\x123\n" +
+	"\x16block_until_unix_milli\x18\x05 \x01(\x03R\x13blockUntilUnixMilli\"Q\n" +
+	"\x0fResponseReceipt\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason2b\n" +
 	"\fAgentService\x12R\n" +
 	"\aConnect\x12\x1e.netmonorc.agent.v1.AgentFrame\x1a#.netmonorc.agent.v1.ControllerFrame(\x010\x01BAZ?github.com/boby-star/NetMonOrc/proto/netmonorc/agent/v1;agentv1b\x06proto3"
 
@@ -1635,7 +1816,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_netmonorc_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_proto_netmonorc_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(ObservationReceipt_Status)(0), // 0: netmonorc.agent.v1.ObservationReceipt.Status
 	(*AgentFrame)(nil),             // 1: netmonorc.agent.v1.AgentFrame
@@ -1655,8 +1836,10 @@ var file_proto_netmonorc_agent_v1_agent_proto_goTypes = []any{
 	(*DiagnosticTask)(nil),         // 15: netmonorc.agent.v1.DiagnosticTask
 	(*TaskReceipt)(nil),            // 16: netmonorc.agent.v1.TaskReceipt
 	(*TaskCancel)(nil),             // 17: netmonorc.agent.v1.TaskCancel
-	nil,                            // 18: netmonorc.agent.v1.Observation.ExtractionStatusEntry
-	nil,                            // 19: netmonorc.agent.v1.Observation.ValuesEntry
+	(*ResponseCommand)(nil),        // 18: netmonorc.agent.v1.ResponseCommand
+	(*ResponseReceipt)(nil),        // 19: netmonorc.agent.v1.ResponseReceipt
+	nil,                            // 20: netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	nil,                            // 21: netmonorc.agent.v1.Observation.ValuesEntry
 }
 var file_proto_netmonorc_agent_v1_agent_proto_depIdxs = []int32{
 	3,  // 0: netmonorc.agent.v1.AgentFrame.hello:type_name -> netmonorc.agent.v1.AgentHello
@@ -1665,25 +1848,27 @@ var file_proto_netmonorc_agent_v1_agent_proto_depIdxs = []int32{
 	13, // 3: netmonorc.agent.v1.AgentFrame.heartbeat:type_name -> netmonorc.agent.v1.Heartbeat
 	16, // 4: netmonorc.agent.v1.AgentFrame.task_receipt:type_name -> netmonorc.agent.v1.TaskReceipt
 	6,  // 5: netmonorc.agent.v1.AgentFrame.config_rejected:type_name -> netmonorc.agent.v1.ConfigRejected
-	4,  // 6: netmonorc.agent.v1.ControllerFrame.hello_accepted:type_name -> netmonorc.agent.v1.HelloAccepted
-	5,  // 7: netmonorc.agent.v1.ControllerFrame.assignment:type_name -> netmonorc.agent.v1.ConfigAssignment
-	12, // 8: netmonorc.agent.v1.ControllerFrame.observation_ack:type_name -> netmonorc.agent.v1.ObservationAck
-	15, // 9: netmonorc.agent.v1.ControllerFrame.diagnostic_task:type_name -> netmonorc.agent.v1.DiagnosticTask
-	17, // 10: netmonorc.agent.v1.ControllerFrame.task_cancel:type_name -> netmonorc.agent.v1.TaskCancel
-	18, // 11: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
-	19, // 12: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
-	8,  // 13: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
-	0,  // 14: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
-	11, // 15: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
-	14, // 16: netmonorc.agent.v1.Heartbeat.components:type_name -> netmonorc.agent.v1.ComponentReadiness
-	9,  // 17: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
-	1,  // 18: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
-	2,  // 19: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
-	19, // [19:20] is the sub-list for method output_type
-	18, // [18:19] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	19, // 6: netmonorc.agent.v1.AgentFrame.response_receipt:type_name -> netmonorc.agent.v1.ResponseReceipt
+	4,  // 7: netmonorc.agent.v1.ControllerFrame.hello_accepted:type_name -> netmonorc.agent.v1.HelloAccepted
+	5,  // 8: netmonorc.agent.v1.ControllerFrame.assignment:type_name -> netmonorc.agent.v1.ConfigAssignment
+	12, // 9: netmonorc.agent.v1.ControllerFrame.observation_ack:type_name -> netmonorc.agent.v1.ObservationAck
+	15, // 10: netmonorc.agent.v1.ControllerFrame.diagnostic_task:type_name -> netmonorc.agent.v1.DiagnosticTask
+	17, // 11: netmonorc.agent.v1.ControllerFrame.task_cancel:type_name -> netmonorc.agent.v1.TaskCancel
+	18, // 12: netmonorc.agent.v1.ControllerFrame.response_command:type_name -> netmonorc.agent.v1.ResponseCommand
+	20, // 13: netmonorc.agent.v1.Observation.extraction_status:type_name -> netmonorc.agent.v1.Observation.ExtractionStatusEntry
+	21, // 14: netmonorc.agent.v1.Observation.values:type_name -> netmonorc.agent.v1.Observation.ValuesEntry
+	8,  // 15: netmonorc.agent.v1.ObservationBatch.observations:type_name -> netmonorc.agent.v1.Observation
+	0,  // 16: netmonorc.agent.v1.ObservationReceipt.status:type_name -> netmonorc.agent.v1.ObservationReceipt.Status
+	11, // 17: netmonorc.agent.v1.ObservationAck.receipts:type_name -> netmonorc.agent.v1.ObservationReceipt
+	14, // 18: netmonorc.agent.v1.Heartbeat.components:type_name -> netmonorc.agent.v1.ComponentReadiness
+	9,  // 19: netmonorc.agent.v1.Observation.ValuesEntry.value:type_name -> netmonorc.agent.v1.ScalarValue
+	1,  // 20: netmonorc.agent.v1.AgentService.Connect:input_type -> netmonorc.agent.v1.AgentFrame
+	2,  // 21: netmonorc.agent.v1.AgentService.Connect:output_type -> netmonorc.agent.v1.ControllerFrame
+	21, // [21:22] is the sub-list for method output_type
+	20, // [20:21] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_proto_netmonorc_agent_v1_agent_proto_init() }
@@ -1698,6 +1883,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 		(*AgentFrame_Heartbeat)(nil),
 		(*AgentFrame_TaskReceipt)(nil),
 		(*AgentFrame_ConfigRejected)(nil),
+		(*AgentFrame_ResponseReceipt)(nil),
 	}
 	file_proto_netmonorc_agent_v1_agent_proto_msgTypes[1].OneofWrappers = []any{
 		(*ControllerFrame_HelloAccepted)(nil),
@@ -1705,6 +1891,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 		(*ControllerFrame_ObservationAck)(nil),
 		(*ControllerFrame_DiagnosticTask)(nil),
 		(*ControllerFrame_TaskCancel)(nil),
+		(*ControllerFrame_ResponseCommand)(nil),
 	}
 	file_proto_netmonorc_agent_v1_agent_proto_msgTypes[8].OneofWrappers = []any{
 		(*ScalarValue_StringValue)(nil),
@@ -1718,7 +1905,7 @@ func file_proto_netmonorc_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_netmonorc_agent_v1_agent_proto_rawDesc), len(file_proto_netmonorc_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

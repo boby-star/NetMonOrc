@@ -25,8 +25,9 @@ type Manifest struct {
 		Name string `yaml:"name"`
 	} `yaml:"metadata"`
 	Spec struct {
-		Enabled *bool `yaml:"enabled"`
-		Target  struct {
+		Responses []responseSpec `yaml:"responses"`
+		Enabled   *bool          `yaml:"enabled"`
+		Target    struct {
 			Type        string `yaml:"type"`
 			NetworkZone string `yaml:"networkZone"`
 			Criticality *int   `yaml:"criticality"`
@@ -352,6 +353,9 @@ func Compile(data []byte) (monitor.Plan, error) {
 		p.Checks[j].Weight /= total
 	}
 	sort.Slice(p.Checks, func(i, j int) bool { return p.Checks[i].ID < p.Checks[j].ID })
+	if err := compileResponses(&p, m.Spec.Responses); err != nil {
+		return p, err
+	}
 	b, e := json.Marshal(p)
 	if e != nil {
 		return p, e

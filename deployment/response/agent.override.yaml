@@ -1,0 +1,7 @@
+# Agent remains UID 10001 with cap_drop: ALL; helper runs on the Linux host.
+services:
+  agent:
+    environment:
+      NETMONORC_RESPONSE_SOCKET: /run/netmonorc-response/helper.sock
+    volumes:
+      - /run/netmonorc-response:/run/netmonorc-response:ro

@@ -18,6 +18,7 @@ message AgentFrame {
     Heartbeat heartbeat = 13;
     TaskReceipt task_receipt = 14;
     ConfigRejected config_rejected = 15;
+    ResponseReceipt response_receipt = 16;
   }
 }
 message ControllerFrame {
@@ -31,6 +32,7 @@ message ControllerFrame {
     ObservationAck observation_ack = 12;
     DiagnosticTask diagnostic_task = 13;
     TaskCancel task_cancel = 14;
+    ResponseCommand response_command = 15;
   }
 }
 message AgentHello { string agent_version = 1; repeated string capabilities = 2; }
@@ -112,3 +114,13 @@ message TaskReceipt {
 }
 
 message TaskCancel { string task_id = 1; string reason = 2; }
+
+// Port/source/duration are read from the current authenticated compiled Plan.
+message ResponseCommand {
+  string id = 1;
+  string revision = 2;
+  string rule_id = 3;
+  int64 accept_until_unix_milli = 4;
+  int64 block_until_unix_milli = 5;
+}
+message ResponseReceipt { string id = 1; string status = 2; string reason = 3; }

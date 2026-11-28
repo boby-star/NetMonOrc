@@ -1,0 +1,27 @@
+[Unit]
+Description=NetMonOrc bounded port-response helper
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=10001
+EnvironmentFile=/etc/netmonorc-response.env
+ExecStart=/usr/bin/python3 /opt/netmonorc-response/helper.py --ports ${NMO_RESPONSE_PORTS} --sources ${NMO_RESPONSE_SOURCES}
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=netmonorc-response
+RuntimeDirectoryMode=0750
+StateDirectory=netmonorc-response
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN CAP_DAC_OVERRIDE
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+ReadWritePaths=/run/netmonorc-response /var/lib/netmonorc-response
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
